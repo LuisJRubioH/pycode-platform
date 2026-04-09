@@ -1,0 +1,42 @@
+"""
+Authentication and user schemas.
+"""
+
+from datetime import datetime
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional
+
+
+class UserBase(BaseModel):
+    """Base user schema."""
+    email: EmailStr
+    username: str = Field(..., min_length=3, max_length=50)
+
+
+class UserCreate(UserBase):
+    """Schema for user registration."""
+    password: str = Field(..., min_length=8, max_length=100)
+
+
+class UserResponse(UserBase):
+    """Schema for user response."""
+    id: int
+    is_active: bool
+    created_at: datetime
+    last_login: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+
+class Token(BaseModel):
+    """JWT token schema."""
+    access_token: str
+    token_type: str
+    user_id: int
+    username: str
+
+
+class TokenPayload(BaseModel):
+    """JWT token payload."""
+    sub: Optional[int] = None
