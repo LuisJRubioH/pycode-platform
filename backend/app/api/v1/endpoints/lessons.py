@@ -7,6 +7,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
@@ -83,7 +84,9 @@ async def get_lesson(
 ):
     """Get a specific lesson by ID."""
     result = await db.execute(
-        select(Lesson).where(Lesson.id == lesson_id, Lesson.is_active)
+        select(Lesson)
+        .options(selectinload(Lesson.exercises))
+        .where(Lesson.id == lesson_id, Lesson.is_active)
     )
     lesson = result.scalar_one_or_none()
     

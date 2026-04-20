@@ -123,10 +123,11 @@ plataforma_pycode/
 - [x] Autenticación con JWT (con corrección de flujos para usuarios nuevos)
 - [x] Ejecución de código Python de forma local persistente
 - [x] Editor Monaco integrado (Configurable, descarga de código, opción de compartir)
-- [x] Estructura base de lecciones
+- [x] Temario completo de Python: 25 lecciones (principiante → avanzado) con 64 ejercicios progresivos
 - [x] Chat en tiempo real y tutor por IA Socrático interactivo
-- [x] Sistema de progreso dinámico 
+- [x] Sistema de progreso dinámico con seguimiento por usuario
 - [x] Dashboard de usuario (estadísticas conectadas a SQL)
+- [x] Lazy loading optimizado con eager loading (selectinload) para relaciones async
 
 ## Contribuir
 
