@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { UserPlus, Mail, Lock, User } from 'lucide-react'
+import { useAuthStore } from '../stores/authStore'
 
 const Register: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -12,6 +13,7 @@ const Register: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
+  const register = useAuthStore((state) => state.register)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,29 +22,24 @@ const Register: React.FC = () => {
       setError('Las contraseñas no coinciden')
       return
     }
+
+    if (formData.password.length < 8) {
+      setError('La contraseña debe tener al menos 8 caracteres')
+      return
+    }
     
     setIsLoading(true)
     setError('')
     
     try {
-      const response = await fetch('/api/v1/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: formData.username,
-          email: formData.email,
-          password: formData.password
-        })
-      })
-      
-      if (response.ok) {
-        navigate('/login')
+      await register(formData.username, formData.email, formData.password)
+      navigate('/login')
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message)
       } else {
-        const data = await response.json()
-        setError(data.detail || 'Error al registrar')
+        setError('Error de conexión')
       }
-    } catch {
-      setError('Error de conexión')
     } finally {
       setIsLoading(false)
     }

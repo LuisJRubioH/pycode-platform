@@ -4,7 +4,7 @@ Main API router for version 1.
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, users, lessons, exercises, code_execution, tutor, progress
+from app.api.v1.endpoints import auth, users, lessons, exercises, code_execution, tutor, progress, elo, challenges
 
 api_router = APIRouter()
 
@@ -16,3 +16,5 @@ api_router.include_router(exercises.router, prefix="/exercises", tags=["exercise
 api_router.include_router(code_execution.router, prefix="/execute", tags=["code execution"])
 api_router.include_router(tutor.router, prefix="/tutor", tags=["AI tutor"])
 api_router.include_router(progress.router, prefix="/progress", tags=["progress"])
+api_router.include_router(elo.router, prefix="/elo", tags=["elo"])
+api_router.include_router(challenges.router, prefix="/challenges", tags=["challenges"])

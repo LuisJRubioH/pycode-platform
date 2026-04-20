@@ -1,157 +1,208 @@
 """
-AI Tutor Service with OpenAI integration and Socratic method.
+AI Tutor Service with OpenAI integration and a code-evaluation Socratic style.
 """
 
-import openai
+from pathlib import Path
+from typing import Any
+
+from openai import AsyncOpenAI
+
 from app.core.config import settings
 
 
 class AITutorService:
-    """AI Tutor service using OpenAI with Socratic method."""
-    
+    """AI tutor service that evaluates beginner Python code without giving full solutions."""
+
     def __init__(self):
-        openai.api_key = settings.OPENAI_API_KEY
-        
-        self.system_prompt = """You are a Python programming tutor who uses the Socratic method. 
-Your goal is to guide students to discover answers through questions rather than giving direct solutions.
+        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else None
+        self.system_prompt = self._load_system_prompt()
 
-Guidelines:
-1. Never give complete code solutions directly
-2. Ask guiding questions to help students think
-3. Provide hints and nudges in the right direction
-4. Explain concepts through examples and analogies
-5. Encourage experimentation and learning from mistakes
-6. Adapt your explanations based on the student's level
-7. Celebrate small wins and progress
+    async def get_response(self, message: str, context: dict | None = None) -> str:
+        """Get a response from the tutor using the configured prompt and structured context."""
+        normalized_context = self._normalize_context(context)
 
-When a student asks about code:
-- Ask what they think the code does
-- Guide them to trace through it step by step
-- Help them identify patterns
-- Ask what changes they might try
+        if not self.client:
+            return self._get_fallback_response(message, normalized_context)
 
-When a student is stuck on an error:
-- Ask them to read the error message carefully
-- Guide them to the specific line
-- Ask what they think caused it
-- Suggest they check specific things (syntax, indentation, variable names)
-
-Always be encouraging, patient, and make learning Python feel achievable and fun!"""
-
-    async def get_response(self, message: str, context: dict = None) -> str:
-        """Get response from AI tutor."""
-        if not settings.OPENAI_API_KEY:
-            return self._get_fallback_response(message)
-        
         try:
-            # Build context-aware prompt
-            user_context = self._build_context(context)
-            
             messages = [
                 {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": f"{user_context}\n\nStudent question: {message}"}
+                {
+                    "role": "user",
+                    "content": (
+                        f"{self._build_context(normalized_context)}\n\n"
+                        f"Consulta o comentario del estudiante:\n{message.strip()}"
+                    ).strip(),
+                },
             ]
-            
-            response = await openai.ChatCompletion.acreate(
-                model="gpt-3.5-turbo",
+
+            response = await self.client.chat.completions.create(
+                model=settings.OPENAI_MODEL,
                 messages=messages,
-                max_tokens=500,
-                temperature=0.7
+                max_tokens=700,
+                temperature=0.4,
             )
-            
-            return response.choices[0].message.content
-            
-        except Exception as e:
-            print(f"Error calling OpenAI: {e}")
-            return self._get_fallback_response(message)
-    
-    def _build_context(self, context: dict = None) -> str:
-        """Build context string from user context."""
+
+            content = response.choices[0].message.content or ""
+            return content.strip() or self._get_fallback_response(message, normalized_context)
+
+        except Exception as exc:
+            print(f"Error calling OpenAI: {exc}")
+            return self._get_fallback_response(message, normalized_context)
+
+    def _load_system_prompt(self) -> str:
+        """Load the tutor prompt from the configured file with a safe local fallback."""
+        fallback_prompt = (
+            "Actua como un maestro experto en Python especializado en evaluacion de codigo "
+            "para principiantes. Nunca entregues la solucion completa. Evalua lo que el "
+            "problema pide, usa tono alentador, enfocate en pocos conceptos clave y guia "
+            "con preguntas socraticas."
+        )
+
+        prompt_path = Path(settings.tutor_prompt_path)
+        try:
+            prompt_text = prompt_path.read_text(encoding="utf-8").strip()
+            if prompt_text:
+                return prompt_text
+        except OSError:
+            pass
+
+        return fallback_prompt
+
+    def _normalize_context(self, context: dict[str, Any] | None) -> dict[str, Any]:
+        """Normalize incoming context so different clients can send equivalent keys."""
         if not context:
-            return ""
-        
-        context_parts = []
-        
-        level = context.get('level', 'beginner')
-        context_parts.append(f"Student level: {level}")
-        
-        current_lesson = context.get('currentLesson')
+            return {}
+
+        aliases = {
+            "problem_description": ("problem_description", "problem", "exercise", "enunciado"),
+            "student_code": ("student_code", "code", "currentCode", "codigo"),
+            "expected_output": ("expected_output", "expected", "expectedOutput"),
+            "actual_output": ("actual_output", "output", "actualOutput"),
+            "current_lesson": ("current_lesson", "currentLesson", "lesson"),
+            "level": ("level", "student_level", "nivel"),
+            "attempt_count": ("attempt_count", "attemptCount", "tries", "intentos"),
+            "recent_errors": ("recent_errors", "recentErrors", "errors"),
+            "weaknesses": ("weaknesses", "topics", "debilidades"),
+        }
+
+        normalized: dict[str, Any] = {}
+        for canonical_key, possible_keys in aliases.items():
+            for key in possible_keys:
+                value = context.get(key)
+                if value not in (None, "", [], {}):
+                    normalized[canonical_key] = value
+                    break
+
+        for key, value in context.items():
+            if key not in normalized and value not in (None, "", [], {}):
+                normalized[key] = value
+
+        return normalized
+
+    def _build_context(self, context: dict[str, Any] | None = None) -> str:
+        """Build the structured prompt context for the tutor."""
+        if not context:
+            return (
+                "Contexto disponible:\n"
+                "- Nivel del estudiante: beginner\n"
+                "- Si falta el enunciado o el codigo, pide esos datos antes de evaluar."
+            )
+
+        context_parts = [f"- Nivel del estudiante: {context.get('level', 'beginner')}"]
+
+        current_lesson = context.get("current_lesson")
         if current_lesson:
-            context_parts.append(f"Current lesson: {current_lesson}")
-        
-        recent_errors = context.get('recentErrors', [])
+            context_parts.append(f"- Leccion o tema actual: {current_lesson}")
+
+        attempt_count = context.get("attempt_count")
+        if attempt_count is not None:
+            context_parts.append(f"- Intentos acumulados en este problema: {attempt_count}")
+
+        recent_errors = context.get("recent_errors")
         if recent_errors:
-            context_parts.append(f"Recent errors: {', '.join(recent_errors)}")
-        
-        return "\n".join(context_parts) if context_parts else ""
-    
-    def _get_fallback_response(self, message: str) -> str:
-        """Get fallback response when OpenAI is not available."""
-        message_lower = message.lower()
-        
-        if 'variable' in message_lower:
-            return """¡Gran pregunta sobre variables! 🎯
+            if isinstance(recent_errors, list):
+                context_parts.append(f"- Errores recientes: {', '.join(map(str, recent_errors))}")
+            else:
+                context_parts.append(f"- Errores recientes: {recent_errors}")
 
-Las variables son como cajas etiquetadas donde guardamos información. 
+        weaknesses = context.get("weaknesses")
+        if weaknesses:
+            if isinstance(weaknesses, list):
+                context_parts.append(f"- Debilidades detectadas: {', '.join(map(str, weaknesses))}")
+            else:
+                context_parts.append(f"- Debilidades detectadas: {weaknesses}")
 
-Antes de explicarte más, dime:
-- ¿Has intentado crear alguna variable en el editor?
-- ¿Qué crees que pasaría si escribimos: `mi_nombre = "Python"`?
+        problem_description = context.get("problem_description")
+        if problem_description:
+            context_parts.append(f"\nEnunciado del problema:\n{problem_description}")
 
-¡Inténtalo y cuéntame qué ves!"""
-        
-        elif 'print' in message_lower or 'imprimir' in message_lower:
-            return """¡Excelente! La función `print()` es fundamental. 📢
+        student_code = context.get("student_code")
+        if student_code:
+            context_parts.append(f"\nCodigo del estudiante:\n```python\n{student_code}\n```")
 
-Pensemos juntos:
-- ¿Qué crees que hace `print("Hola")` exactamente?
-- ¿Por qué crees que usamos paréntesis `()`?
+        expected_output = context.get("expected_output")
+        if expected_output:
+            context_parts.append(f"\nSalida esperada o criterio objetivo:\n{expected_output}")
 
-Prueba esto en el editor:
-```python
-print("Hola")
-print(2 + 3)
-print("2 + 3")
-```
+        actual_output = context.get("actual_output")
+        if actual_output:
+            context_parts.append(f"\nSalida actual del estudiante:\n{actual_output}")
 
-¿Qué diferencias notas entre las últimas dos líneas? 🤔"""
-        
-        elif 'error' in message_lower:
-            return """¡Los errores son parte del aprendizaje! 💪
+        return "Contexto disponible:\n" + "\n".join(context_parts)
 
-Cuando veas un error, pregúntate:
-1. ¿Qué línea menciona el error?
-2. ¿Qué tipo de error es? (SyntaxError, NameError, etc.)
-3. ¿Qué crees que significa ese mensaje?
+    def _get_fallback_response(self, message: str, context: dict[str, Any] | None = None) -> str:
+        """Return a deterministic response when the model is unavailable."""
+        problem_description = (context or {}).get("problem_description")
+        student_code = (context or {}).get("student_code")
+        actual_output = (context or {}).get("actual_output")
+        expected_output = (context or {}).get("expected_output")
 
-Copia el mensaje de error aquí y analicémoslo juntos paso a paso."""
-        
-        elif 'tipo de dato' in message_lower or 'type' in message_lower:
-            return """¡Los tipos de datos son super importantes! 🧮
+        if not problem_description or not student_code:
+            return (
+                "CALIFICACION:\n"
+                "- Logica: 0/100 (aun no puedo evaluarla sin el enunciado y el codigo del estudiante)\n"
+                "- Solucion General: 0/100 (necesito mas contexto para hacer una revision justa)\n\n"
+                "ANALISIS DETALLADO:\n\n"
+                "PUNTOS FUERTES:\n"
+                "- Estas pidiendo retroalimentacion antes de seguir avanzando.\n"
+                "- Hay intencion de aprender el razonamiento, no solo copiar una solucion.\n\n"
+                "AREAS DE MEJORA:\n"
+                "- Comparte el enunciado exacto del problema.\n"
+                "- Comparte tambien tu codigo actual para poder revisar logica y claridad.\n\n"
+                "RECOMENDACIONES:\n"
+                "- Que resultado exacto te pide el ejercicio?\n"
+                "- Que parte de tu intento sientes que funciona y cual te genera duda?\n"
+            )
 
-Python tiene varios tipos básicos:
-- Números enteros (int): 1, 42, -7
-- Números decimales (float): 3.14, 2.5
-- Texto (str): "Hola", 'Python'
-- Booleanos (bool): True, False
+        matches_expected_output = (
+            actual_output is not None
+            and expected_output is not None
+            and str(actual_output).strip() == str(expected_output).strip()
+        )
+        logic_score = 75 if matches_expected_output else 60
+        general_score = 78 if len(student_code.splitlines()) <= 25 else 70
+        output_note = ""
+        if actual_output is not None and expected_output is not None:
+            output_note = (
+                f" La salida actual es `{actual_output}` y la esperada es `{expected_output}`."
+            )
 
-Pregunta clave: ¿Qué crees que obtendrías si sumas `"5" + "3"` vs `5 + 3`?
+        return (
+            "CALIFICACION:\n"
+            f"- Logica: {logic_score}/100 (estimacion inicial basada en el contexto disponible.{output_note})\n"
+            f"- Solucion General: {general_score}/100 (estimacion inicial segun claridad y tamano de la solucion)\n\n"
+            "ANALISIS DETALLADO:\n\n"
+            "PUNTOS FUERTES:\n"
+            "- Ya hay una propuesta concreta de solucion para analizar.\n"
+            "- Estas buscando mejorar tanto la logica como la claridad del codigo.\n\n"
+            "AREAS DE MEJORA:\n"
+            "- Revisa si cada parte del codigo responde exactamente a lo que pide el enunciado.\n"
+            "- Valida al menos un caso borde adicional para confirmar que la solucion generaliza.\n\n"
+            "RECOMENDACIONES:\n"
+            "- Que pasaria si pruebas tu solucion con un caso pequeno y otro extremo?\n"
+            "- Que nombres o estructuras podrias ajustar para que tu idea se entienda mas rapido?\n"
+        )
 
-¡Pruébalo en el editor y sorpréndete! 🎉"""
-        
-        else:
-            return """¡Interesante pregunta! 🤔
 
-Como buen tutor socrático, déjame guiarte:
-
-1. ¿Qué has intentado hasta ahora?
-2. ¿Qué esperabas que pasara vs. lo que realmente pasó?
-3. ¿Hay algún error específico que estés viendo?
-
-Cuéntame más sobre tu código o el concepto que quieres entender, y juntos lo resolveremos paso a paso. 
-
-Recuerda: ¡no hay preguntas tontas, solo oportunidades de aprender! 🌟"""
-
-
-# Singleton instance
 tutor_service = AITutorService()

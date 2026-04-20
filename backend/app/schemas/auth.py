@@ -18,6 +18,12 @@ class UserCreate(UserBase):
     password: str = Field(..., min_length=8, max_length=100)
 
 
+class LoginRequest(BaseModel):
+    """Schema for user login (JSON body)."""
+    email: EmailStr
+    password: str
+
+
 class UserResponse(UserBase):
     """Schema for user response."""
     id: int

@@ -120,13 +120,13 @@ plataforma_pycode/
 
 ## Características MVP (Fase 1)
 
-- [x] Autenticación con JWT
-- [x] Ejecución de código Python en Docker
-- [x] Editor Monaco integrado
+- [x] Autenticación con JWT (con corrección de flujos para usuarios nuevos)
+- [x] Ejecución de código Python de forma local persistente
+- [x] Editor Monaco integrado (Configurable, descarga de código, opción de compartir)
 - [x] Estructura base de lecciones
-- [ ] Integración con OpenAI
-- [ ] Sistema de progreso
-- [ ] Dashboard de usuario
+- [x] Chat en tiempo real y tutor por IA Socrático interactivo
+- [x] Sistema de progreso dinámico 
+- [x] Dashboard de usuario (estadísticas conectadas a SQL)
 
 ## Contribuir
 

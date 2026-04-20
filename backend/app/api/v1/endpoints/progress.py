@@ -39,11 +39,18 @@ async def get_progress_stats(
     progress_result = await db.execute(
         select(
             func.count(UserProgress.id).label("total_lessons"),
-            func.sum(UserProgress.score).label("total_score"),
-            func.count(func.case((UserProgress.status == "completed", 1))).label("completed_lessons")
+            func.sum(UserProgress.score).label("total_score")
         ).where(UserProgress.user_id == current_user.id)
     )
     stats = progress_result.one()
+    
+    completed_result = await db.execute(
+        select(func.count(UserProgress.id)).where(
+            UserProgress.user_id == current_user.id,
+            UserProgress.status == "completed"
+        )
+    )
+    completed_lessons = completed_result.scalar()
     
     # Get submissions count
     submissions_result = await db.execute(
@@ -53,11 +60,11 @@ async def get_progress_stats(
     
     # Get streak (simplified - days with activity)
     # For now, return placeholder
-    streak_days = 5
+    streak_days = 0
     
     return {
         "total_lessons": stats.total_lessons or 0,
-        "completed_lessons": stats.completed_lessons or 0,
+        "completed_lessons": completed_lessons or 0,
         "total_score": stats.total_score or 0,
         "total_submissions": submissions_count or 0,
         "streak_days": streak_days,

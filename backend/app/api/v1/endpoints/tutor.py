@@ -4,7 +4,7 @@ AI Tutor endpoints.
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
@@ -17,7 +17,7 @@ tutor_service = AITutorService()
 
 class TutorMessage(BaseModel):
     message: str
-    context: dict = {}
+    context: dict = Field(default_factory=dict)
 
 
 class TutorResponse(BaseModel):

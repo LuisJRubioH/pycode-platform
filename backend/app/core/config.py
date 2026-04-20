@@ -3,6 +3,7 @@ Configuration settings for the PyCode Platform.
 """
 
 from typing import List
+from pathlib import Path
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
@@ -28,6 +29,7 @@ class Settings(BaseSettings):
     
     # OpenAI
     OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o-mini"
     
     # Docker
     DOCKER_TIMEOUT: int = 30
@@ -39,10 +41,21 @@ class Settings(BaseSettings):
     
     # Frontend
     FRONTEND_URL: str = "http://localhost:5173"
+
+    # Tutor
+    TUTOR_PROMPT_FILE: str = "maestro_evaluador_de_codigo_python.txt"
     
     @property
     def cors_origins_list(self) -> List[str]:
         return [origin.strip() for origin in self.CORS_ORIGINS.split(",")]
+
+    @property
+    def project_root(self) -> Path:
+        return Path(__file__).resolve().parents[3]
+
+    @property
+    def tutor_prompt_path(self) -> Path:
+        return self.project_root / self.TUTOR_PROMPT_FILE
     
     class Config:
         env_file = ".env"

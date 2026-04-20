@@ -4,6 +4,14 @@ const TestAPI: React.FC = () => {
   const [result, setResult] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const getErrorMessage = (error: unknown) => {
+    if (error instanceof Error) {
+      return error.message
+    }
+
+    return String(error)
+  }
+
   const testRegister = async () => {
     setLoading(true)
     setResult('')
@@ -22,7 +30,7 @@ const TestAPI: React.FC = () => {
       const data = await response.json()
       setResult(`Status: ${response.status}\n${JSON.stringify(data, null, 2)}`)
     } catch (error) {
-      setResult(`Error: ${error.message}`)
+      setResult(`Error: ${getErrorMessage(error)}`)
     } finally {
       setLoading(false)
     }
@@ -37,7 +45,7 @@ const TestAPI: React.FC = () => {
       const data = await response.json()
       setResult(`Status: ${response.status}\n${JSON.stringify(data, null, 2)}`)
     } catch (error) {
-      setResult(`Error: ${error.message}`)
+      setResult(`Error: ${getErrorMessage(error)}`)
     } finally {
       setLoading(false)
     }

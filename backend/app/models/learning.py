@@ -65,6 +65,7 @@ class UserProgress(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=False)
     status = Column(String(50), default="not_started")  # not_started, in_progress, completed
+    progress = Column(Integer, default=0)
     score = Column(Integer, default=0)
     time_spent = Column(Integer, default=0)  # in seconds
     attempts = Column(Integer, default=0)

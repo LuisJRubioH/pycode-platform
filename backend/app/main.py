@@ -11,6 +11,15 @@ from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.api.v1.router import api_router
 from app.core.database import engine, Base
+import app.models.challenge  # noqa: F401
+import app.models.elo_models  # noqa: F401
+import app.models.learning  # noqa: F401
+import app.models.user  # noqa: F401
+from app.services.challenge_importer import import_external_challenges
+from app.services.generated_bank import seed_generated_challenges, seed_generated_puzzles
+from app.services.lesson_seed import seed_lessons_with_exercises
+from app.services.puzzle_seed import seed_interview_puzzles, seed_puzzles_if_empty
+from app.services.schema_bootstrap import bootstrap_elo_schema
 from app.websockets.code_execution import code_execution_ws
 from app.websockets.tutor_chat import tutor_chat_ws
 
@@ -21,6 +30,16 @@ async def lifespan(app: FastAPI):
     # Startup
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(bootstrap_elo_schema)
+    from app.core.database import async_session_maker
+
+    async with async_session_maker() as session:
+        await seed_puzzles_if_empty(session)
+        await seed_interview_puzzles(session)
+        await seed_generated_puzzles(session)
+        await import_external_challenges(session)
+        await seed_generated_challenges(session)
+        await seed_lessons_with_exercises(session)
     yield
     # Shutdown
     await engine.dispose()

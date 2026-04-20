@@ -1,234 +1,203 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Clock, CheckCircle, Circle, Lock, Play } from 'lucide-react'
+import { BookOpen, Clock, CheckCircle, Circle, Filter, Search } from 'lucide-react'
+import { api } from '../services/api'
+
+interface LessonSummary {
+  id: number
+  title: string
+  description: string
+  difficulty: 'beginner' | 'intermediate' | 'advanced'
+  category: string
+  estimated_duration: number
+  progress: number
+  status: 'not_started' | 'in_progress' | 'completed'
+}
+
+const difficultyLabel: Record<string, string> = {
+  beginner: 'Principiante',
+  intermediate: 'Intermedio',
+  advanced: 'Avanzado',
+}
 
 const Lessons: React.FC = () => {
-  const [selectedCategory, setSelectedCategory] = useState('basics')
-  
-  const categories = [
-    { id: 'basics', name: 'Fundamentos', icon: BookOpen },
-    { id: 'intermediate', name: 'Intermedio', icon: Circle },
-    { id: 'advanced', name: 'Avanzado', icon: CheckCircle },
-  ]
+  const [items, setItems] = useState<LessonSummary[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [difficulty, setDifficulty] = useState<'all' | 'beginner' | 'intermediate' | 'advanced'>('all')
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState('all')
 
-  const lessons = {
-    basics: [
-      { 
-        id: 1, 
-        title: 'Introducción a Python', 
-        description: 'Historia de Python, instalación y tu primer programa',
-        duration: '15 min',
-        exercises: 3,
-        completed: true,
-        progress: 100
-      },
-      { 
-        id: 2, 
-        title: 'Variables y Tipos de Datos', 
-        description: 'Aprende sobre números, strings, booleanos y más',
-        duration: '25 min',
-        exercises: 5,
-        completed: false,
-        progress: 60
-      },
-      { 
-        id: 3, 
-        title: 'Operadores Aritméticos', 
-        description: 'Suma, resta, multiplicación, división y operadores especiales',
-        duration: '20 min',
-        exercises: 4,
-        completed: false,
-        progress: 0
-      },
-      { 
-        id: 4, 
-        title: 'Entrada y Salida', 
-        description: 'Input del usuario y formateo de salida',
-        duration: '18 min',
-        exercises: 3,
-        completed: false,
-        progress: 0,
-        locked: true
-      },
-    ],
-    intermediate: [
-      { 
-        id: 5, 
-        title: 'Estructuras de Control', 
-        description: 'if, elif, else y operadores lógicos',
-        duration: '30 min',
-        exercises: 6,
-        completed: false,
-        progress: 0,
-        locked: true
-      },
-      { 
-        id: 6, 
-        title: 'Bucles', 
-        description: 'for, while y control de iteraciones',
-        duration: '35 min',
-        exercises: 7,
-        completed: false,
-        progress: 0,
-        locked: true
-      },
-    ],
-    advanced: [
-      { 
-        id: 7, 
-        title: 'Funciones', 
-        description: 'Definición, parámetros y retorno de valores',
-        duration: '40 min',
-        exercises: 8,
-        completed: false,
-        progress: 0,
-        locked: true
-      },
-      { 
-        id: 8, 
-        title: 'Listas y Tuplas', 
-        description: 'Estructuras de datos secuenciales',
-        duration: '35 min',
-        exercises: 6,
-        completed: false,
-        progress: 0,
-        locked: true
-      },
-    ]
-  }
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true)
+      setError('')
+      try {
+        const res = await api.get('/lessons/')
+        if (!res.ok) {
+          setError('No pudimos cargar las lecciones por ahora.')
+          setItems([])
+          return
+        }
+        const data = (await res.json()) as LessonSummary[]
+        setItems(data || [])
+      } catch (loadError) {
+        console.error('Error loading lessons:', loadError)
+        setError('No pudimos cargar las lecciones por ahora.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    load()
+  }, [])
+
+  const categories = useMemo(() => {
+    const unique = Array.from(new Set(items.map((item) => item.category).filter(Boolean)))
+    return ['all', ...unique]
+  }, [items])
+
+  const filtered = useMemo(() => {
+    return items.filter((item) => {
+      const byDifficulty = difficulty === 'all' || item.difficulty === difficulty
+      const byCategory = category === 'all' || item.category === category
+      const term = query.trim().toLowerCase()
+      const byQuery =
+        !term ||
+        item.title.toLowerCase().includes(term) ||
+        item.description?.toLowerCase().includes(term) ||
+        item.category?.toLowerCase().includes(term)
+      return byDifficulty && byCategory && byQuery
+    })
+  }, [items, difficulty, category, query])
+
+  const completed = items.filter((item) => item.status === 'completed').length
+  const progressPercent = items.length ? Math.round((completed / items.length) * 100) : 0
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-slate-900">Lecciones</h1>
         <p className="text-slate-600 mt-2">
-          Explora nuestras lecciones estructuradas y mejora tus habilidades de programación
+          Ruta guiada con teoria de Python y ejercicios para practicar cada tema.
         </p>
       </div>
 
-      {/* Category Tabs */}
-      <div className="flex gap-2 border-b border-slate-200">
-        {categories.map((category) => (
-          <button
-            key={category.id}
-            onClick={() => setSelectedCategory(category.id)}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              selectedCategory === category.id
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
+      {error && (
+        <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>
+      )}
+
+      <div className="card p-4 grid md:grid-cols-[1fr,auto,auto] gap-3">
+        <div className="relative">
+          <Search className="h-4 w-4 absolute left-3 top-3.5 text-slate-400" />
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Buscar por titulo, descripcion o categoria..."
+            className="w-full pl-9 p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-slate-500" />
+          <select
+            value={difficulty}
+            onChange={(event) => setDifficulty(event.target.value as typeof difficulty)}
+            className="p-3 border border-slate-300 rounded-lg bg-white"
           >
-            <category.icon className="h-4 w-4" />
-            {category.name}
-          </button>
-        ))}
+            <option value="all">Todos los niveles</option>
+            <option value="beginner">Principiante</option>
+            <option value="intermediate">Intermedio</option>
+            <option value="advanced">Avanzado</option>
+          </select>
+        </div>
+
+        <select
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+          className="p-3 border border-slate-300 rounded-lg bg-white"
+        >
+          {categories.map((value) => (
+            <option key={value} value={value}>
+              {value === 'all' ? 'Todas las categorias' : value}
+            </option>
+          ))}
+        </select>
       </div>
 
-      {/* Lessons Grid */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {lessons[selectedCategory as keyof typeof lessons].map((lesson) => (
-          <div
-            key={lesson.id}
-            className={`card p-6 ${lesson.locked ? 'opacity-75' : 'hover:shadow-md'} transition-shadow`}
-          >
-            <div className="flex items-start justify-between mb-4">
-              <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                lesson.completed 
-                  ? 'bg-green-100 text-green-600' 
-                  : lesson.progress > 0
-                    ? 'bg-primary-100 text-primary-600'
-                    : 'bg-slate-100 text-slate-600'
-              }`}>
-                {lesson.completed ? (
-                  <CheckCircle className="h-5 w-5" />
-                ) : lesson.locked ? (
-                  <Lock className="h-5 w-5" />
-                ) : (
-                  <BookOpen className="h-5 w-5" />
-                )}
-              </div>
-              
-              {lesson.progress > 0 && lesson.progress < 100 && (
-                <span className="text-xs font-medium text-primary-600 bg-primary-50 px-2 py-1 rounded-full">
-                  {lesson.progress}%
+      {loading ? (
+        <div className="card p-6 text-sm text-slate-500">Cargando lecciones...</div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filtered.map((lesson) => (
+            <div key={lesson.id} className="card p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-4">
+                <div
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    lesson.status === 'completed'
+                      ? 'bg-green-100 text-green-600'
+                      : lesson.status === 'in_progress'
+                        ? 'bg-primary-100 text-primary-600'
+                        : 'bg-slate-100 text-slate-600'
+                  }`}
+                >
+                  {lesson.status === 'completed' ? (
+                    <CheckCircle className="h-5 w-5" />
+                  ) : lesson.status === 'in_progress' ? (
+                    <Circle className="h-5 w-5" />
+                  ) : (
+                    <BookOpen className="h-5 w-5" />
+                  )}
+                </div>
+                <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
+                  {difficultyLabel[lesson.difficulty] || lesson.difficulty}
                 </span>
+              </div>
+
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">{lesson.title}</h3>
+              <p className="text-sm text-slate-600 mb-4 line-clamp-3">{lesson.description}</p>
+
+              <div className="flex items-center justify-between text-xs text-slate-500 mb-4">
+                <span className="bg-slate-100 px-2 py-1 rounded-md">{lesson.category}</span>
+                <span className="flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {lesson.estimated_duration} min
+                </span>
+              </div>
+
+              <Link to={`/lessons/${lesson.id}`} className="btn-primary w-full text-center">
+                {lesson.status === 'completed'
+                  ? 'Revisar'
+                  : lesson.status === 'in_progress'
+                    ? 'Continuar'
+                    : 'Comenzar'}
+              </Link>
+
+              {lesson.progress > 0 && (
+                <div className="mt-4">
+                  <div className="w-full bg-slate-200 rounded-full h-2">
+                    <div className="bg-primary-600 h-2 rounded-full" style={{ width: `${lesson.progress}%` }} />
+                  </div>
+                </div>
               )}
             </div>
+          ))}
+        </div>
+      )}
 
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">{lesson.title}</h3>
-            <p className="text-sm text-slate-600 mb-4">{lesson.description}</p>
-
-            <div className="flex items-center gap-4 text-xs text-slate-500 mb-4">
-              <div className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                {lesson.duration}
-              </div>
-              <div className="flex items-center gap-1">
-                <Play className="h-3 w-3" />
-                {lesson.exercises} ejercicios
-              </div>
-            </div>
-
-            {lesson.locked ? (
-              <button
-                disabled
-                className="w-full btn-secondary disabled:opacity-50"
-              >
-                <Lock className="h-4 w-4 mr-2" />
-                Bloqueado
-              </button>
-            ) : (
-              <Link
-                to={`/lessons/${lesson.id}`}
-                className={`w-full btn-primary flex items-center justify-center ${
-                  lesson.completed ? 'bg-green-600 hover:bg-green-700' : ''
-                }`}
-              >
-                {lesson.completed ? (
-                  <>
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Completado
-                  </>
-                ) : lesson.progress > 0 ? (
-                  <>
-                    <Play className="h-4 w-4 mr-2" />
-                    Continuar
-                  </>
-                ) : (
-                  <>
-                    <Play className="h-4 w-4 mr-2" />
-                    Comenzar
-                  </>
-                )}
-              </Link>
-            )}
-
-            {lesson.progress > 0 && !lesson.completed && (
-              <div className="mt-4">
-                <div className="w-full bg-slate-200 rounded-full h-2">
-                  <div
-                    className="bg-primary-600 h-2 rounded-full transition-all"
-                    style={{ width: `${lesson.progress}%` }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Learning Path */}
-      <div className="card p-6 mt-8">
-        <h2 className="text-xl font-semibold text-slate-900 mb-4">Tu Progreso</h2>
-        <div className="flex items-center gap-2">
+      <div className="card p-6">
+        <h2 className="text-xl font-semibold text-slate-900 mb-3">Tu progreso general</h2>
+        <div className="flex items-center gap-3">
           <div className="flex-1 bg-slate-200 rounded-full h-3">
-            <div className="bg-gradient-to-r from-primary-500 to-green-500 h-3 rounded-full transition-all" style={{ width: '25%' }} />
+            <div
+              className="bg-gradient-to-r from-primary-500 to-emerald-500 h-3 rounded-full transition-all"
+              style={{ width: `${progressPercent}%` }}
+            />
           </div>
-          <span className="text-sm font-medium text-slate-700">25%</span>
+          <span className="text-sm font-semibold text-slate-700">{progressPercent}%</span>
         </div>
         <p className="text-sm text-slate-600 mt-2">
-          Has completado 1 de 8 lecciones. ¡Sigue así!
+          Has completado {completed} de {items.length || 0} lecciones.
         </p>
       </div>
     </div>

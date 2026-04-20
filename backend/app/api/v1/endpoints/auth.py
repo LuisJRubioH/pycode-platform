@@ -2,9 +2,8 @@
 Authentication endpoints.
 """
 
-from datetime import timedelta
+from datetime import timedelta, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -17,7 +16,7 @@ from app.core.security import (
 )
 from app.core.config import settings
 from app.models.user import User, UserProfile
-from app.schemas.auth import Token, UserCreate, UserResponse
+from app.schemas.auth import Token, UserCreate, UserResponse, LoginRequest
 
 router = APIRouter()
 
@@ -37,9 +36,14 @@ async def register(
     existing_user = result.scalar_one_or_none()
     
     if existing_user:
+        if existing_user.email == user_data.email:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Ya existe una cuenta con este email"
+            )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="User with this email or username already exists"
+            detail="Este nombre de usuario ya está en uso"
         )
     
     # Create new user
@@ -54,36 +58,40 @@ async def register(
     await db.commit()
     await db.refresh(new_user)
     
+    # Create user profile
+    profile = UserProfile(user_id=new_user.id)
+    db.add(profile)
+    await db.commit()
+    
     return new_user
 
 
 @router.post("/login", response_model=Token)
 async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    login_data: LoginRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """Authenticate user and return JWT token."""
-    # Find user by username (email)
+    # Find user by email
     result = await db.execute(
-        select(User).where(User.email == form_data.username)
+        select(User).where(User.email == login_data.email)
     )
     user = result.scalar_one_or_none()
     
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    if not user or not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
+            detail="Email o contraseña incorrectos",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
+            detail="Usuario inactivo"
         )
     
     # Update last login
-    from datetime import datetime
     user.last_login = datetime.utcnow()
     await db.commit()
     

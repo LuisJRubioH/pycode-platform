@@ -47,6 +47,7 @@ async def list_lessons(
     response_lessons = []
     for lesson in lessons:
         progress = progress_map.get(lesson.id)
+        progress_value = progress.progress if progress and progress.progress is not None else 0
         response_lessons.append({
             "id": lesson.id,
             "title": lesson.title,
@@ -54,11 +55,24 @@ async def list_lessons(
             "difficulty": lesson.difficulty,
             "category": lesson.category,
             "estimated_duration": lesson.estimated_duration,
-            "progress": progress.progress if progress else 0,
+            "progress": progress_value,
             "status": progress.status if progress else "not_started"
         })
     
     return response_lessons
+
+
+@router.get("/categories", response_model=List[str])
+async def list_categories(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """List all lesson categories."""
+    result = await db.execute(
+        select(Lesson.category).where(Lesson.is_active).distinct()
+    )
+    categories = [cat for cat in result.scalars().all() if cat]
+    return categories
 
 
 @router.get("/{lesson_id}", response_model=LessonResponse)
@@ -89,15 +103,18 @@ async def get_lesson(
     progress = progress_result.scalar_one_or_none()
     
     if not progress:
-        # Create new progress entry
         progress = UserProgress(
             user_id=current_user.id,
             lesson_id=lesson_id,
             status="in_progress",
+            progress=5,
             started_at=datetime.utcnow()
         )
         db.add(progress)
         await db.commit()
+        await db.refresh(progress)
+
+    sorted_exercises = sorted(lesson.exercises, key=lambda exercise: exercise.order)
     
     return {
         "id": lesson.id,
@@ -107,21 +124,8 @@ async def get_lesson(
         "difficulty": lesson.difficulty,
         "category": lesson.category,
         "estimated_duration": lesson.estimated_duration,
-        "prerequisites": lesson.prerequisites,
-        "exercises": lesson.exercises,
-        "progress": progress.progress,
+        "prerequisites": lesson.prerequisites or [],
+        "exercises": sorted_exercises,
+        "progress": progress.progress or 0,
         "status": progress.status
     }
-
-
-@router.get("/categories", response_model=List[str])
-async def list_categories(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    """List all lesson categories."""
-    result = await db.execute(
-        select(Lesson.category).where(Lesson.is_active).distinct()
-    )
-    categories = [cat for cat in result.scalars().all() if cat]
-    return categories

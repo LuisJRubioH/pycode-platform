@@ -1,0 +1,58 @@
+[
+  {
+    "name": "Exercism Python Track",
+    "type": "practice-platform",
+    "url": "https://exercism.org/tracks/python/exercises",
+    "access": "free",
+    "notes": "Ejercicios por conceptos y practica progresiva."
+  },
+  {
+    "name": "Exercism Python Repository (MIT)",
+    "type": "repository",
+    "url": "https://github.com/exercism/python",
+    "access": "free",
+    "notes": "Banco amplio de ejercicios y tests."
+  },
+  {
+    "name": "Project Euler",
+    "type": "problem-set",
+    "url": "https://projecteuler.net/archives",
+    "access": "free",
+    "notes": "Problemas matematicos/algoritmicos por niveles."
+  },
+  {
+    "name": "Automate the Boring Stuff with Python",
+    "type": "book",
+    "url": "https://automatetheboringstuff.com/?lang=en",
+    "access": "free-online",
+    "notes": "Libro con practica aplicada y proyectos por capitulo."
+  },
+  {
+    "name": "Keith Galli - LeetCode Python (YouTube)",
+    "type": "youtube",
+    "url": "https://www.classcentral.com/course/youtube-solving-coding-interview-questions-in-python-on-leetcode-easy-medium-problems-126344",
+    "access": "free",
+    "notes": "Serie de resolucion de problemas tipo entrevista."
+  },
+  {
+    "name": "Great Learning - Python Interview Questions (YouTube)",
+    "type": "youtube",
+    "url": "https://www.classcentral.com/course/youtube-top-100-python-interview-questions-python-programming-crack-python-interview-great-learning-98759",
+    "access": "free",
+    "notes": "Preguntas frecuentes y enfoques de respuesta."
+  },
+  {
+    "name": "Coffee Break Python",
+    "type": "book-course",
+    "url": "https://coffeebreakacademy.com/",
+    "access": "mixed",
+    "notes": "Inspiracion para puzzles de fundamentos."
+  },
+  {
+    "name": "Coffee Break NumPy",
+    "type": "book-course",
+    "url": "https://coffeebreakacademy.com/",
+    "access": "mixed",
+    "notes": "Inspiracion para puzzles de arrays/vectorizacion."
+  }
+]
