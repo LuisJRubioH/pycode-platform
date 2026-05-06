@@ -26,6 +26,8 @@ jobs:
           python-version: "3.11"
       - run: pip install black flake8 mypy
       - run: cd backend && black --check . && flake8 .
+      - name: SQLi guard
+        run: cd backend && python scripts/check_no_sqli.py
 
   frontend-build:
     runs-on: ubuntu-latest
