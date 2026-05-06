@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.api.v1.router import api_router
-from app.core.database import engine, Base
+from app.core.database import engine
 from app.models import challenge  # noqa: F401
 from app.models import elo_models  # noqa: F401
 from app.models import learning  # noqa: F401
@@ -22,7 +22,6 @@ from app.services.generated_bank import (
 )
 from app.services.lesson_seed import seed_lessons_with_exercises
 from app.services.puzzle_seed import seed_interview_puzzles, seed_puzzles_if_empty
-from app.services.schema_bootstrap import bootstrap_elo_schema
 from app.websockets.code_execution import code_execution_ws
 from app.websockets.tutor_chat import tutor_chat_ws
 
@@ -31,9 +30,7 @@ from app.websockets.tutor_chat import tutor_chat_ws
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
     # Startup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-        await conn.run_sync(bootstrap_elo_schema)
+    # Schema gestionado por Alembic. Aplica `alembic upgrade head` antes del startup.
     from app.core.database import async_session_maker
 
     async with async_session_maker() as session:
