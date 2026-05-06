@@ -134,12 +134,16 @@ def get_elo_delta(user_elo: int, correct: bool, advanced: bool = False) -> int:
     return last_row[2] if correct else last_row[3]
 
 
-def update_puzzle_elo(puzzle_elo: int, expected: float, actual_score: float, k: int = 32) -> int:
+def update_puzzle_elo(
+    puzzle_elo: int, expected: float, actual_score: float, k: int = 32
+) -> int:
     delta = round(k * (actual_score - expected))
     return max(100, puzzle_elo + delta)
 
 
-def process_attempt(user_elo: int, puzzle_elo: int, correct: bool, advanced: bool = False) -> EloResult:
+def process_attempt(
+    user_elo: int, puzzle_elo: int, correct: bool, advanced: bool = False
+) -> EloResult:
     rank_before = get_rank(user_elo)
     probability = expected_score(user_elo, puzzle_elo)
     user_delta = get_elo_delta(user_elo, correct, advanced)

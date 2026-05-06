@@ -20,7 +20,7 @@ router = APIRouter()
 @router.get("/", response_model=List[ProgressResponse])
 async def get_user_progress(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """Get all progress for current user."""
     result = await db.execute(
@@ -32,36 +32,37 @@ async def get_user_progress(
 @router.get("/stats")
 async def get_progress_stats(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """Get user progress statistics."""
     # Get counts
     progress_result = await db.execute(
         select(
             func.count(UserProgress.id).label("total_lessons"),
-            func.sum(UserProgress.score).label("total_score")
+            func.sum(UserProgress.score).label("total_score"),
         ).where(UserProgress.user_id == current_user.id)
     )
     stats = progress_result.one()
-    
+
     completed_result = await db.execute(
         select(func.count(UserProgress.id)).where(
-            UserProgress.user_id == current_user.id,
-            UserProgress.status == "completed"
+            UserProgress.user_id == current_user.id, UserProgress.status == "completed"
         )
     )
     completed_lessons = completed_result.scalar()
-    
+
     # Get submissions count
     submissions_result = await db.execute(
-        select(func.count(CodeSubmission.id)).where(CodeSubmission.user_id == current_user.id)
+        select(func.count(CodeSubmission.id)).where(
+            CodeSubmission.user_id == current_user.id
+        )
     )
     submissions_count = submissions_result.scalar()
-    
+
     # Get streak (simplified - days with activity)
     # For now, return placeholder
     streak_days = 0
-    
+
     return {
         "total_lessons": stats.total_lessons or 0,
         "completed_lessons": completed_lessons or 0,
@@ -69,7 +70,7 @@ async def get_progress_stats(
         "total_submissions": submissions_count or 0,
         "streak_days": streak_days,
         "level": "beginner",
-        "xp_points": (stats.total_score or 0) * 10
+        "xp_points": (stats.total_score or 0) * 10,
     }
 
 
@@ -77,17 +78,17 @@ async def get_progress_stats(
 async def update_progress(
     update: ProgressUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """Update progress for a lesson."""
     result = await db.execute(
         select(UserProgress).where(
             UserProgress.user_id == current_user.id,
-            UserProgress.lesson_id == update.lesson_id
+            UserProgress.lesson_id == update.lesson_id,
         )
     )
     progress = result.scalar_one_or_none()
-    
+
     if not progress:
         # Create new progress
         progress = UserProgress(
@@ -97,7 +98,7 @@ async def update_progress(
             progress=update.progress,
             started_at=datetime.utcnow() if update.status == "in_progress" else None,
             completed_at=datetime.utcnow() if update.status == "completed" else None,
-            time_spent=update.time_spent
+            time_spent=update.time_spent,
         )
         db.add(progress)
     else:
@@ -106,13 +107,13 @@ async def update_progress(
         progress.progress = update.progress
         progress.time_spent += update.time_spent
         progress.last_accessed = datetime.utcnow()
-        
+
         if update.status == "completed" and not progress.completed_at:
             progress.completed_at = datetime.utcnow()
-    
+
     await db.commit()
     await db.refresh(progress)
-    
+
     return progress
 
 
@@ -120,7 +121,7 @@ async def update_progress(
 async def get_recent_activity(
     limit: int = 10,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
 ):
     """Get recent user activity."""
     # Get recent submissions with lesson info
@@ -132,15 +133,17 @@ async def get_recent_activity(
         .order_by(CodeSubmission.created_at.desc())
         .limit(limit)
     )
-    
+
     activities = []
     for submission, exercise, lesson in result.all():
-        activities.append({
-            "type": "exercise",
-            "title": exercise.title,
-            "lesson_title": lesson.title,
-            "result": submission.result,
-            "created_at": submission.created_at
-        })
-    
+        activities.append(
+            {
+                "type": "exercise",
+                "title": exercise.title,
+                "lesson_title": lesson.title,
+                "result": submission.result,
+                "created_at": submission.created_at,
+            }
+        )
+
     return activities

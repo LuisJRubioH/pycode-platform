@@ -46,7 +46,9 @@ def _slugify(text: str) -> str:
 
 
 def _clean_title(path: Path, prompt: str) -> str:
-    first_line = next((line.strip(" \"'#/") for line in prompt.splitlines() if line.strip()), "")
+    first_line = next(
+        (line.strip(" \"'#/") for line in prompt.splitlines() if line.strip()), ""
+    )
     if first_line:
         return first_line[:120]
     return path.stem.replace("_", " ").replace("-", " ").title()
@@ -71,7 +73,9 @@ def _extract_prompt_and_solution(source_code: str) -> tuple[str, str]:
                 if leading_lines:
                     break
                 continue
-            if stripped.startswith(("def ", "class ", "import ", "from ", "print(", "if __name__")):
+            if stripped.startswith(
+                ("def ", "class ", "import ", "from ", "print(", "if __name__")
+            ):
                 break
             leading_lines.append(stripped.strip('"'))
         if leading_lines:
@@ -109,7 +113,7 @@ def _recommended_starter_code(title: str) -> str:
 
 
 async def import_external_challenges(db: AsyncSession) -> int:
-    """Import challenges from the downloaded repository if they are not already present."""
+    """Import challenges from the downloaded repo if they are not already present."""
     root = _challenge_root()
     if not root.exists():
         return 0
@@ -124,7 +128,9 @@ async def import_external_challenges(db: AsyncSession) -> int:
 
         for path in sorted(source_dir.glob("*.py")):
             slug = _slugify(f"{source_name}-{path.stem}")
-            existing = await db.execute(select(CodingChallenge.id).where(CodingChallenge.slug == slug))
+            existing = await db.execute(
+                select(CodingChallenge.id).where(CodingChallenge.slug == slug)
+            )
             if existing.scalar_one_or_none() is not None:
                 order_index += 1
                 continue

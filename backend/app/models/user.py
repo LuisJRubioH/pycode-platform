@@ -11,9 +11,9 @@ from app.core.database import Base
 
 class User(Base):
     """User model for authentication."""
-    
+
     __tablename__ = "users"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, index=True, nullable=False)
     username = Column(String(100), unique=True, index=True, nullable=False)
@@ -22,7 +22,7 @@ class User(Base):
     is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
-    
+
     # Relationships
     profile = relationship("UserProfile", back_populates="user", uselist=False)
     progress = relationship("UserProgress", back_populates="user")
@@ -32,11 +32,13 @@ class User(Base):
 
 class UserProfile(Base):
     """Extended user profile information."""
-    
+
     __tablename__ = "user_profiles"
-    
+
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True, unique=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id"), nullable=False, index=True, unique=True
+    )
     level = Column(String(50), default="beginner")
     xp_points = Column(Integer, default=0)
     badges = Column(Text, default="[]")  # JSON string

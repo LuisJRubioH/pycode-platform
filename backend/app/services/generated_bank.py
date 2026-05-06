@@ -4,6 +4,8 @@ Generate a large curated bank of coding challenges and output puzzles.
 The problems are original/adapted prompts inspired by common open practice sources.
 """
 
+# flake8: noqa: E501 -- archivo de contenido curado: prompts largos en espanol por reto.
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -229,7 +231,9 @@ async def seed_generated_challenges(db: AsyncSession) -> int:
         for difficulty, difficulty_slug in variants:
             for variant_idx in range(1, 4):
                 slug = f"{CURATED_SOURCE}-{template.slug_base}-{difficulty_slug}-{variant_idx}"
-                existing = await db.execute(select(CodingChallenge.id).where(CodingChallenge.slug == slug))
+                existing = await db.execute(
+                    select(CodingChallenge.id).where(CodingChallenge.slug == slug)
+                )
                 if existing.scalar_one_or_none() is not None:
                     continue
 
@@ -272,12 +276,7 @@ async def seed_generated_challenges(db: AsyncSession) -> int:
 def _python_puzzle_snippet(seed: int) -> tuple[str, str, str]:
     a = seed + 2
     b = seed * 3
-    snippet = (
-        f"x = {a}\n"
-        f"y = {b}\n"
-        "print(x + y)\n"
-        "print((x * y) % 7)"
-    )
+    snippet = f"x = {a}\n" f"y = {b}\n" "print(x + y)\n" "print((x * y) % 7)"
     out_1 = a + b
     out_2 = (a * b) % 7
     return snippet, f"{out_1}\n{out_2}", "arithmetic"
@@ -317,7 +316,9 @@ def _interview_puzzle_snippet(seed: int) -> tuple[str, str, str]:
         "print(ok)"
     )
     values = set(nums)
-    ok = any((target - n) in values and (target - n != n or nums.count(n) > 1) for n in nums)
+    ok = any(
+        (target - n) in values and (target - n != n or nums.count(n) > 1) for n in nums
+    )
     return snippet, str(ok), "two-sum"
 
 

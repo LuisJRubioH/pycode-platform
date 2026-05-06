@@ -2,6 +2,8 @@
 Initial puzzle seed data and seeding helpers for the ELO system.
 """
 
+# flake8: noqa: E501 -- archivo de contenido curado: enunciados de puzzles ELO en espanol.
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -238,7 +240,9 @@ async def seed_interview_puzzles(db: AsyncSession) -> int:
     inserted = 0
 
     for puzzle_data in INTERVIEW_PUZZLES:
-        existing = await db.execute(select(Puzzle.id).where(Puzzle.slug == puzzle_data["slug"]))
+        existing = await db.execute(
+            select(Puzzle.id).where(Puzzle.slug == puzzle_data["slug"])
+        )
         if existing.scalar_one_or_none() is not None:
             continue
         db.add(Puzzle(**puzzle_data))

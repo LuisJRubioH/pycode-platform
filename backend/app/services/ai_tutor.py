@@ -2,6 +2,8 @@
 AI Tutor Service with OpenAI integration and a code-evaluation Socratic style.
 """
 
+# flake8: noqa: E501 -- prompts y respuestas del tutor en espanol; partir las cadenas degrada la salida visible al usuario.
+
 from pathlib import Path
 from typing import Any
 
@@ -14,7 +16,11 @@ class AITutorService:
     """AI tutor service that evaluates beginner Python code without giving full solutions."""
 
     def __init__(self):
-        self.client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY) if settings.OPENAI_API_KEY else None
+        self.client = (
+            AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+            if settings.OPENAI_API_KEY
+            else None
+        )
         self.system_prompt = self._load_system_prompt()
 
     async def get_response(self, message: str, context: dict | None = None) -> str:
@@ -44,7 +50,9 @@ class AITutorService:
             )
 
             content = response.choices[0].message.content or ""
-            return content.strip() or self._get_fallback_response(message, normalized_context)
+            return content.strip() or self._get_fallback_response(
+                message, normalized_context
+            )
 
         except Exception as exc:
             print(f"Error calling OpenAI: {exc}")
@@ -75,7 +83,12 @@ class AITutorService:
             return {}
 
         aliases = {
-            "problem_description": ("problem_description", "problem", "exercise", "enunciado"),
+            "problem_description": (
+                "problem_description",
+                "problem",
+                "exercise",
+                "enunciado",
+            ),
             "student_code": ("student_code", "code", "currentCode", "codigo"),
             "expected_output": ("expected_output", "expected", "expectedOutput"),
             "actual_output": ("actual_output", "output", "actualOutput"),
@@ -117,19 +130,25 @@ class AITutorService:
 
         attempt_count = context.get("attempt_count")
         if attempt_count is not None:
-            context_parts.append(f"- Intentos acumulados en este problema: {attempt_count}")
+            context_parts.append(
+                f"- Intentos acumulados en este problema: {attempt_count}"
+            )
 
         recent_errors = context.get("recent_errors")
         if recent_errors:
             if isinstance(recent_errors, list):
-                context_parts.append(f"- Errores recientes: {', '.join(map(str, recent_errors))}")
+                context_parts.append(
+                    f"- Errores recientes: {', '.join(map(str, recent_errors))}"
+                )
             else:
                 context_parts.append(f"- Errores recientes: {recent_errors}")
 
         weaknesses = context.get("weaknesses")
         if weaknesses:
             if isinstance(weaknesses, list):
-                context_parts.append(f"- Debilidades detectadas: {', '.join(map(str, weaknesses))}")
+                context_parts.append(
+                    f"- Debilidades detectadas: {', '.join(map(str, weaknesses))}"
+                )
             else:
                 context_parts.append(f"- Debilidades detectadas: {weaknesses}")
 
@@ -139,11 +158,15 @@ class AITutorService:
 
         student_code = context.get("student_code")
         if student_code:
-            context_parts.append(f"\nCodigo del estudiante:\n```python\n{student_code}\n```")
+            context_parts.append(
+                f"\nCodigo del estudiante:\n```python\n{student_code}\n```"
+            )
 
         expected_output = context.get("expected_output")
         if expected_output:
-            context_parts.append(f"\nSalida esperada o criterio objetivo:\n{expected_output}")
+            context_parts.append(
+                f"\nSalida esperada o criterio objetivo:\n{expected_output}"
+            )
 
         actual_output = context.get("actual_output")
         if actual_output:
@@ -151,7 +174,9 @@ class AITutorService:
 
         return "Contexto disponible:\n" + "\n".join(context_parts)
 
-    def _get_fallback_response(self, message: str, context: dict[str, Any] | None = None) -> str:
+    def _get_fallback_response(
+        self, message: str, context: dict[str, Any] | None = None
+    ) -> str:
         """Return a deterministic response when the model is unavailable."""
         problem_description = (context or {}).get("problem_description")
         student_code = (context or {}).get("student_code")
@@ -184,9 +209,7 @@ class AITutorService:
         general_score = 78 if len(student_code.splitlines()) <= 25 else 70
         output_note = ""
         if actual_output is not None and expected_output is not None:
-            output_note = (
-                f" La salida actual es `{actual_output}` y la esperada es `{expected_output}`."
-            )
+            output_note = f" La salida actual es `{actual_output}` y la esperada es `{expected_output}`."
 
         return (
             "CALIFICACION:\n"

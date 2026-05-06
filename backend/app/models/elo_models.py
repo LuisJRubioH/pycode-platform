@@ -4,7 +4,16 @@ SQLAlchemy models for the ELO puzzle system.
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -35,7 +44,9 @@ class Puzzle(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    attempts = relationship("PuzzleAttempt", back_populates="puzzle", cascade="all, delete-orphan")
+    attempts = relationship(
+        "PuzzleAttempt", back_populates="puzzle", cascade="all, delete-orphan"
+    )
 
     @property
     def solve_rate(self) -> float:
@@ -87,7 +98,9 @@ class EloHistory(Base):
     __tablename__ = "elo_history"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_profile_id = Column(Integer, ForeignKey("user_profiles.id"), nullable=False, index=True)
+    user_profile_id = Column(
+        Integer, ForeignKey("user_profiles.id"), nullable=False, index=True
+    )
     puzzle_id = Column(Integer, ForeignKey("puzzles.id"), nullable=False)
     attempt_id = Column(Integer, ForeignKey("puzzle_attempts.id"), nullable=False)
     elo_value = Column(Integer, nullable=False)

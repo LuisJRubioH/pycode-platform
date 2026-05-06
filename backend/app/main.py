@@ -11,12 +11,15 @@ from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.api.v1.router import api_router
 from app.core.database import engine, Base
-import app.models.challenge  # noqa: F401
-import app.models.elo_models  # noqa: F401
-import app.models.learning  # noqa: F401
-import app.models.user  # noqa: F401
+from app.models import challenge  # noqa: F401
+from app.models import elo_models  # noqa: F401
+from app.models import learning  # noqa: F401
+from app.models import user  # noqa: F401
 from app.services.challenge_importer import import_external_challenges
-from app.services.generated_bank import seed_generated_challenges, seed_generated_puzzles
+from app.services.generated_bank import (
+    seed_generated_challenges,
+    seed_generated_puzzles,
+)
 from app.services.lesson_seed import seed_lessons_with_exercises
 from app.services.puzzle_seed import seed_interview_puzzles, seed_puzzles_if_empty
 from app.services.schema_bootstrap import bootstrap_elo_schema
@@ -75,7 +78,7 @@ async def root():
     return {
         "message": "Welcome to PyCode Platform API",
         "version": "0.1.0",
-        "docs": "/docs" if settings.DEBUG else None
+        "docs": "/docs" if settings.DEBUG else None,
     }
 
 

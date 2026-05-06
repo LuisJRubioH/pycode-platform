@@ -3,14 +3,18 @@ Endpoints for imported coding challenges.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import asc, desc, select
+from sqlalchemy import asc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.challenge import CodingChallenge
 from app.models.user import User, UserProfile
-from app.schemas.challenge import CodingChallengeDetail, CodingChallengeListOut, CodingChallengeSummary
+from app.schemas.challenge import (
+    CodingChallengeDetail,
+    CodingChallengeListOut,
+    CodingChallengeSummary,
+)
 from app.services.challenge_importer import recommended_difficulty_for_elo
 
 router = APIRouter()
@@ -30,8 +34,12 @@ async def list_challenges(
     current_user: User = Depends(get_current_active_user),
 ):
     profile = await _get_user_profile(db, current_user.id)
-    recommended_difficulty = recommended_difficulty_for_elo(profile.elo_rating if profile else 1000)
-    target_difficulty = recommended_difficulty if recommended and not difficulty else difficulty
+    recommended_difficulty = recommended_difficulty_for_elo(
+        profile.elo_rating if profile else 1000
+    )
+    target_difficulty = (
+        recommended_difficulty if recommended and not difficulty else difficulty
+    )
 
     query = select(CodingChallenge).where(CodingChallenge.is_active.is_(True))
     if target_difficulty:

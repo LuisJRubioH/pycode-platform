@@ -125,11 +125,14 @@ async def get_rank_table(
                 elo_max=elo_max,
                 rank=rank_name,
                 color=get_rank_color(current_rank),
-                is_current=user_elo >= elo_min and (elo_max is None or user_elo < elo_max),
+                is_current=user_elo >= elo_min
+                and (elo_max is None or user_elo < elo_max),
             )
         )
 
-    return EloRankTableOut(rows=rows, user_elo=user_elo, user_rank=get_rank(user_elo).value)
+    return EloRankTableOut(
+        rows=rows, user_elo=user_elo, user_rank=get_rank(user_elo).value
+    )
 
 
 @router.get("/next-puzzle", response_model=PuzzleOut)
@@ -193,7 +196,9 @@ async def list_puzzles(
     result = await db.execute(query)
     items = result.scalars().all()
     await db.commit()
-    return PuzzleListOut(items=[PuzzleOut.model_validate(puzzle) for puzzle in items], total=len(items))
+    return PuzzleListOut(
+        items=[PuzzleOut.model_validate(puzzle) for puzzle in items], total=len(items)
+    )
 
 
 @router.get("/interview-problems", response_model=PuzzleListOut)

@@ -2,6 +2,8 @@
 Seed theory-first Python lessons and guided exercises.
 """
 
+# flake8: noqa: E501 -- archivo de contenido curado: enunciados y starters de ejercicios en espanol.
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -62,7 +64,10 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                 description="Imprime un saludo y tu nombre.",
                 instructions="Crea una variable `nombre` y muestra `Hola, <nombre>` usando f-string.",
                 starter_code="nombre = ''\n# TODO\n",
-                hints=["Usa print(f'Hola, {nombre}')", "Asigna primero un string a nombre"],
+                hints=[
+                    "Usa print(f'Hola, {nombre}')",
+                    "Asigna primero un string a nombre",
+                ],
             ),
             ExerciseTemplate(
                 title="Mini presentación",
@@ -361,7 +366,9 @@ async def seed_lessons_with_exercises(db: AsyncSession) -> int:
     inserted = 0
 
     for template in LESSON_TEMPLATES:
-        existing_result = await db.execute(select(Lesson).where(Lesson.title == template.title))
+        existing_result = await db.execute(
+            select(Lesson).where(Lesson.title == template.title)
+        )
         lesson = existing_result.scalar_one_or_none()
 
         if not lesson:

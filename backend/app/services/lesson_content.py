@@ -8,6 +8,8 @@ con ejemplos, errores comunes y ejercicios dirigidos.
 El contenido se usa desde ``lesson_seed.py`` para poblar las tablas.
 """
 
+# flake8: noqa: E501 -- archivo de contenido curado: textos en espanol largos por leccion.
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -117,7 +119,10 @@ Comentario de varias lineas (tecnicamente es un string sin asignar).
             description="Imprime un saludo personalizado.",
             instructions="Asigna tu nombre a la variable `nombre` y muestra 'Hola, <nombre>' usando un f-string.",
             starter_code="nombre = ''\n# TODO: usa print y un f-string\n",
-            hints=["Usa print(f'Hola, {nombre}')", "Los f-strings llevan f antes de las comillas"],
+            hints=[
+                "Usa print(f'Hola, {nombre}')",
+                "Los f-strings llevan f antes de las comillas",
+            ],
         ),
         ExerciseTemplate(
             title="Mini presentacion",
@@ -1778,7 +1783,7 @@ with cronometro("procesar"):
             description="Lee JSON, filtra y serializa.",
             instructions=(
                 "Implementa `activos(entrada_json: str) -> str`. Recibe un JSON con forma "
-                "`[{\"id\": 1, \"nombre\": \"Ana\", \"activo\": true}, ...]` y devuelve un JSON "
+                '`[{"id": 1, "nombre": "Ana", "activo": true}, ...]` y devuelve un JSON '
                 "(string) solo con los usuarios cuyo campo `activo` es True, manteniendo la misma forma. "
                 "Usa `json.loads` y `json.dumps(..., ensure_ascii=False)`."
             ),
