@@ -25,16 +25,28 @@ class Settings(BaseSettings):
     # Security
     SECRET_KEY: str = "your-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
     # OpenAI
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o-mini"
 
-    # Docker
-    DOCKER_TIMEOUT: int = 30
-    DOCKER_MEMORY_LIMIT: str = "512m"
-    DOCKER_CPU_LIMIT: float = 1.0
+    # Supabase
+    SUPABASE_URL: str = ""
+    SUPABASE_ANON_KEY: str = ""
+    SUPABASE_SERVICE_KEY: str = ""
+
+    # LLM provider
+    LLM_PROVIDER: str = "groq"  # groq | openai | anthropic
+    LLM_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_API_KEY: str = ""
+    HF_TOKEN: str = ""
+
+    # JWT refresh
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+
+    # Observability
+    SENTRY_DSN: str = ""
 
     # CORS
     CORS_ORIGINS: str = (
