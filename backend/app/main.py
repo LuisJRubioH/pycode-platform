@@ -88,11 +88,7 @@ app.add_api_websocket_route("/ws/tutor", tutor_chat_ws)
 
 @app.get("/")
 async def root():
-    return {
-        "message": "Welcome to PyCode Platform API",
-        "version": "0.1.0",
-        "docs": "/docs" if settings.DEBUG else None,
-    }
+    return {"message": "PyCode Platform"}
 
 
 @app.get("/health")
