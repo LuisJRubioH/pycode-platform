@@ -1,8 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Editor, { useMonaco } from '@monaco-editor/react'
 import { Play, RotateCcw, Save, Share2, Terminal, Settings, MessageSquare } from 'lucide-react'
 import { loadTutorContext, saveTutorContext } from '../services/tutorContext'
+import { runPythonCode, getCodeRunner } from '../services/codeRunner'
+import type { RunStatus } from '@/sandbox'
 
 const INITIAL_CODE = `# Escribe tu codigo Python aqui
 print("Hola, Mundo!")
@@ -25,13 +27,12 @@ const CodeEditor: React.FC = () => {
   )
   const [expectedOutput, setExpectedOutput] = useState(existingTutorContext?.expected_output || '')
   const [isRunning, setIsRunning] = useState(false)
-  const [wsConnected, setWsConnected] = useState(false)
+  const [sandboxStatus, setSandboxStatus] = useState<RunStatus>('idle')
   const [theme, setTheme] = useState('vs-dark')
   const [fontSize, setFontSize] = useState(14)
   const [minimap, setMinimap] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
 
-  const wsRef = useRef<WebSocket | null>(null)
   const monaco = useMonaco()
 
   useEffect(() => {
@@ -43,46 +44,9 @@ const CodeEditor: React.FC = () => {
   }, [monaco])
 
   useEffect(() => {
-    let reconnectTimeout: ReturnType<typeof setTimeout>
-
-    const connect = () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const ws = new WebSocket(`${protocol}//${window.location.host}/ws/code`)
-
-      ws.onopen = () => {
-        setWsConnected(true)
-      }
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data)
-        if (data.type === 'output') {
-          setOutput((prev) => prev + data.content)
-        } else if (data.type === 'done') {
-          setIsRunning(false)
-        } else if (data.type === 'error') {
-          setOutput((prev) => prev + `Error: ${data.content}\n`)
-          setIsRunning(false)
-        }
-      }
-
-      ws.onclose = () => {
-        setWsConnected(false)
-        wsRef.current = null
-        reconnectTimeout = setTimeout(connect, 3000)
-      }
-
-      wsRef.current = ws
-    }
-
-    connect()
-
-    return () => {
-      clearTimeout(reconnectTimeout)
-      if (wsRef.current) {
-        wsRef.current.onclose = null
-        wsRef.current.close()
-      }
-    }
+    const runner = getCodeRunner()
+    setSandboxStatus(runner.status)
+    return runner.onStatusChange(setSandboxStatus)
   }, [])
 
   const persistTutorContext = (nextOutput?: string) => {
@@ -106,24 +70,24 @@ const CodeEditor: React.FC = () => {
     })
   }
 
-  const runCode = () => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      const errorMessage = 'Error: No hay conexion con el servidor\n'
-      setOutput(errorMessage)
-      persistTutorContext(errorMessage)
-      return
-    }
-
+  const runCode = async () => {
     setOutput('')
     setIsRunning(true)
     persistTutorContext('')
-
-    wsRef.current.send(
-      JSON.stringify({
-        code,
-        timeout: 30,
-      })
-    )
+    try {
+      const result = await runPythonCode(code)
+      const combined = [result.stdout, result.stderr].filter(Boolean).join('\n')
+      const finalOutput = combined || (result.ok ? '(sin salida)' : 'Error de ejecución')
+      setOutput(finalOutput)
+      persistTutorContext(finalOutput)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      const errorMessage = `Error: ${msg}\n`
+      setOutput(errorMessage)
+      persistTutorContext(errorMessage)
+    } finally {
+      setIsRunning(false)
+    }
   }
 
   const resetCode = () => {
@@ -184,14 +148,30 @@ const CodeEditor: React.FC = () => {
       <div className="bg-white border-b border-slate-200 p-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-semibold text-slate-900">Editor de Codigo</h1>
-          <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-          <span className="text-sm text-slate-500">{wsConnected ? 'Conectado' : 'Desconectado'}</span>
+          <div
+            className={`w-2 h-2 rounded-full ${
+              sandboxStatus === 'ready' || sandboxStatus === 'running'
+                ? 'bg-green-500'
+                : sandboxStatus === 'error'
+                ? 'bg-red-500'
+                : sandboxStatus === 'loading'
+                ? 'bg-yellow-500 animate-pulse'
+                : 'bg-slate-400'
+            }`}
+          />
+          <span className="text-sm text-slate-500">
+            {sandboxStatus === 'idle' && 'Sandbox sin iniciar'}
+            {sandboxStatus === 'loading' && 'Cargando Pyodide...'}
+            {sandboxStatus === 'ready' && 'Listo (Pyodide)'}
+            {sandboxStatus === 'running' && 'Ejecutando...'}
+            {sandboxStatus === 'error' && 'Error en ejecución previa'}
+          </span>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={runCode}
-            disabled={isRunning || !wsConnected}
+            disabled={isRunning}
             className="btn-primary disabled:opacity-50"
           >
             <Play className="h-4 w-4 mr-2" />
