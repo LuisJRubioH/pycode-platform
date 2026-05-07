@@ -3,11 +3,12 @@ Authentication endpoints.
 """
 
 from datetime import timedelta, datetime
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.database import get_db
+from app.core.rate_limit import limiter
 from app.core.security import (
     verify_password,
     create_access_token,
@@ -24,7 +25,10 @@ router = APIRouter()
 @router.post(
     "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
 )
-async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
+@limiter.limit("3/hour")
+async def register(
+    request: Request, user_data: UserCreate, db: AsyncSession = Depends(get_db)
+):
     """Register a new user."""
     # Check if user already exists
     result = await db.execute(
@@ -66,7 +70,10 @@ async def register(user_data: UserCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-async def login(login_data: LoginRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login(
+    request: Request, login_data: LoginRequest, db: AsyncSession = Depends(get_db)
+):
     """Authenticate user and return JWT token."""
     # Find user by email
     result = await db.execute(select(User).where(User.email == login_data.email))

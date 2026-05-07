@@ -7,10 +7,13 @@ FastAPI backend for the Python learning platform with AI tutor.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import settings
 from app.api.v1.router import api_router
 from app.core.database import engine
+from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.models import challenge  # noqa: F401
 from app.models import elo_models  # noqa: F401
@@ -53,6 +56,10 @@ app = FastAPI(
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(SecurityHeadersMiddleware)
 

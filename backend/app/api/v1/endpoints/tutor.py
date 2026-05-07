@@ -2,11 +2,12 @@
 AI Tutor endpoints.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
 from app.core.database import get_db
+from app.core.rate_limit import limiter
 from app.core.security import get_current_active_user
 from app.models.user import User
 from app.services.ai_tutor import AITutorService
@@ -25,8 +26,11 @@ class TutorResponse(BaseModel):
 
 
 @router.post("/ask", response_model=TutorResponse)
+@limiter.limit("50/day")
 async def ask_tutor(
-    message: TutorMessage, current_user: User = Depends(get_current_active_user)
+    request: Request,
+    message: TutorMessage,
+    current_user: User = Depends(get_current_active_user),
 ):
     """Ask the AI tutor a question (HTTP endpoint fallback)."""
     try:
