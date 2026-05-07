@@ -104,7 +104,28 @@ async def delete_my_account(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """GDPR: borra la cuenta. ON DELETE CASCADE limpia datos relacionados."""
-    await db.execute(delete(User).where(User.id == current_user.id))
+    """GDPR: borra la cuenta y todos los datos relacionados.
+
+    En Postgres ON DELETE CASCADE (migración 0003) sería suficiente,
+    pero borramos los dependientes explícitamente para que SQLite
+    (donde la migración 0003 es no-op) tampoco deje orphans en tests
+    ni en dev local.
+    """
+    from app.models.elo_models import PuzzleAttempt
+    from app.models.learning import CodeSubmission, TutorSession, UserProgress
+    from app.models.refresh_token import RefreshToken
+    from app.models.user import UserProfile
+
+    uid = current_user.id
+    for model in (
+        RefreshToken,
+        CodeSubmission,
+        TutorSession,
+        UserProgress,
+        PuzzleAttempt,
+        UserProfile,
+    ):
+        await db.execute(delete(model).where(model.user_id == uid))
+    await db.execute(delete(User).where(User.id == uid))
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -39,12 +39,10 @@ async def client():
         yield ac
 
 
-@pytest_asyncio.fixture
-async def auth_headers(client):
-    """Registra un usuario único y devuelve los headers Authorization."""
+async def _register_and_login(client, prefix: str):
     suffix = uuid.uuid4().hex[:8]
-    email = f"test_{suffix}@example.com"
-    username = f"u{suffix}"
+    email = f"{prefix}_{suffix}@example.com"
+    username = f"{prefix}{suffix}"
     password = "TestPass123"
 
     rr = await client.post(
@@ -58,7 +56,29 @@ async def auth_headers(client):
     body = rl.json()
     if "access_token" not in body:
         raise RuntimeError(
-            f"auth_headers login falló: register={rr.status_code} "
+            f"auth login falló: register={rr.status_code} "
             f"{rr.text[:200]} | login={rl.status_code} {rl.text[:200]}"
         )
-    return {"Authorization": f"Bearer {body['access_token']}"}
+    return {
+        "id": body["user_id"],
+        "email": email,
+        "username": username,
+        "headers": {"Authorization": f"Bearer {body['access_token']}"},
+    }
+
+
+@pytest_asyncio.fixture
+async def auth_headers(client):
+    """Registra un usuario único y devuelve los headers Authorization."""
+    info = await _register_and_login(client, "test")
+    return info["headers"]
+
+
+@pytest_asyncio.fixture
+async def user_a(client):
+    return await _register_and_login(client, "alice")
+
+
+@pytest_asyncio.fixture
+async def user_b(client):
+    return await _register_and_login(client, "bob")
