@@ -55,8 +55,9 @@ async def get_lesson_exercises(
             "difficulty": ex.difficulty,
             "points": ex.points,
             "starter_code": ex.starter_code,
-            "hints": ex.hints[:1] if ex.hints else [],  # Only show first hint
-            "completed": submission_map.get(ex.id, {}).result == "success",
+            "hints": ex.hints[:1] if ex.hints else [],
+            "completed": getattr(submission_map.get(ex.id), "result", None)
+            == "success",
             "attempts": len([s for s in submissions if s.exercise_id == ex.id]),
         }
         for ex in exercises
