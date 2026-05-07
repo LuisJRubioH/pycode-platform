@@ -6,8 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 PyCode Platform — learning platform for Python with Monaco editor, sandboxed code execution, a Socratic AI tutor, and a Finxter-inspired ELO puzzle progression system. 
 
-**Current Status (Fase 0 v2)**: 🚧 Fundamentos + seguridad base — 25/30 tasks
+**Current Status (Fase 0 v2)**: 🚧 Fundamentos + seguridad base — 27/30 tasks
 - Postgres + Alembic + migraciones versionadas (sin SQLite ni `create_all` en prod)
+- RLS habilitada por tabla con `current_setting('app.current_user_id')` + tests cross-user
 - Pyodide en Web Worker reemplaza el subprocess executor; backend ya no ejecuta código
 - Provider abstraction LLM (Groq default + OpenAI fallback + Stub)
 - Headers seguros, CORS whitelist, rate limiting universal con SlowAPI
@@ -15,7 +16,7 @@ PyCode Platform — learning platform for Python with Monaco editor, sandboxed c
 - Logging structlog con redaction PII, Sentry con scrubbing, Dependabot semanal
 - Deploy gratis configurado: Render (backend) + Vercel (frontend) + Supabase (Postgres)
 
-**Pendiente (Tasks 18, 19, 29):** RLS por tabla y test cross-user (requiere Postgres real); smoke test full-stack contra staging tras los primeros deploys. Detalle en `docs/superpowers/plans/fase-0-checklist.md`.
+**Pendiente (Task 29):** smoke test full-stack contra entorno staging real tras los primeros deploys. Detalle en `docs/superpowers/plans/fase-0-checklist.md`.
 
 Próxima fase: Fase 1 — pulido y sistema ELO completo. Spec en `docs/superpowers/specs/2026-05-03-pycode-platform-v2-design.md`.
 

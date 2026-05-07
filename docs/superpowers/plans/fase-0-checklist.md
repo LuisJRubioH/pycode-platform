@@ -1,8 +1,9 @@
 # Fase 0 — Checklist de salida
 
-Estado al 2026-05-06. **25 de 30 tasks completadas.** RLS (18-19) y deploy
-real (29) quedan pendientes hasta la siguiente sesión con Postgres
-disponible y proyectos creados en Render/Vercel/Supabase.
+Estado al 2026-05-06. **27 de 30 tasks completadas.** Solo queda el
+smoke test contra el entorno staging real (Task 29) — requiere
+proyectos creados en Render/Vercel/Supabase. Task 30 cierra cuando
+Task 29 quede verde.
 
 ## Hecho
 
@@ -60,30 +61,34 @@ disponible y proyectos creados en Render/Vercel/Supabase.
 - [x] Vercel config (`vercel.json`) con rewrites a Render y headers
   replicados
   — Task 28
+- [x] RLS habilitada en `users`, `user_profiles`, `user_progress`,
+  `code_submissions`, `tutor_sessions`, `refresh_tokens`,
+  `puzzle_attempts` con políticas
+  `USING (user_id = current_setting('app.current_user_id', true)::int)`;
+  `lessons`/`exercises`/`puzzles` con `_public_read`. Migración 0004
+  no-op en SQLite. Validada contra Postgres 16 local (10/10 tablas
+  con `rowsecurity=true`).
+  — Task 18
+- [x] Test suite cross-user (5 tests) que valida en SQLite la defensa
+  app-layer y en Postgres la doble defensa con RLS:
+  `test_user_lookup_by_id_not_exposed`, `test_export_only_returns_own_data`,
+  `test_progress_isolated_per_user`,
+  `test_delete_me_does_not_affect_other_user`,
+  `test_a_cannot_use_b_token_after_logout`.
+  — Task 19
 
 ## Pendiente
 
-- [ ] **RLS habilitada por tabla con datos de usuario** — Task 18.
-  Bloqueador: requiere Postgres real (RLS no existe en SQLite).
-  Migración `0004_enable_rls_per_user_tables.py` toca `user_profiles`,
-  `user_progress`, `code_submissions`, `tutor_sessions`,
-  `refresh_tokens` con políticas
-  `USING (user_id = current_setting('app.current_user_id', true)::int)`.
-- [ ] **Test suite cross-user RLS** — Task 19.
-  Bloqueador: depende de Task 18 + ejecución contra Postgres.
 - [ ] **Smoke test full-stack contra entorno staging** — Task 29.
   Bloqueador: depende de proyectos creados en Render + Vercel +
   Supabase + UptimeRobot (operativo, no código).
 
 ## Cómo retomar
 
-1. Levantar Postgres local (o crear branch en Supabase).
-2. Aplicar Tasks 18 → 19 contra ese Postgres siguiendo el plan
-   (sec. 18 y 19 de
-   `docs/superpowers/plans/2026-05-03-fase-0-fundamentos-seguridad.md`).
-3. Crear cuentas Render + Vercel + Supabase + UptimeRobot,
-   aprovisionar usando `render.yaml`, `vercel.json` y los pasos de
+1. Crear cuentas Render + Vercel + Supabase + UptimeRobot.
+2. Aprovisionar usando `render.yaml`, `vercel.json` y los pasos de
    `docs/DEPLOY.md`.
-4. Ejecutar Task 29 contra el entorno staging.
-5. Cuando todo esté verde, marcar este checklist completo y crear el
-   tag `fase-0-complete`.
+3. Ejecutar Task 29 contra el entorno staging según
+   `docs/superpowers/plans/2026-05-03-fase-0-fundamentos-seguridad.md`.
+4. Cuando todo esté verde, marcar este checklist completo, cerrar
+   Task 30 y crear el tag `fase-0-complete`.
