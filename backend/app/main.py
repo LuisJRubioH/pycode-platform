@@ -13,6 +13,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.core.config import settings
 from app.api.v1.router import api_router
 from app.core.database import engine
+from app.core.logging_config import configure_logging
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.models import challenge  # noqa: F401
@@ -28,6 +29,8 @@ from app.services.lesson_seed import seed_lessons_with_exercises
 from app.services.puzzle_seed import seed_interview_puzzles, seed_puzzles_if_empty
 from app.websockets.code_execution import code_execution_ws
 from app.websockets.tutor_chat import tutor_chat_ws
+
+configure_logging()
 
 
 @asynccontextmanager

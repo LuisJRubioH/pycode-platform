@@ -7,9 +7,12 @@ AI Tutor Service with OpenAI integration and a code-evaluation Socratic style.
 from pathlib import Path
 from typing import Any
 
+import structlog
 from openai import AsyncOpenAI
 
 from app.core.config import settings
+
+logger = structlog.get_logger()
 
 
 class AITutorService:
@@ -55,7 +58,7 @@ class AITutorService:
             )
 
         except Exception as exc:
-            print(f"Error calling OpenAI: {exc}")
+            logger.error("llm.call_failed", error=str(exc))
             return self._get_fallback_response(message, normalized_context)
 
     def _load_system_prompt(self) -> str:
