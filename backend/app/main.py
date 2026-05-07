@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.api.v1.router import api_router
 from app.core.database import engine
+from app.core.security_headers import SecurityHeadersMiddleware
 from app.models import challenge  # noqa: F401
 from app.models import elo_models  # noqa: F401
 from app.models import learning  # noqa: F401
@@ -52,6 +53,8 @@ app = FastAPI(
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
 )
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 # CORS middleware
 app.add_middleware(
