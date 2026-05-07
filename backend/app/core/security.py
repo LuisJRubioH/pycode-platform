@@ -75,7 +75,12 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Get current authenticated user from JWT token."""
+    """Get current authenticated user from JWT token.
+
+    Sobre Postgres también setea app.current_user_id (LOCAL) para que
+    las políticas RLS de la migración 0004 filtren las queries de la
+    request actual. Sobre SQLite es no-op.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -96,8 +101,14 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception
 
-    # Query user from database
-    from sqlalchemy import select
+    from sqlalchemy import select, text
+
+    bind = db.get_bind()
+    if bind.dialect.name == "postgresql":
+        await db.execute(
+            text("SELECT set_config('app.current_user_id', :uid, true)"),
+            {"uid": str(int(user_id))},
+        )
 
     result = await db.execute(select(User).where(User.id == int(user_id)))
     user = result.scalar_one_or_none()
