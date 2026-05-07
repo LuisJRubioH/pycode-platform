@@ -2,6 +2,7 @@
 # ENTORNOS VIRTUALES PYTHON
 # =========================
 .venv/
+.venv*/
 venv/
 env/
 
