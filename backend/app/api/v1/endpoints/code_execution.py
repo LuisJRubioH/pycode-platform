@@ -3,7 +3,7 @@ Code execution endpoints.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 
 from app.core.security import get_current_active_user
@@ -16,9 +16,16 @@ router = APIRouter()
 class CodeExecutionRequest(BaseModel):
     """Request to execute Python code."""
 
-    code: str = Field(..., min_length=1, max_length=10000)
+    code: str = Field(..., min_length=1, max_length=20000)
     language: str = "python"
     timeout: Optional[int] = 30
+
+    @field_validator("code")
+    @classmethod
+    def reject_null_bytes(cls, v: str) -> str:
+        if "\x00" in v:
+            raise ValueError("code no puede contener bytes nulos")
+        return v
 
 
 class CodeExecutionResponse(BaseModel):
