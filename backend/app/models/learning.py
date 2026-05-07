@@ -75,7 +75,9 @@ class UserProgress(Base):
     __tablename__ = "user_progress"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=False)
     status = Column(
         String(50), default="not_started"
@@ -99,7 +101,9 @@ class CodeSubmission(Base):
     __tablename__ = "code_submissions"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     exercise_id = Column(Integer, ForeignKey("exercises.id"), nullable=False)
     code = Column(Text, nullable=False)
     result = Column(String(50))  # success, error, timeout
@@ -121,7 +125,9 @@ class TutorSession(Base):
     __tablename__ = "tutor_sessions"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     lesson_id = Column(Integer, ForeignKey("lessons.id"), nullable=True)
     messages = Column(JSON, default=list)  # List of message dicts
     created_at = Column(DateTime, default=datetime.utcnow)

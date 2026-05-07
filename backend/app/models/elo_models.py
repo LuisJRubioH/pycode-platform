@@ -75,7 +75,12 @@ class PuzzleAttempt(Base):
     __tablename__ = "puzzle_attempts"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     puzzle_id = Column(Integer, ForeignKey("puzzles.id"), nullable=False, index=True)
     correct = Column(Boolean, nullable=False)
     user_answer = Column(Text, nullable=True)

@@ -37,7 +37,11 @@ class UserProfile(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(
-        Integer, ForeignKey("users.id"), nullable=False, index=True, unique=True
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        unique=True,
     )
     level = Column(String(50), default="beginner")
     xp_points = Column(Integer, default=0)
