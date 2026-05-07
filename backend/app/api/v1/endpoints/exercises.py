@@ -13,7 +13,6 @@ from app.core.security import get_current_active_user
 from app.models.user import User
 from app.models.learning import Exercise, CodeSubmission, UserProgress
 from app.schemas.learning import CodeSubmissionCreate, CodeSubmissionResponse
-from app.services.docker_executor import DockerCodeExecutor
 
 router = APIRouter()
 
@@ -71,8 +70,13 @@ async def submit_exercise(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Submit code for an exercise."""
-    # Get exercise
+    """Persiste el resultado que el cliente Pyodide reporta para un ejercicio.
+
+    El backend ya no ejecuta código del estudiante (ver Task 14 del plan
+    Fase 0). El cliente corre el código en Pyodide y envía success / output
+    / passed_tests; aquí solo registramos la submission y actualizamos
+    progreso.
+    """
     result = await db.execute(select(Exercise).where(Exercise.id == exercise_id))
     exercise = result.scalar_one_or_none()
 
@@ -81,40 +85,28 @@ async def submit_exercise(
             status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found"
         )
 
-    # Execute code
-    executor = DockerCodeExecutor(user_id=str(current_user.id), timeout=30)
-    exec_result = await executor.run_python_code(submission.code)
+    total_tests = submission.total_tests or (
+        len(exercise.test_cases) if exercise.test_cases else 0
+    )
+    passed_tests = submission.passed_tests
+    is_success = submission.success and (
+        total_tests == 0 or passed_tests == total_tests
+    )
 
-    # Run tests if available
-    passed_tests = 0
-    total_tests = len(exercise.test_cases) if exercise.test_cases else 0
-
-    if exercise.test_cases and exec_result["success"]:
-        # Simple test execution
-        for test in exercise.test_cases:
-            test_code = f"{submission.code}\n\n{test.get('test_code', '')}"
-            test_result = await executor.run_python_code(test_code)
-            if test_result["success"] and test_result["exit_code"] == 0:
-                passed_tests += 1
-
-    # Create submission record
     code_submission = CodeSubmission(
         user_id=current_user.id,
         exercise_id=exercise_id,
         code=submission.code,
-        result="success"
-        if exec_result["success"] and passed_tests == total_tests
-        else "error",
-        output=exec_result.get("stdout"),
-        error_message=exec_result.get("stderr"),
-        execution_time=exec_result.get("execution_time", 0),
+        result="success" if is_success else "error",
+        output=submission.output,
+        error_message=submission.error_message,
+        execution_time=submission.execution_time_ms or 0,
         passed_tests=passed_tests,
         total_tests=total_tests,
     )
 
     db.add(code_submission)
 
-    # Update progress if successful
     if code_submission.result == "success":
         progress_result = await db.execute(
             select(UserProgress).where(

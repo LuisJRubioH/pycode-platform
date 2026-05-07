@@ -57,6 +57,12 @@ class LessonResponse(BaseModel):
 class CodeSubmissionCreate(BaseModel):
     exercise_id: int
     code: str
+    success: bool = False
+    output: Optional[str] = None
+    error_message: Optional[str] = None
+    execution_time_ms: Optional[int] = None
+    passed_tests: int = 0
+    total_tests: int = 0
 
 
 class CodeSubmissionResponse(BaseModel):
