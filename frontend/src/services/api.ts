@@ -1,7 +1,10 @@
 /**
  * Centralized API service.
- * Automatically injects the JWT token into request headers.
+ * Auto-inyecta el access_token y, ante un 401, intenta una vez refrescar
+ * con el refresh_token antes de propagar el error o forzar logout.
  */
+
+import { useAuthStore } from '../stores/authStore'
 
 const API_BASE = '/api/v1'
 
@@ -9,15 +12,44 @@ interface RequestOptions extends RequestInit {
   skipAuth?: boolean
 }
 
-/**
- * Make an authenticated API request.
- * Automatically includes the JWT token from localStorage.
- */
+interface RetryFlags {
+  __pycodeRetry?: boolean
+}
+
+let refreshing: Promise<string | null> | null = null
+
+async function refreshAccessToken(): Promise<string | null> {
+  const refresh = useAuthStore.getState().refreshToken
+  if (!refresh) return null
+
+  if (!refreshing) {
+    refreshing = (async () => {
+      try {
+        const r = await fetch(`${API_BASE}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: refresh }),
+        })
+        if (!r.ok) return null
+        const data = await r.json()
+        useAuthStore.getState().setTokens(data.access_token, data.refresh_token)
+        return data.access_token as string
+      } catch {
+        return null
+      }
+    })().finally(() => {
+      refreshing = null
+    })
+  }
+
+  return refreshing
+}
+
 export async function apiRequest(
   endpoint: string,
-  options: RequestOptions = {}
+  options: RequestOptions & RetryFlags = {}
 ): Promise<Response> {
-  const { skipAuth = false, headers: customHeaders, ...rest } = options
+  const { skipAuth = false, headers: customHeaders, __pycodeRetry, ...rest } = options
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -25,29 +57,28 @@ export async function apiRequest(
   }
 
   if (!skipAuth) {
-    const token = localStorage.getItem('pycode_token')
+    const token = useAuthStore.getState().accessToken
     if (token) {
       headers['Authorization'] = `Bearer ${token}`
     }
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    headers,
-    ...rest,
-  })
+  const response = await fetch(`${API_BASE}${endpoint}`, { headers, ...rest })
 
-  // If unauthorized, clear the token
-  if (response.status === 401 && !skipAuth) {
-    localStorage.removeItem('pycode_token')
-    window.location.href = '/login'
+  if (response.status === 401 && !skipAuth && !__pycodeRetry) {
+    const newToken = await refreshAccessToken()
+    if (newToken) {
+      return apiRequest(endpoint, { ...options, __pycodeRetry: true })
+    }
+    useAuthStore.getState().clearTokens()
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
   }
 
   return response
 }
 
-/**
- * Convenience methods for common HTTP verbs.
- */
 export const api = {
   get: (endpoint: string, options?: RequestOptions) =>
     apiRequest(endpoint, { method: 'GET', ...options }),
