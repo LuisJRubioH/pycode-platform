@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from openai import AsyncOpenAI
 
 from app.core.config import settings
+from app.services.llm_provider import StubProvider, get_provider
 
 logger = structlog.get_logger()
 
@@ -19,40 +19,27 @@ class AITutorService:
     """AI tutor service that evaluates beginner Python code without giving full solutions."""
 
     def __init__(self):
-        self.client = (
-            AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-            if settings.OPENAI_API_KEY
-            else None
-        )
+        self.provider = get_provider(settings)
         self.system_prompt = self._load_system_prompt()
 
     async def get_response(self, message: str, context: dict | None = None) -> str:
         """Get a response from the tutor using the configured prompt and structured context."""
         normalized_context = self._normalize_context(context)
 
-        if not self.client:
+        if isinstance(self.provider, StubProvider):
             return self._get_fallback_response(message, normalized_context)
 
         try:
-            messages = [
-                {"role": "system", "content": self.system_prompt},
-                {
-                    "role": "user",
-                    "content": (
-                        f"{self._build_context(normalized_context)}\n\n"
-                        f"Consulta o comentario del estudiante:\n{message.strip()}"
-                    ).strip(),
-                },
-            ]
-
-            response = await self.client.chat.completions.create(
-                model=settings.OPENAI_MODEL,
-                messages=messages,
+            user_block = (
+                f"{self._build_context(normalized_context)}\n\n"
+                f"Consulta o comentario del estudiante:\n{message.strip()}"
+            ).strip()
+            content = await self.provider.chat(
+                system=self.system_prompt,
+                user=user_block,
                 max_tokens=700,
                 temperature=0.4,
             )
-
-            content = response.choices[0].message.content or ""
             return content.strip() or self._get_fallback_response(
                 message, normalized_context
             )
