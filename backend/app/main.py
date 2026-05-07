@@ -20,6 +20,7 @@ from app.core.security_headers import SecurityHeadersMiddleware
 from app.models import challenge  # noqa: F401
 from app.models import elo_models  # noqa: F401
 from app.models import learning  # noqa: F401
+from app.models import refresh_token  # noqa: F401
 from app.models import user  # noqa: F401
 from app.services.challenge_importer import import_external_challenges
 from app.services.generated_bank import (

@@ -57,7 +57,8 @@ class Token(BaseModel):
     """JWT token schema."""
 
     access_token: str
-    token_type: str
+    refresh_token: str
+    token_type: str = "bearer"
     user_id: int
     username: str
 
@@ -66,3 +67,7 @@ class TokenPayload(BaseModel):
     """JWT token payload."""
 
     sub: Optional[int] = None
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str

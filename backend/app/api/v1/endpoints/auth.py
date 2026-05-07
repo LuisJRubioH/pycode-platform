@@ -3,21 +3,31 @@ Authentication endpoints.
 """
 
 from datetime import timedelta, datetime
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.core.database import get_db
 from app.core.rate_limit import limiter
 from app.core.security import (
     verify_password,
     create_access_token,
+    create_refresh_token,
+    decode_refresh_token,
     get_password_hash,
     get_current_active_user,
 )
 from app.core.config import settings
+from app.models.refresh_token import RefreshToken
 from app.models.user import User, UserProfile
-from app.schemas.auth import Token, UserCreate, UserResponse, LoginRequest
+from app.schemas.auth import (
+    LoginRequest,
+    RefreshRequest,
+    Token,
+    UserCreate,
+    UserResponse,
+)
 
 router = APIRouter()
 
@@ -95,18 +105,88 @@ async def login(
     user.last_login = datetime.utcnow()
     await db.commit()
 
-    # Create access token
+    # Create access token + refresh token (rotación)
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
+    rt, jti, exp = create_refresh_token(user.id)
+    db.add(RefreshToken(user_id=user.id, jti=jti, expires_at=exp))
+    await db.commit()
 
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user_id": user.id,
-        "username": user.username,
-    }
+    return Token(
+        access_token=access_token,
+        refresh_token=rt,
+        token_type="bearer",
+        user_id=user.id,
+        username=user.username,
+    )
+
+
+@router.post("/refresh", response_model=Token)
+@limiter.limit("60/hour")
+async def refresh(
+    request: Request,
+    body: RefreshRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Rota el refresh token: revoca el actual y emite uno nuevo."""
+    try:
+        payload = decode_refresh_token(body.refresh_token)
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="refresh token inválido",
+        )
+    jti = payload["jti"]
+    user_id = int(payload["sub"])
+
+    result = await db.execute(
+        select(RefreshToken).where(
+            RefreshToken.jti == jti, RefreshToken.revoked == False  # noqa: E712
+        )
+    )
+    rt = result.scalar_one_or_none()
+    if not rt or rt.expires_at < datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="refresh token revocado o expirado",
+        )
+
+    rt.revoked = True
+    new_rt, new_jti, new_exp = create_refresh_token(user_id)
+    db.add(RefreshToken(user_id=user_id, jti=new_jti, expires_at=new_exp))
+
+    new_access = create_access_token(
+        data={"sub": str(user_id)},
+        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one()
+    await db.commit()
+    return Token(
+        access_token=new_access,
+        refresh_token=new_rt,
+        token_type="bearer",
+        user_id=user_id,
+        username=user.username,
+    )
+
+
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
+    """Revoca el refresh token recibido. Idempotente para tokens inválidos."""
+    try:
+        payload = decode_refresh_token(body.refresh_token)
+    except JWTError:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    await db.execute(
+        update(RefreshToken)
+        .where(RefreshToken.jti == payload["jti"])
+        .values(revoked=True)
+    )
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/me", response_model=UserResponse)

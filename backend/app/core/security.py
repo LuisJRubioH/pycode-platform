@@ -2,6 +2,7 @@
 Authentication utilities and dependencies.
 """
 
+import secrets
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
@@ -47,6 +48,27 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
     return encoded_jwt
+
+
+def create_refresh_token(user_id: int) -> tuple[str, str, datetime]:
+    """Devuelve (token, jti, expires_at)."""
+    jti = secrets.token_urlsafe(32)
+    expires_at = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    payload = {
+        "sub": str(user_id),
+        "jti": jti,
+        "type": "refresh",
+        "exp": expires_at,
+    }
+    token = jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+    return token, jti, expires_at
+
+
+def decode_refresh_token(token: str) -> dict:
+    payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    if payload.get("type") != "refresh":
+        raise JWTError("not a refresh token")
+    return payload
 
 
 async def get_current_user(
