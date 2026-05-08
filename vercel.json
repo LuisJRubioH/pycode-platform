@@ -12,6 +12,10 @@
     {
       "source": "/ws/:path*",
       "destination": "https://pycode-backend.onrender.com/ws/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [

@@ -35,6 +35,22 @@ const ACCESS_KEY = 'pycode_access_token'
 const REFRESH_KEY = 'pycode_refresh_token'
 const LEGACY_KEY = 'pycode_token'
 
+/**
+ * Extrae un mensaje legible del campo `detail` de una respuesta de FastAPI.
+ * En errores de Pydantic (422), `detail` es un array de objetos; en errores
+ * controlados (HTTPException), es un string.
+ */
+function extractErrorMessage(detail: unknown, fallback: string): string {
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail) && detail.length > 0) {
+    const first = detail[0]
+    if (first && typeof first === 'object' && 'msg' in first) {
+      return String((first as { msg: unknown }).msg)
+    }
+  }
+  return fallback
+}
+
 function bootstrapAccess(): string | null {
   const stored = localStorage.getItem(ACCESS_KEY)
   if (stored) return stored
@@ -84,8 +100,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     })
     if (!response.ok) {
       set({ isLoading: false })
-      const data = await response.json()
-      throw new Error(data.detail || 'Error al iniciar sesión')
+      const data = await response.json().catch(() => ({}))
+      throw new Error(extractErrorMessage(data.detail, 'Error al iniciar sesión'))
     }
     const data = await response.json()
     get().setTokens(data.access_token, data.refresh_token)
@@ -111,8 +127,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     })
     if (!response.ok) {
       set({ isLoading: false })
-      const data = await response.json()
-      throw new Error(data.detail || 'Error al registrar')
+      const data = await response.json().catch(() => ({}))
+      throw new Error(extractErrorMessage(data.detail, 'Error al registrar'))
     }
     set({ isLoading: false })
   },
