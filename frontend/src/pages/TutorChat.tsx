@@ -38,8 +38,12 @@ const TutorChat: React.FC = () => {
     let reconnectTimeout: ReturnType<typeof setTimeout>
 
     const connect = () => {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-      const ws = new WebSocket(`${protocol}//${window.location.host}/ws/tutor`)
+      // Vercel Hobby tier no proxea WebSockets de forma confiable;
+      // en prod conectamos directamente al backend.
+      const wsUrl = import.meta.env.PROD
+        ? 'wss://pycode-backend.onrender.com/ws/tutor'
+        : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/tutor`
+      const ws = new WebSocket(wsUrl)
 
       ws.onopen = () => {
         setWsConnected(true)
