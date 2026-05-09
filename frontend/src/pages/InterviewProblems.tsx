@@ -4,6 +4,7 @@ import { Briefcase, ArrowRight } from 'lucide-react'
 import { api } from '../services/api'
 import { saveTutorContext } from '../services/tutorContext'
 import EloResultModal, { EloAttemptResult } from '../components/EloResultModal'
+import PuzzleAttemptsList from '../components/PuzzleAttemptsList'
 
 interface InterviewPuzzle {
   id: number
@@ -25,6 +26,7 @@ const InterviewProblems: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [attemptsRefresh, setAttemptsRefresh] = useState(0)
 
   useEffect(() => {
     const load = async () => {
@@ -74,6 +76,7 @@ const InterviewProblems: React.FC = () => {
         return
       }
       setResult(await res.json())
+      setAttemptsRefresh((n) => n + 1)
     } catch (submitError) {
       console.error('Error evaluating interview attempt:', submitError)
       setError('No se pudo evaluar tu intento. Intenta nuevamente.')
@@ -200,6 +203,10 @@ const InterviewProblems: React.FC = () => {
                 </button>
               </div>
 
+              <PuzzleAttemptsList
+                puzzleId={selected.id}
+                refreshKey={attemptsRefresh}
+              />
             </div>
           )}
         </div>

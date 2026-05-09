@@ -4,6 +4,7 @@ import { ArrowRight, BrainCircuit, CheckCircle2 } from 'lucide-react'
 import { api } from '../services/api'
 import { saveTutorContext } from '../services/tutorContext'
 import EloResultModal, { EloAttemptResult } from '../components/EloResultModal'
+import PuzzleAttemptsList from '../components/PuzzleAttemptsList'
 
 interface Puzzle {
   id: number
@@ -28,6 +29,7 @@ const Puzzles: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
+  const [attemptsRefresh, setAttemptsRefresh] = useState(0)
 
   useEffect(() => {
     const loadPuzzles = async () => {
@@ -91,6 +93,7 @@ const Puzzles: React.FC = () => {
           ? { ...prev, attempted: true, solved: prev.solved || attemptResult.correct }
           : prev
       )
+      setAttemptsRefresh((n) => n + 1)
     } catch (submitError) {
       console.error('Error submitting attempt:', submitError)
       setError('No pudimos evaluar tu respuesta. Vuelve a intentarlo.')
@@ -260,6 +263,10 @@ const Puzzles: React.FC = () => {
                 </button>
               </div>
 
+              <PuzzleAttemptsList
+                puzzleId={selected.id}
+                refreshKey={attemptsRefresh}
+              />
             </div>
           )}
         </div>
