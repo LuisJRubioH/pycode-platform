@@ -19,6 +19,8 @@ from app.schemas.elo_schemas import (
     EloRankTableOut,
     EloTableRow,
     PuzzleListOut,
+    PuzzleAttemptHistoryItem,
+    PuzzleAttemptHistoryOut,
     PuzzleAttemptIn,
     PuzzleAttemptOut,
     PuzzleOut,
@@ -248,6 +250,36 @@ async def list_interview_problems(
         limit=limit,
         db=db,
         current_user=current_user,
+    )
+
+
+@router.get("/puzzles/{puzzle_id}/attempts", response_model=PuzzleAttemptHistoryOut)
+async def get_puzzle_attempts(
+    puzzle_id: int,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Historial de intentos del usuario actual sobre este puzzle ELO.
+
+    Filtro por user_id; un usuario nunca ve intentos de otro.
+    """
+    limit = max(1, min(limit, 100))
+    result = await db.execute(
+        select(PuzzleAttempt)
+        .where(
+            and_(
+                PuzzleAttempt.user_id == current_user.id,
+                PuzzleAttempt.puzzle_id == puzzle_id,
+            )
+        )
+        .order_by(PuzzleAttempt.created_at.desc())
+        .limit(limit)
+    )
+    items = result.scalars().all()
+    return PuzzleAttemptHistoryOut(
+        items=[PuzzleAttemptHistoryItem.model_validate(a) for a in items],
+        total=len(items),
     )
 
 

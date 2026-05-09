@@ -10,8 +10,13 @@ from sqlalchemy import select
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
+from app.models.code_evaluation import CodeEvaluation
 from app.models.user import User
 from app.models.learning import Exercise, CodeSubmission, UserProgress
+from app.schemas.evaluation import (
+    EvaluationHistoryItem,
+    EvaluationHistoryOut,
+)
 from app.schemas.learning import (
     CodeSubmissionCreate,
     CodeSubmissionResponse,
@@ -159,6 +164,36 @@ async def get_hidden_tests(
         if isinstance(t, dict) and t.get("code")
     ]
     return HiddenTestsResponse(exercise_id=exercise_id, tests=tests)
+
+
+@router.get("/{exercise_id}/evaluations", response_model=EvaluationHistoryOut)
+async def get_exercise_evaluations(
+    exercise_id: int,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Historial de evaluaciones del usuario actual sobre este ejercicio.
+
+    Filtra por user_id para que A nunca vea evaluaciones de B; las RLS
+    en Postgres son una segunda línea de defensa pero esta capa app
+    impide cualquier filtración antes incluso de tocar la DB.
+    """
+    limit = max(1, min(limit, 100))
+    result = await db.execute(
+        select(CodeEvaluation)
+        .where(
+            CodeEvaluation.user_id == current_user.id,
+            CodeEvaluation.exercise_id == exercise_id,
+        )
+        .order_by(CodeEvaluation.created_at.desc())
+        .limit(limit)
+    )
+    items = result.scalars().all()
+    return EvaluationHistoryOut(
+        items=[EvaluationHistoryItem.model_validate(e) for e in items],
+        total=len(items),
+    )
 
 
 @router.get("/{exercise_id}/hints")

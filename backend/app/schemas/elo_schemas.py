@@ -96,3 +96,24 @@ class EloRankTableOut(BaseModel):
     rows: list[EloTableRow]
     user_elo: int
     user_rank: str
+
+
+class PuzzleAttemptHistoryItem(BaseModel):
+    """Entrada del historial de intentos del usuario sobre un puzzle ELO."""
+
+    id: int
+    correct: bool
+    user_answer: Optional[str] = None
+    user_elo_before: int
+    user_elo_after: int
+    elo_delta_user: int
+    expected_probability: float
+    time_spent_seconds: Optional[int] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PuzzleAttemptHistoryOut(BaseModel):
+    items: list[PuzzleAttemptHistoryItem]
+    total: int

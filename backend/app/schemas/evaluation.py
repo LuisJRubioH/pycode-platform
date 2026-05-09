@@ -45,3 +45,25 @@ class EvaluationResponse(BaseModel):
     created_at: datetime
     verdict: EvaluationVerdict
     model_used: Optional[str] = None
+
+
+class EvaluationHistoryItem(BaseModel):
+    """Entrada del historial de evaluaciones por ejercicio.
+
+    Incluye el código entero porque la UI quiere mostrar el snippet que
+    el alumno intentó cada vez (truncado en cliente). El verdict.raw ya
+    contiene el feedback del LLM listo para renderizar como markdown.
+    """
+
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
+
+    id: int
+    created_at: datetime
+    code: str
+    verdict: EvaluationVerdict
+    model_used: Optional[str] = None
+
+
+class EvaluationHistoryOut(BaseModel):
+    items: list[EvaluationHistoryItem]
+    total: int
