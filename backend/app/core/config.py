@@ -56,8 +56,11 @@ class Settings(BaseSettings):
     # Frontend
     FRONTEND_URL: str = "http://localhost:5173"
 
-    # Tutor
+    # Tutor — dos roles separados (Fase 1):
+    # - TUTOR_PROMPT_FILE: prompt evaluador (POST /tutor/evaluate)
+    # - TUTOR_GUIDE_PROMPT_FILE: prompt Q&A general (WS /ws/tutor)
     TUTOR_PROMPT_FILE: str = "maestro_evaluador_de_codigo_python.txt"
+    TUTOR_GUIDE_PROMPT_FILE: str = "tutor_guia_python.txt"
 
     @property
     def cors_origins_list(self) -> List[str]:
@@ -75,6 +78,10 @@ class Settings(BaseSettings):
     @property
     def tutor_prompt_path(self) -> Path:
         return self.project_root / self.TUTOR_PROMPT_FILE
+
+    @property
+    def tutor_guide_prompt_path(self) -> Path:
+        return self.project_root / self.TUTOR_GUIDE_PROMPT_FILE
 
     class Config:
         env_file = ".env"
