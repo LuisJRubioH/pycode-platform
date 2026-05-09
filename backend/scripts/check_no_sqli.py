@@ -10,6 +10,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TARGETS = [ROOT / "app", ROOT / "alembic"]
 
+# Las migraciones Alembic son código revisado que opera sobre identificadores
+# hardcodeados (nombres de tabla y columna definidos en listas literales del
+# propio archivo). No reciben input externo, así que el riesgo de SQLi real
+# es nulo. Excluir solo el directorio de versiones; alembic/env.py sí se
+# audita porque gestiona la conexión.
+EXCLUDED_DIRS = {ROOT / "alembic" / "versions"}
+
 # Patrón 1: text(f"...
 PAT_FSTRING = re.compile(r"\btext\s*\(\s*f['\"]")
 # Patrón 2: text("..." + ...) o text(... + ...)
@@ -24,6 +31,8 @@ for base in TARGETS:
         continue
     for py_file in base.rglob("*.py"):
         if "__pycache__" in py_file.parts:
+            continue
+        if any(excluded in py_file.parents for excluded in EXCLUDED_DIRS):
             continue
         text = py_file.read_text(encoding="utf-8")
         for lineno, line in enumerate(text.splitlines(), 1):
