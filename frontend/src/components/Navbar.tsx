@@ -29,6 +29,9 @@ const Navbar: React.FC = () => {
             <Link to="/lessons" className="text-slate-600 hover:text-slate-900">
               Lecciones
             </Link>
+            <Link to="/competencias" className="text-slate-600 hover:text-slate-900">
+              Competencias
+            </Link>
             <Link to="/editor" className="text-slate-600 hover:text-slate-900">
               Editor
             </Link>
@@ -84,6 +87,9 @@ const Navbar: React.FC = () => {
             <div className="flex flex-col space-y-4">
               <Link to="/lessons" className="text-slate-600 hover:text-slate-900" onClick={() => setIsOpen(false)}>
                 Lecciones
+              </Link>
+              <Link to="/competencias" className="text-slate-600 hover:text-slate-900" onClick={() => setIsOpen(false)}>
+                Competencias
               </Link>
               <Link to="/editor" className="text-slate-600 hover:text-slate-900" onClick={() => setIsOpen(false)}>
                 Editor

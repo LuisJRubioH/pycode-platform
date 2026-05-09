@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard'
 import CodeEditor from './pages/CodeEditor'
 import Lessons from './pages/Lessons'
 import LessonDetail from './pages/LessonDetail'
+import Competencies from './pages/Competencies'
 import TutorChat from './pages/TutorChat'
 import Challenges from './pages/Challenges'
 import Puzzles from './pages/Puzzles'
@@ -27,6 +28,7 @@ function App() {
           <Route path="editor" element={<CodeEditor />} />
           <Route path="lessons" element={<Lessons />} />
           <Route path="lessons/:lessonId" element={<LessonDetail />} />
+          <Route path="competencias" element={<Competencies />} />
           <Route path="challenges" element={<Challenges />} />
           <Route path="puzzles" element={<Puzzles />} />
           <Route path="interview" element={<InterviewProblems />} />
