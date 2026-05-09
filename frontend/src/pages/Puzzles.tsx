@@ -13,6 +13,8 @@ interface Puzzle {
   difficulty_label: string
   elo_rating: number
   solve_rate: number
+  attempted: boolean
+  solved: boolean
 }
 
 interface AttemptResult {
@@ -79,7 +81,26 @@ const Puzzles: React.FC = () => {
         setError('No pudimos evaluar tu respuesta. Vuelve a intentarlo.')
         return
       }
-      setResult(await res.json())
+      const attemptResult: AttemptResult = await res.json()
+      setResult(attemptResult)
+      // Marcar el puzzle como atacado y, si fue correcto, resuelto.
+      // Optimista: evita re-pedir la lista entera al backend.
+      setItems((prev) =>
+        prev.map((p) =>
+          p.id === selected.id
+            ? {
+                ...p,
+                attempted: true,
+                solved: p.solved || attemptResult.correct,
+              }
+            : p
+        )
+      )
+      setSelected((prev) =>
+        prev && prev.id === selected.id
+          ? { ...prev, attempted: true, solved: prev.solved || attemptResult.correct }
+          : prev
+      )
     } catch (submitError) {
       console.error('Error submitting attempt:', submitError)
       setError('No pudimos evaluar tu respuesta. Vuelve a intentarlo.')
@@ -136,7 +157,9 @@ const Puzzles: React.FC = () => {
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-900">Lista de puzzles</h2>
-            <span className="text-xs text-slate-500">{items.length} disponibles</span>
+            <span className="text-xs text-slate-500">
+              {items.filter((p) => p.solved).length}/{items.length} resueltos
+            </span>
           </div>
 
           {loading ? (
@@ -158,16 +181,36 @@ const Puzzles: React.FC = () => {
                     setResult(null)
                     setAnswer('')
                   }}
-                  className={`w-full text-left rounded-xl border p-4 transition-colors ${
+                  className={`w-full text-left rounded-xl border p-4 transition-colors flex items-start gap-3 ${
                     selected?.id === puzzle.id
                       ? 'border-primary-500 bg-primary-50'
+                      : puzzle.solved
+                      ? 'border-emerald-200 bg-emerald-50/50 hover:border-emerald-300'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
-                  <p className="text-sm font-semibold text-slate-900">{puzzle.title}</p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {puzzle.topic} · {puzzle.difficulty_label} · ELO {puzzle.elo_rating}
-                  </p>
+                  <span className="mt-0.5 flex-shrink-0" aria-hidden>
+                    {puzzle.solved ? (
+                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                    ) : puzzle.attempted ? (
+                      <span className="block w-5 h-5 rounded-full border-2 border-amber-400 bg-amber-50" />
+                    ) : (
+                      <span className="block w-5 h-5 rounded-full border-2 border-slate-300" />
+                    )}
+                  </span>
+                  <span className="flex-1">
+                    <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                      {puzzle.title}
+                      {puzzle.solved && (
+                        <span className="text-[10px] uppercase tracking-wide text-emerald-700 bg-emerald-100 rounded px-1.5 py-0.5">
+                          Hecho
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      {puzzle.topic} · {puzzle.difficulty_label} · ELO {puzzle.elo_rating}
+                    </p>
+                  </span>
                 </button>
               ))}
             </div>

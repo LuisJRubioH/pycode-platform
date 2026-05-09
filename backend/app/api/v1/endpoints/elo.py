@@ -186,7 +186,6 @@ async def list_puzzles(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    _ = current_user
     query = (
         select(Puzzle)
         .where(and_(Puzzle.category == category, Puzzle.is_active.is_(True)))
@@ -195,10 +194,36 @@ async def list_puzzles(
     )
     result = await db.execute(query)
     items = result.scalars().all()
+
+    # Progreso del user actual: una query plana y agregamos en Python para
+    # ser cross-dialect (bool_or no existe en SQLite y los tests corren
+    # contra SQLite). El conjunto está acotado por `limit` puzzles.
+    puzzle_ids = [p.id for p in items]
+    attempted_ids: set[int] = set()
+    solved_ids: set[int] = set()
+    if puzzle_ids:
+        progress_rows = await db.execute(
+            select(PuzzleAttempt.puzzle_id, PuzzleAttempt.correct).where(
+                and_(
+                    PuzzleAttempt.user_id == current_user.id,
+                    PuzzleAttempt.puzzle_id.in_(puzzle_ids),
+                )
+            )
+        )
+        for puzzle_id, correct in progress_rows:
+            attempted_ids.add(puzzle_id)
+            if correct:
+                solved_ids.add(puzzle_id)
+
     await db.commit()
-    return PuzzleListOut(
-        items=[PuzzleOut.model_validate(puzzle) for puzzle in items], total=len(items)
-    )
+
+    out_items: list[PuzzleOut] = []
+    for puzzle in items:
+        po = PuzzleOut.model_validate(puzzle)
+        po.attempted = puzzle.id in attempted_ids
+        po.solved = puzzle.id in solved_ids
+        out_items.append(po)
+    return PuzzleListOut(items=out_items, total=len(out_items))
 
 
 @router.get("/interview-problems", response_model=PuzzleListOut)

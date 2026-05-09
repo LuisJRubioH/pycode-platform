@@ -18,6 +18,11 @@ class PuzzleOut(BaseModel):
     elo_rating: int
     solve_rate: float
     source_book: Optional[str] = None
+    # Marcas de progreso del usuario actual sobre este puzzle.
+    # `attempted`: ¿alguna vez lo intentó? · `solved`: ¿al menos un intento
+    # correcto? Usadas por el frontend para pintar los checks de progreso.
+    attempted: bool = False
+    solved: bool = False
 
     model_config = {"from_attributes": True}
 
