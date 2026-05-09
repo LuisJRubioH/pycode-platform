@@ -2,13 +2,14 @@
 Endpoints for imported coding challenges.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import asc, select
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from sqlalchemy import asc, delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.challenge import CodingChallenge
+from app.models.challenge_completion import ChallengeCompletion
 from app.models.user import User, UserProfile
 from app.schemas.challenge import (
     CodingChallengeDetail,
@@ -23,6 +24,20 @@ router = APIRouter()
 async def _get_user_profile(db: AsyncSession, user_id: int) -> UserProfile | None:
     result = await db.execute(select(UserProfile).where(UserProfile.user_id == user_id))
     return result.scalar_one_or_none()
+
+
+async def _completed_ids_for_user(
+    db: AsyncSession, user_id: int, challenge_ids: list[int]
+) -> set[int]:
+    if not challenge_ids:
+        return set()
+    rows = await db.execute(
+        select(ChallengeCompletion.challenge_id).where(
+            ChallengeCompletion.user_id == user_id,
+            ChallengeCompletion.challenge_id.in_(challenge_ids),
+        )
+    )
+    return {row[0] for row in rows.all()}
 
 
 @router.get("", response_model=CodingChallengeListOut)
@@ -52,6 +67,9 @@ async def list_challenges(
 
     result = await db.execute(query)
     challenges = result.scalars().all()
+    completed_ids = await _completed_ids_for_user(
+        db, current_user.id, [c.id for c in challenges]
+    )
 
     items = [
         CodingChallengeSummary(
@@ -63,6 +81,7 @@ async def list_challenges(
             topic=challenge.topic,
             prompt_preview=challenge.prompt[:220],
             order_index=challenge.order_index,
+            completed=challenge.id in completed_ids,
         )
         for challenge in challenges
     ]
@@ -100,3 +119,43 @@ async def get_challenge(
         raise HTTPException(status_code=404, detail="Challenge not found")
 
     return CodingChallengeDetail.model_validate(challenge)
+
+
+@router.post("/{challenge_id}/complete", status_code=status.HTTP_204_NO_CONTENT)
+async def mark_challenge_completed(
+    challenge_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Marca el reto como hecho. Idempotente — re-marcar es no-op."""
+    challenge = await db.get(CodingChallenge, challenge_id)
+    if not challenge or not challenge.is_active:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    existing = await db.execute(
+        select(ChallengeCompletion).where(
+            ChallengeCompletion.user_id == current_user.id,
+            ChallengeCompletion.challenge_id == challenge_id,
+        )
+    )
+    if existing.scalar_one_or_none() is None:
+        db.add(ChallengeCompletion(user_id=current_user.id, challenge_id=challenge_id))
+        await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.delete("/{challenge_id}/complete", status_code=status.HTTP_204_NO_CONTENT)
+async def unmark_challenge_completed(
+    challenge_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Quita la marca de hecho. Permite al alumno desmarcar un reto."""
+    await db.execute(
+        delete(ChallengeCompletion).where(
+            ChallengeCompletion.user_id == current_user.id,
+            ChallengeCompletion.challenge_id == challenge_id,
+        )
+    )
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

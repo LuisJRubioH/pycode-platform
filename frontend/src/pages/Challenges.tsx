@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { BrainCircuit, Filter, Gauge, ArrowRight } from 'lucide-react'
+import { BrainCircuit, Filter, Gauge, ArrowRight, CheckCircle2, Undo2 } from 'lucide-react'
 import { api } from '../services/api'
-import { saveTutorContext } from '../services/tutorContext'
 
 interface ChallengeSummary {
   id: number
@@ -13,6 +12,7 @@ interface ChallengeSummary {
   topic: string
   prompt_preview: string
   order_index: number
+  completed: boolean
 }
 
 interface ChallengeDetail {
@@ -104,16 +104,22 @@ const Challenges: React.FC = () => {
 
   const solveInEditor = () => {
     if (!selected) return
-
-    saveTutorContext({
-      problem_description: selected.prompt,
-      student_code: selected.starter_code,
-      current_lesson: `challenge-${selected.topic}`,
-      level: selected.difficulty,
-      source: `challenge:${selected.slug}`,
-    })
-
     navigate('/editor')
+  }
+
+  const isSelectedCompleted = items.find((c) => c.id === selected?.id)?.completed || false
+
+  const setCompleted = async (challengeId: number, completed: boolean) => {
+    const method = completed ? 'post' : 'delete'
+    try {
+      const res = await api[method](`/challenges/${challengeId}/complete`)
+      if (!res.ok) return
+      setItems((prev) =>
+        prev.map((c) => (c.id === challengeId ? { ...c, completed } : c))
+      )
+    } catch (err) {
+      console.error('Error toggling completion:', err)
+    }
   }
 
   return (
@@ -184,15 +190,33 @@ const Challenges: React.FC = () => {
                   className={`w-full text-left rounded-xl border p-4 transition-colors ${
                     selected?.id === challenge.id
                       ? 'border-primary-500 bg-primary-50'
+                      : challenge.completed
+                      ? 'border-emerald-200 bg-emerald-50/40 hover:border-emerald-300'
                       : 'border-slate-200 bg-white hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">{challenge.title}</p>
-                      <p className="text-xs text-slate-500 mt-1">
-                        {challenge.source} · {challenge.topic}
-                      </p>
+                    <div className="flex items-start gap-2 flex-1">
+                      <span className="mt-0.5 flex-shrink-0" aria-hidden>
+                        {challenge.completed ? (
+                          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                        ) : (
+                          <span className="block w-5 h-5 rounded-full border-2 border-slate-300" />
+                        )}
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                          {challenge.title}
+                          {challenge.completed && (
+                            <span className="text-[10px] uppercase tracking-wide text-emerald-700 bg-emerald-100 rounded px-1.5 py-0.5">
+                              Hecho
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {challenge.source} · {challenge.topic}
+                        </p>
+                      </div>
                     </div>
                     <span className={`text-xs px-2 py-1 rounded-full ${difficultyStyle[challenge.difficulty] || 'bg-slate-100 text-slate-700'}`}>
                       {difficultyLabel[challenge.difficulty] || challenge.difficulty}
@@ -240,10 +264,31 @@ const Challenges: React.FC = () => {
                 </p>
               </div>
 
-              <button onClick={solveInEditor} className="btn-primary">
-                Resolver en el editor
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button onClick={solveInEditor} className="btn-primary">
+                  Resolver en el editor
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </button>
+                {isSelectedCompleted ? (
+                  <button
+                    onClick={() => setCompleted(selected.id, false)}
+                    className="btn-secondary"
+                    title="Desmarcar este reto como hecho"
+                  >
+                    <Undo2 className="h-4 w-4 mr-2" />
+                    Desmarcar
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setCompleted(selected.id, true)}
+                    className="btn-secondary text-emerald-700 border-emerald-300 hover:bg-emerald-50"
+                    title="Marcar este reto como hecho"
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                    Marcar como hecho
+                  </button>
+                )}
+              </div>
             </div>
           ) : (
             <p className="text-sm text-slate-500">Selecciona un reto para ver su detalle.</p>

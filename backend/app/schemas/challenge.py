@@ -14,6 +14,8 @@ class CodingChallengeSummary(BaseModel):
     topic: str
     prompt_preview: str
     order_index: int
+    # Marca manual del user actual (Fase 1, completaciones).
+    completed: bool = False
 
     model_config = {"from_attributes": True}
 

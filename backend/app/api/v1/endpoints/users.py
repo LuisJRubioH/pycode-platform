@@ -111,6 +111,8 @@ async def delete_my_account(
     (donde la migración 0003 es no-op) tampoco deje orphans en tests
     ni en dev local.
     """
+    from app.models.challenge_completion import ChallengeCompletion
+    from app.models.code_evaluation import CodeEvaluation
     from app.models.elo_models import PuzzleAttempt
     from app.models.learning import CodeSubmission, TutorSession, UserProgress
     from app.models.refresh_token import RefreshToken
@@ -123,6 +125,8 @@ async def delete_my_account(
         TutorSession,
         UserProgress,
         PuzzleAttempt,
+        ChallengeCompletion,
+        CodeEvaluation,
         UserProfile,
     ):
         await db.execute(delete(model).where(model.user_id == uid))
