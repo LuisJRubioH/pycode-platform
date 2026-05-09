@@ -112,3 +112,25 @@ class ProgressResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CompetencyLessonItem(BaseModel):
+    """Lección dentro de una competencia (Track 1)."""
+
+    id: int
+    title: str
+    difficulty: str
+    completed: bool
+    exercises_completed: int
+    exercises_total: int
+
+
+class CompetencyOut(BaseModel):
+    """Competencia agregada por categoría con progreso del usuario actual."""
+
+    category: str
+    lessons_total: int
+    lessons_completed: int
+    exercises_total: int
+    exercises_completed: int
+    lessons: List[CompetencyLessonItem]

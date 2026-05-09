@@ -12,7 +12,12 @@ from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.user import User
 from app.models.learning import UserProgress, Lesson, CodeSubmission, Exercise
-from app.schemas.learning import ProgressResponse, ProgressUpdate
+from app.schemas.learning import (
+    CompetencyLessonItem,
+    CompetencyOut,
+    ProgressResponse,
+    ProgressUpdate,
+)
 
 router = APIRouter()
 
@@ -115,6 +120,95 @@ async def update_progress(
     await db.refresh(progress)
 
     return progress
+
+
+@router.get("/competencies", response_model=List[CompetencyOut])
+async def get_competencies(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Mapa de competencias del Track 1 (Python).
+
+    Agrupa todas las lecciones activas por `category` y, para el usuario
+    actual, calcula:
+    - lecciones completadas (UserProgress.status == "completed").
+    - ejercicios completados (CodeSubmission.result == "success",
+      deduplicado por exercise_id; un ejercicio cuenta una sola vez aun
+      si el alumno tiene N submissions exitosas).
+
+    Filtro por user_id en queries de progreso/submissions; un usuario
+    nunca ve datos de otro.
+    """
+    lessons_q = select(Lesson).where(Lesson.is_active).order_by(Lesson.order)
+    lessons = (await db.execute(lessons_q)).scalars().all()
+
+    progress_rows = (
+        (
+            await db.execute(
+                select(UserProgress).where(UserProgress.user_id == current_user.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    progress_map = {p.lesson_id: p for p in progress_rows}
+
+    ex_rows = (
+        await db.execute(
+            select(Exercise.lesson_id, Exercise.id).order_by(Exercise.lesson_id)
+        )
+    ).all()
+    lesson_ex_ids: dict[int, list[int]] = {}
+    for lesson_id, ex_id in ex_rows:
+        lesson_ex_ids.setdefault(lesson_id, []).append(ex_id)
+
+    sub_rows = (
+        await db.execute(
+            select(CodeSubmission.exercise_id)
+            .where(
+                CodeSubmission.user_id == current_user.id,
+                CodeSubmission.result == "success",
+            )
+            .distinct()
+        )
+    ).all()
+    successful_ex_ids = {row[0] for row in sub_rows}
+
+    by_category: dict[str, dict] = {}
+    for lesson in lessons:
+        category = lesson.category or "otros"
+        bucket = by_category.setdefault(
+            category,
+            {
+                "category": category,
+                "lessons_total": 0,
+                "lessons_completed": 0,
+                "exercises_total": 0,
+                "exercises_completed": 0,
+                "lessons": [],
+            },
+        )
+        bucket["lessons_total"] += 1
+        prog = progress_map.get(lesson.id)
+        is_done = bool(prog and prog.status == "completed")
+        if is_done:
+            bucket["lessons_completed"] += 1
+        ex_ids = lesson_ex_ids.get(lesson.id, [])
+        bucket["exercises_total"] += len(ex_ids)
+        completed_in_lesson = sum(1 for eid in ex_ids if eid in successful_ex_ids)
+        bucket["exercises_completed"] += completed_in_lesson
+        bucket["lessons"].append(
+            CompetencyLessonItem(
+                id=lesson.id,
+                title=lesson.title,
+                difficulty=lesson.difficulty,
+                completed=is_done,
+                exercises_completed=completed_in_lesson,
+                exercises_total=len(ex_ids),
+            )
+        )
+
+    return [CompetencyOut(**bucket) for bucket in by_category.values()]
 
 
 @router.get("/recent-activity")
