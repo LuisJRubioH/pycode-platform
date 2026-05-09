@@ -1,9 +1,17 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import Editor, { useMonaco } from '@monaco-editor/react'
-import { Play, RotateCcw, Save, Share2, Terminal, Settings, MessageSquare } from 'lucide-react'
-import { loadTutorContext, saveTutorContext } from '../services/tutorContext'
+import {
+  Play,
+  RotateCcw,
+  Save,
+  Share2,
+  Terminal,
+  Settings,
+  ClipboardCheck,
+  X,
+} from 'lucide-react'
 import { runPythonCode, getCodeRunner } from '../services/codeRunner'
+import { api } from '../services/api'
 import type { RunStatus } from '@/sandbox'
 
 const INITIAL_CODE = `# Escribe tu codigo Python aqui
@@ -14,24 +22,36 @@ nombre = "Python"
 print(f"Estoy aprendiendo {nombre}")
 `
 
-const DEFAULT_PROBLEM_DESCRIPTION =
+const PLACEHOLDER_PROBLEM =
   'Describe aqui que deberia hacer tu codigo. Mientras mas claro sea el objetivo, mejor sera la evaluacion del tutor.'
 
+interface EvaluationVerdict {
+  raw: string
+  logic_score: number | null
+  general_score: number | null
+}
+
+interface EvaluationResult {
+  id: number
+  created_at: string
+  verdict: EvaluationVerdict
+  model_used: string | null
+}
+
 const CodeEditor: React.FC = () => {
-  const navigate = useNavigate()
-  const existingTutorContext = loadTutorContext()
-  const [code, setCode] = useState(existingTutorContext?.student_code || INITIAL_CODE)
-  const [output, setOutput] = useState(existingTutorContext?.actual_output || '')
-  const [problemDescription, setProblemDescription] = useState(
-    existingTutorContext?.problem_description || DEFAULT_PROBLEM_DESCRIPTION
-  )
-  const [expectedOutput, setExpectedOutput] = useState(existingTutorContext?.expected_output || '')
+  const [code, setCode] = useState(INITIAL_CODE)
+  const [output, setOutput] = useState('')
+  const [problemDescription, setProblemDescription] = useState('')
+  const [expectedOutput, setExpectedOutput] = useState('')
   const [isRunning, setIsRunning] = useState(false)
   const [sandboxStatus, setSandboxStatus] = useState<RunStatus>('idle')
   const [theme, setTheme] = useState('vs-dark')
   const [fontSize, setFontSize] = useState(14)
   const [minimap, setMinimap] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [isEvaluating, setIsEvaluating] = useState(false)
+  const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null)
+  const [evaluationError, setEvaluationError] = useState('')
 
   const monaco = useMonaco()
 
@@ -49,42 +69,17 @@ const CodeEditor: React.FC = () => {
     return runner.onStatusChange(setSandboxStatus)
   }, [])
 
-  const persistTutorContext = (nextOutput?: string) => {
-    const normalizedOutput = (nextOutput ?? output).trim()
-    const recentErrors = normalizedOutput
-      ? normalizedOutput
-          .split('\n')
-          .filter((line) => /error|exception|traceback/i.test(line))
-          .slice(0, 5)
-      : []
-
-    saveTutorContext({
-      problem_description: problemDescription.trim() || DEFAULT_PROBLEM_DESCRIPTION,
-      student_code: code,
-      actual_output: normalizedOutput || undefined,
-      expected_output: expectedOutput.trim() || undefined,
-      current_lesson: 'python-basics',
-      level: 'beginner',
-      recent_errors: recentErrors,
-      source: 'editor',
-    })
-  }
-
   const runCode = async () => {
     setOutput('')
     setIsRunning(true)
-    persistTutorContext('')
     try {
       const result = await runPythonCode(code)
       const combined = [result.stdout, result.stderr].filter(Boolean).join('\n')
       const finalOutput = combined || (result.ok ? '(sin salida)' : 'Error de ejecución')
       setOutput(finalOutput)
-      persistTutorContext(finalOutput)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      const errorMessage = `Error: ${msg}\n`
-      setOutput(errorMessage)
-      persistTutorContext(errorMessage)
+      setOutput(`Error: ${msg}\n`)
     } finally {
       setIsRunning(false)
     }
@@ -93,15 +88,10 @@ const CodeEditor: React.FC = () => {
   const resetCode = () => {
     setCode(INITIAL_CODE)
     setOutput('')
-    setProblemDescription(DEFAULT_PROBLEM_DESCRIPTION)
+    setProblemDescription('')
     setExpectedOutput('')
-    saveTutorContext({
-      problem_description: DEFAULT_PROBLEM_DESCRIPTION,
-      student_code: INITIAL_CODE,
-      current_lesson: 'python-basics',
-      level: 'beginner',
-      source: 'editor',
-    })
+    setEvaluation(null)
+    setEvaluationError('')
   }
 
   const saveCode = () => {
@@ -130,18 +120,39 @@ const CodeEditor: React.FC = () => {
     }
   }
 
-  const askTutorAboutCode = () => {
-    persistTutorContext()
-    navigate('/tutor')
+  const evaluateCode = async () => {
+    const trimmedDesc = problemDescription.trim()
+    if (trimmedDesc.length < 10 || trimmedDesc === PLACEHOLDER_PROBLEM.trim()) {
+      setEvaluationError(
+        'Escribe primero qué intenta hacer tu código (mínimo 10 caracteres). El evaluador necesita el enunciado.'
+      )
+      return
+    }
+    setEvaluationError('')
+    setIsEvaluating(true)
+    setEvaluation(null)
+    try {
+      const res = await api.post('/tutor/evaluate', {
+        problem_description: trimmedDesc,
+        code,
+        expected_output: expectedOutput.trim() || undefined,
+        actual_output: output.trim() || undefined,
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        const detail = typeof data.detail === 'string' ? data.detail : 'No se pudo evaluar el código.'
+        setEvaluationError(detail)
+        return
+      }
+      const data = (await res.json()) as EvaluationResult
+      setEvaluation(data)
+    } catch (err) {
+      console.error('Error al evaluar:', err)
+      setEvaluationError('Error de red al contactar al evaluador.')
+    } finally {
+      setIsEvaluating(false)
+    }
   }
-
-  useEffect(() => {
-    persistTutorContext()
-  }, [code, problemDescription, expectedOutput]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    persistTutorContext()
-  }, [output]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="h-[calc(100vh-8rem)] flex flex-col">
@@ -191,12 +202,13 @@ const CodeEditor: React.FC = () => {
           </button>
 
           <button
-            onClick={askTutorAboutCode}
-            className="btn-secondary"
-            title="Enviar codigo actual al tutor"
+            onClick={evaluateCode}
+            disabled={isEvaluating}
+            className="btn-secondary disabled:opacity-50"
+            title="Pedir al evaluador una calificación socrática de tu intento"
           >
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Preguntar al tutor
+            <ClipboardCheck className="h-4 w-4 mr-2" />
+            {isEvaluating ? 'Evaluando...' : 'Evaluar mi código'}
           </button>
 
           <div className="relative">
@@ -264,12 +276,12 @@ const CodeEditor: React.FC = () => {
       <div className="grid lg:grid-cols-[1.4fr,1fr] gap-0 border-b border-slate-200 bg-slate-50">
         <div className="p-4 border-r border-slate-200">
           <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2">
-            Enunciado del ejercicio
+            Enunciado del ejercicio (requerido para evaluar)
           </label>
           <textarea
             value={problemDescription}
             onChange={(e) => setProblemDescription(e.target.value)}
-            placeholder="Describe que se supone que debe hacer tu codigo..."
+            placeholder={PLACEHOLDER_PROBLEM}
             className="w-full p-3 border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
             rows={4}
           />
@@ -277,7 +289,7 @@ const CodeEditor: React.FC = () => {
 
         <div className="p-4">
           <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2">
-            Salida esperada o criterio correcto
+            Salida esperada o criterio correcto (opcional)
           </label>
           <textarea
             value={expectedOutput}
@@ -288,6 +300,12 @@ const CodeEditor: React.FC = () => {
           />
         </div>
       </div>
+
+      {evaluationError && (
+        <div className="bg-red-50 border-y border-red-200 px-4 py-2 text-sm text-red-700">
+          {evaluationError}
+        </div>
+      )}
 
       <div className="flex-1 flex">
         <div className="flex-1">
@@ -318,7 +336,8 @@ const CodeEditor: React.FC = () => {
 
           <div className="p-3 bg-slate-800 border-b border-slate-700">
             <p className="text-xs text-slate-300">
-              El tutor recibira el enunciado, tu codigo, la salida actual y la salida esperada cuando uses <strong>Preguntar al tutor</strong>.
+              Pulsa <strong>Evaluar mi código</strong> cuando quieras una calificación socrática.
+              El tutor de Q&A vive en una página aparte para preguntas conceptuales.
             </p>
           </div>
 
@@ -340,6 +359,60 @@ const CodeEditor: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {evaluation && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setEvaluation(null)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-slate-200 p-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Evaluación socrática
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Evaluación #{evaluation.id} · {new Date(evaluation.created_at).toLocaleString()}
+                  {evaluation.model_used ? ` · ${evaluation.model_used}` : ''}
+                </p>
+              </div>
+              <button
+                onClick={() => setEvaluation(null)}
+                className="text-slate-400 hover:text-slate-600"
+                aria-label="Cerrar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-4 border-b border-slate-200 grid grid-cols-2 gap-4">
+              <div className="bg-slate-50 rounded-lg p-3">
+                <p className="text-xs uppercase tracking-wide text-slate-500">Lógica</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {evaluation.verdict.logic_score ?? '—'}
+                  <span className="text-sm font-normal text-slate-500"> /100</span>
+                </p>
+              </div>
+              <div className="bg-slate-50 rounded-lg p-3">
+                <p className="text-xs uppercase tracking-wide text-slate-500">Solución general</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {evaluation.verdict.general_score ?? '—'}
+                  <span className="text-sm font-normal text-slate-500"> /100</span>
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 overflow-auto flex-1">
+              <pre className="text-sm font-mono whitespace-pre-wrap text-slate-800">
+                {evaluation.verdict.raw}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
