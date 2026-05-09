@@ -57,7 +57,8 @@ class Exercise(Base):
     instructions = Column(Text)
     starter_code = Column(Text)
     solution_code = Column(Text)
-    test_cases = Column(JSON, default=list)  # List of test case dicts
+    test_cases = Column(JSON, default=list)  # Legacy — count total_tests
+    hidden_tests = Column(JSON, default=list)  # [{name, code}] Pyodide-based
     hints = Column(JSON, default=list)  # List of hints
     points = Column(Integer, default=10)
     difficulty = Column(String(50), default="easy")  # easy, medium, hard
