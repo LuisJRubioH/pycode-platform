@@ -14,6 +14,7 @@ import app.models.learning  # noqa: F401
 import app.models.elo_models  # noqa: F401
 import app.models.challenge  # noqa: F401
 import app.models.refresh_token  # noqa: F401
+import app.models.code_evaluation  # noqa: F401
 
 config = context.config
 
