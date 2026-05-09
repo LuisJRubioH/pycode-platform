@@ -273,125 +273,466 @@ async def seed_generated_challenges(db: AsyncSession) -> int:
     return inserted
 
 
-def _python_puzzle_snippet(seed: int) -> tuple[str, str, str]:
-    a = seed + 2
-    b = seed * 3
-    snippet = f"x = {a}\n" f"y = {b}\n" "print(x + y)\n" "print((x * y) % 7)"
-    out_1 = a + b
-    out_2 = (a * b) % 7
-    return snippet, f"{out_1}\n{out_2}", "arithmetic"
+@dataclass(frozen=True)
+class CuratedPuzzle:
+    """Puzzle conceptual con un objetivo de aprendizaje claro.
+
+    A diferencia del banco viejo (25 variantes triviales por categoría
+    cambiando solo números), cada `CuratedPuzzle` enseña un concepto
+    distinto: comprehensions, slicing, broadcasting, groupby, etc.
+    """
+
+    slug_suffix: str
+    title: str
+    topic: str
+    code_snippet: str
+    correct_output: str
+    explanation: str
+    hint: str
+    elo_rating: int
 
 
-def _string_puzzle_snippet(seed: int) -> tuple[str, str, str]:
-    word = f"python{seed}"
-    snippet = f"s = '{word}'\nprint(s[::-1])\nprint(s.upper().count('O'))"
-    result = f"{word[::-1]}\n{word.upper().count('O')}"
-    return snippet, result, "strings"
+# Banco curado conceptual. Cada lista cubre un set de conceptos distintos
+# del lenguaje/librería; difficultad sube con el ELO.
+CURATED_PYTHON_PUZZLES: list[CuratedPuzzle] = [
+    CuratedPuzzle(
+        slug_suffix="slicing-strings",
+        title="Slicing inverso de string",
+        topic="strings",
+        code_snippet='s = "Python"\nprint(s[::-1])',
+        correct_output="nohtyP",
+        explanation="`s[::-1]` recorre la cadena con paso -1, devolviéndola invertida.",
+        hint="Recuerda que el tercer valor del slice es el paso.",
+        elo_rating=850,
+    ),
+    CuratedPuzzle(
+        slug_suffix="list-comprehension",
+        title="List comprehension con filtro",
+        topic="comprehensions",
+        code_snippet="nums = [1, 2, 3, 4, 5, 6]\npares = [n*n for n in nums if n % 2 == 0]\nprint(pares)",
+        correct_output="[4, 16, 36]",
+        explanation="La comprehension filtra pares y eleva al cuadrado: 2², 4², 6².",
+        hint="¿Qué números pasan el filtro `n % 2 == 0`?",
+        elo_rating=900,
+    ),
+    CuratedPuzzle(
+        slug_suffix="dict-get-default",
+        title="dict.get con valor por defecto",
+        topic="dicts",
+        code_snippet='d = {"a": 1, "b": 2}\nprint(d.get("c", 0))\nprint(d.get("a", 0))',
+        correct_output="0\n1",
+        explanation="`.get(k, default)` retorna `default` si la clave no existe; si existe devuelve su valor.",
+        hint="`get` no lanza KeyError.",
+        elo_rating=920,
+    ),
+    CuratedPuzzle(
+        slug_suffix="enumerate-zip",
+        title="enumerate sobre zip",
+        topic="iteration",
+        code_snippet='nombres = ["Ana", "Beto"]\nedades = [30, 25]\nfor i, (n, e) in enumerate(zip(nombres, edades)):\n    print(f"{i}:{n}-{e}")',
+        correct_output="0:Ana-30\n1:Beto-25",
+        explanation="`zip` empareja por posición; `enumerate` añade el índice.",
+        hint="`enumerate` devuelve (índice, valor); aquí el valor es la tupla de zip.",
+        elo_rating=970,
+    ),
+    CuratedPuzzle(
+        slug_suffix="set-operations",
+        title="Operaciones de conjuntos",
+        topic="sets",
+        code_snippet="a = {1, 2, 3}\nb = {2, 3, 4}\nprint(sorted(a & b))\nprint(sorted(a | b))",
+        correct_output="[2, 3]\n[1, 2, 3, 4]",
+        explanation="`&` es intersección; `|` es unión. `sorted` los devuelve como lista ordenada.",
+        hint="Recuerda: intersección = común a ambos; unión = todos sin repetir.",
+        elo_rating=1000,
+    ),
+    CuratedPuzzle(
+        slug_suffix="dict-comprehension",
+        title="Dict comprehension desde dos listas",
+        topic="comprehensions",
+        code_snippet='claves = ["a", "b", "c"]\nvalores = [10, 20, 30]\nd = {k: v*2 for k, v in zip(claves, valores)}\nprint(d)',
+        correct_output="{'a': 20, 'b': 40, 'c': 60}",
+        explanation="zip empareja claves/valores y la comprehension multiplica cada valor por 2.",
+        hint="Igual que list comprehension pero produciendo pares clave:valor.",
+        elo_rating=1050,
+    ),
+    CuratedPuzzle(
+        slug_suffix="sorted-key-lambda",
+        title="sorted con key=lambda",
+        topic="sorting",
+        code_snippet='palabras = ["sol", "ave", "casa", "ir"]\nordenadas = sorted(palabras, key=lambda s: len(s))\nprint(ordenadas)',
+        correct_output="['ir', 'sol', 'ave', 'casa']",
+        explanation="`key` define el criterio: ordena por largo de la palabra. Empates conservan orden de aparición (stable).",
+        hint="¿Cuál es la palabra más corta? ¿Y la más larga?",
+        elo_rating=1100,
+    ),
+    CuratedPuzzle(
+        slug_suffix="generator-sum",
+        title="Generator expression con sum",
+        topic="generators",
+        code_snippet="total = sum(x*x for x in range(1, 5))\nprint(total)",
+        correct_output="30",
+        explanation="Suma 1² + 2² + 3² + 4² = 1 + 4 + 9 + 16 = 30.",
+        hint="`range(1, 5)` produce 1, 2, 3, 4 (sin incluir 5).",
+        elo_rating=1150,
+    ),
+    CuratedPuzzle(
+        slug_suffix="try-except-default",
+        title="try/except con default",
+        topic="errors",
+        code_snippet='def parse_int(s):\n    try:\n        return int(s)\n    except ValueError:\n        return -1\n\nprint(parse_int("42"))\nprint(parse_int("abc"))',
+        correct_output="42\n-1",
+        explanation="`int('42')` funciona; `int('abc')` lanza ValueError y entra al except devolviendo -1.",
+        hint="¿Qué pasa si el string no es convertible a int?",
+        elo_rating=1200,
+    ),
+    CuratedPuzzle(
+        slug_suffix="args-kwargs",
+        title="*args y **kwargs",
+        topic="functions",
+        code_snippet='def f(*args, **kwargs):\n    print(sum(args), kwargs.get("k", 0))\n\nf(1, 2, 3, k=10)',
+        correct_output="6 10",
+        explanation="`args=(1,2,3)`, suma=6. `kwargs={'k':10}`, `.get('k', 0)` devuelve 10.",
+        hint="`*args` recoge posicionales en tupla; `**kwargs` recoge nombrados en dict.",
+        elo_rating=1250,
+    ),
+]
 
 
-def _list_puzzle_snippet(seed: int) -> tuple[str, str, str]:
-    base = [seed, seed + 1, seed + 2, seed + 3]
-    snippet = (
-        f"nums = {base}\n"
-        "print(sum(nums[1:3]))\n"
-        "nums.append(nums[0] * 2)\n"
-        "print(nums[-1])"
-    )
-    return snippet, f"{sum(base[1:3])}\n{base[0] * 2}", "lists"
+CURATED_NUMPY_PUZZLES: list[CuratedPuzzle] = [
+    CuratedPuzzle(
+        slug_suffix="arange-vs-linspace",
+        title="np.arange vs np.linspace",
+        topic="creation",
+        code_snippet="import numpy as np\nprint(np.arange(0, 10, 3).tolist())\nprint(np.linspace(0, 10, 3).tolist())",
+        correct_output="[0, 3, 6, 9]\n[0.0, 5.0, 10.0]",
+        explanation="`arange(start, stop, step)` da pasos fijos sin incluir stop. `linspace(start, stop, num)` da `num` puntos equiespaciados incluyendo stop.",
+        hint="`arange` toma paso, `linspace` toma cantidad de puntos.",
+        elo_rating=1100,
+    ),
+    CuratedPuzzle(
+        slug_suffix="boolean-mask",
+        title="Indexado por máscara booleana",
+        topic="indexing",
+        code_snippet="import numpy as np\narr = np.array([1, 5, 3, 8, 2])\nprint(arr[arr > 3].tolist())",
+        correct_output="[5, 8]",
+        explanation="`arr > 3` produce un array booleano; al indexar con él filtra solo los True.",
+        hint="¿Qué elementos son mayores que 3?",
+        elo_rating=1150,
+    ),
+    CuratedPuzzle(
+        slug_suffix="reshape-axis-sum",
+        title="reshape y sum por axis",
+        topic="reshaping",
+        code_snippet="import numpy as np\nm = np.arange(6).reshape(2, 3)\nprint(m.sum(axis=0).tolist())\nprint(m.sum(axis=1).tolist())",
+        correct_output="[3, 5, 7]\n[3, 12]",
+        explanation="`axis=0` suma columnas (colapsa filas): [0+3, 1+4, 2+5]. `axis=1` suma filas: [0+1+2, 3+4+5].",
+        hint="axis=0 colapsa filas, axis=1 colapsa columnas.",
+        elo_rating=1250,
+    ),
+    CuratedPuzzle(
+        slug_suffix="broadcasting-vector",
+        title="Broadcasting matriz + vector",
+        topic="broadcasting",
+        code_snippet="import numpy as np\nm = np.array([[1, 2, 3], [4, 5, 6]])\nv = np.array([10, 20, 30])\nprint((m + v).tolist())",
+        correct_output="[[11, 22, 33], [14, 25, 36]]",
+        explanation="`v` (shape (3,)) se difunde a cada fila de `m` (shape (2,3)).",
+        hint="Broadcasting alinea dimensiones a la derecha.",
+        elo_rating=1300,
+    ),
+    CuratedPuzzle(
+        slug_suffix="where-conditional",
+        title="np.where para reemplazar",
+        topic="conditionals",
+        code_snippet="import numpy as np\narr = np.array([1, -2, 3, -4])\nprint(np.where(arr < 0, 0, arr).tolist())",
+        correct_output="[1, 0, 3, 0]",
+        explanation="`np.where(cond, a, b)` selecciona `a` donde cond es True, `b` donde es False. Aquí reemplaza negativos por 0.",
+        hint="Como un if vectorizado.",
+        elo_rating=1320,
+    ),
+    CuratedPuzzle(
+        slug_suffix="argmax-axis",
+        title="argmax por axis",
+        topic="reductions",
+        code_snippet="import numpy as np\nm = np.array([[1, 5, 3], [4, 2, 6]])\nprint(m.argmax(axis=1).tolist())",
+        correct_output="[1, 2]",
+        explanation="Por fila: índice del máximo. Fila 0=[1,5,3] → 1; fila 1=[4,2,6] → 2.",
+        hint="argmax devuelve índice, no valor.",
+        elo_rating=1380,
+    ),
+    CuratedPuzzle(
+        slug_suffix="dot-product",
+        title="Producto punto de vectores",
+        topic="linalg",
+        code_snippet="import numpy as np\na = np.array([1, 2, 3])\nb = np.array([4, 5, 6])\nprint(a @ b)",
+        correct_output="32",
+        explanation="1·4 + 2·5 + 3·6 = 4 + 10 + 18 = 32.",
+        hint="`@` es el operador de producto matricial; sobre vectores 1D es producto punto.",
+        elo_rating=1400,
+    ),
+    CuratedPuzzle(
+        slug_suffix="unique-counts",
+        title="np.unique con return_counts",
+        topic="reductions",
+        code_snippet='import numpy as np\narr = np.array(["a", "b", "a", "c", "b", "a"])\nvals, counts = np.unique(arr, return_counts=True)\nprint(vals.tolist())\nprint(counts.tolist())',
+        correct_output="['a', 'b', 'c']\n[3, 2, 1]",
+        explanation="`unique` ordena alfabéticamente; `return_counts` da la frecuencia de cada uno.",
+        hint="¿Cuántas 'a' hay? ¿Y 'b'?",
+        elo_rating=1450,
+    ),
+    CuratedPuzzle(
+        slug_suffix="slicing-2d",
+        title="Slicing 2D — fila vs columna",
+        topic="indexing",
+        code_snippet="import numpy as np\nm = np.arange(12).reshape(3, 4)\nprint(m[:, 1].tolist())\nprint(m[1, :].tolist())",
+        correct_output="[1, 5, 9]\n[4, 5, 6, 7]",
+        explanation="`m[:,1]` es la columna 1 de las 3 filas. `m[1,:]` es la fila 1 entera.",
+        hint="`,` separa filas de columnas; `:` significa todo en ese eje.",
+        elo_rating=1500,
+    ),
+    CuratedPuzzle(
+        slug_suffix="cumsum",
+        title="np.cumsum",
+        topic="reductions",
+        code_snippet="import numpy as np\narr = np.array([1, 2, 3, 4])\nprint(arr.cumsum().tolist())",
+        correct_output="[1, 3, 6, 10]",
+        explanation="Suma acumulada: 1, 1+2, 1+2+3, 1+2+3+4.",
+        hint="cum = cumulative.",
+        elo_rating=1550,
+    ),
+]
 
 
-def _interview_puzzle_snippet(seed: int) -> tuple[str, str, str]:
-    target = seed + 10
-    nums = [seed, seed + 1, seed + 4, seed + 9]
-    snippet = (
-        f"nums = {nums}\n"
-        f"target = {target}\n"
-        "seen = set()\n"
-        "ok = False\n"
-        "for n in nums:\n"
-        "    if target - n in seen:\n"
-        "        ok = True\n"
-        "        break\n"
-        "    seen.add(n)\n"
-        "print(ok)"
-    )
-    values = set(nums)
-    ok = any(
-        (target - n) in values and (target - n != n or nums.count(n) > 1) for n in nums
-    )
-    return snippet, str(ok), "two-sum"
+CURATED_PANDAS_PUZZLES: list[CuratedPuzzle] = [
+    CuratedPuzzle(
+        slug_suffix="dataframe-creation",
+        title="DataFrame desde dict de listas",
+        topic="creation",
+        code_snippet='import pandas as pd\ndf = pd.DataFrame({"a": [1, 2], "b": [3, 4]})\nprint(df.shape)',
+        correct_output="(2, 2)",
+        explanation="2 filas, 2 columnas → `(2, 2)`.",
+        hint="`shape` es (n_filas, n_columnas).",
+        elo_rating=1100,
+    ),
+    CuratedPuzzle(
+        slug_suffix="filter-rows-mask",
+        title="Filtrar filas con máscara booleana",
+        topic="filtering",
+        code_snippet='import pandas as pd\ndf = pd.DataFrame({"x": [1, 2, 3, 4]})\nprint(df[df["x"] > 2]["x"].tolist())',
+        correct_output="[3, 4]",
+        explanation="`df['x'] > 2` produce máscara booleana; al indexar `df[mask]` filtra esas filas.",
+        hint="Solo las filas donde x es estrictamente mayor que 2.",
+        elo_rating=1150,
+    ),
+    CuratedPuzzle(
+        slug_suffix="value-counts",
+        title="value_counts ordenado por frecuencia",
+        topic="aggregation",
+        code_snippet='import pandas as pd\ns = pd.Series(["x", "y", "x", "z", "x", "y"])\nprint(s.value_counts().to_dict())',
+        correct_output="{'x': 3, 'y': 2, 'z': 1}",
+        explanation="`value_counts()` cuenta apariciones y ordena descendente.",
+        hint="¿Cuántas 'x' hay?",
+        elo_rating=1200,
+    ),
+    CuratedPuzzle(
+        slug_suffix="sort-values-descending",
+        title="sort_values descendente",
+        topic="sorting",
+        code_snippet='import pandas as pd\ndf = pd.DataFrame({"name": ["a", "b", "c"], "score": [10, 30, 20]})\nout = df.sort_values("score", ascending=False)["name"].tolist()\nprint(out)',
+        correct_output="['b', 'c', 'a']",
+        explanation="Ordena por `score` descendente: 30, 20, 10 → b, c, a.",
+        hint="ascending=False invierte el orden por defecto.",
+        elo_rating=1250,
+    ),
+    CuratedPuzzle(
+        slug_suffix="groupby-mean",
+        title="groupby + mean",
+        topic="grouping",
+        code_snippet='import pandas as pd\ndf = pd.DataFrame({"team": ["A", "A", "B", "B"], "pts": [10, 20, 30, 50]})\nres = df.groupby("team")["pts"].mean().to_dict()\nprint(res["A"], res["B"])',
+        correct_output="15.0 40.0",
+        explanation="A: (10+20)/2 = 15. B: (30+50)/2 = 40.",
+        hint="mean = promedio.",
+        elo_rating=1300,
+    ),
+    CuratedPuzzle(
+        slug_suffix="apply-row-derived",
+        title="apply sobre columna",
+        topic="apply",
+        code_snippet='import pandas as pd\ndf = pd.DataFrame({"x": [1, 2, 3]})\ndf["y"] = df["x"].apply(lambda v: v * v + 1)\nprint(df["y"].tolist())',
+        correct_output="[2, 5, 10]",
+        explanation="Cada x se mapea a x²+1: 1→2, 2→5, 3→10.",
+        hint="apply aplica la función a cada elemento.",
+        elo_rating=1330,
+    ),
+    CuratedPuzzle(
+        slug_suffix="dropna",
+        title="dropna sobre columnas",
+        topic="cleaning",
+        code_snippet='import pandas as pd\nimport numpy as np\ndf = pd.DataFrame({"a": [1, 2, np.nan], "b": [4, np.nan, 6]})\nprint(len(df.dropna()))',
+        correct_output="1",
+        explanation="Solo la primera fila no tiene NaN; las otras dos sí — quedan eliminadas.",
+        hint="dropna por defecto borra cualquier fila con al menos un NaN.",
+        elo_rating=1380,
+    ),
+    CuratedPuzzle(
+        slug_suffix="merge-on-key",
+        title="merge sobre clave común",
+        topic="joins",
+        code_snippet='import pandas as pd\na = pd.DataFrame({"id": [1, 2, 3], "v": ["x", "y", "z"]})\nb = pd.DataFrame({"id": [2, 3], "w": [10, 20]})\nm = a.merge(b, on="id")\nprint(len(m), m["w"].tolist())',
+        correct_output="2 [10, 20]",
+        explanation="Inner join por defecto: solo ids 2 y 3 están en ambos. 2 filas resultantes.",
+        hint="merge sin `how=` es inner por defecto.",
+        elo_rating=1430,
+    ),
+    CuratedPuzzle(
+        slug_suffix="pivot-table",
+        title="pivot_table simple",
+        topic="reshaping",
+        code_snippet='import pandas as pd\ndf = pd.DataFrame({"d": ["L", "L", "M", "M"], "t": ["x", "y", "x", "y"], "v": [1, 2, 3, 4]})\np = df.pivot_table(index="d", columns="t", values="v")\nprint(p.loc["L", "x"], p.loc["M", "y"])',
+        correct_output="1 4",
+        explanation="Tabla cruzada: fila L+col x → 1; fila M+col y → 4.",
+        hint="pivot_table reorganiza filas/columnas según los campos elegidos.",
+        elo_rating=1500,
+    ),
+    CuratedPuzzle(
+        slug_suffix="cumsum-by-group",
+        title="cumsum dentro de groupby",
+        topic="grouping",
+        code_snippet='import pandas as pd\ndf = pd.DataFrame({"g": ["a", "a", "b", "b"], "x": [1, 2, 10, 20]})\nprint(df.groupby("g")["x"].cumsum().tolist())',
+        correct_output="[1, 3, 10, 30]",
+        explanation="Cumsum por grupo: a→[1, 1+2]; b→[10, 10+20].",
+        hint="El cumsum reinicia en cada grupo.",
+        elo_rating=1580,
+    ),
+]
 
 
-def _numpy_puzzle_snippet(seed: int) -> tuple[str, str, str]:
-    a = [seed, seed + 1, seed + 2]
-    b = [seed * 2, seed * 3, seed * 4]
-    snippet = (
-        "import numpy as np\n"
-        f"a = np.array({a})\n"
-        f"b = np.array({b})\n"
-        "print(int((a + b).sum()))\n"
-        "print(int((a * b).max()))"
-    )
-    out_1 = sum(x + y for x, y in zip(a, b))
-    out_2 = max(x * y for x, y in zip(a, b))
-    return snippet, f"{out_1}\n{out_2}", "numpy"
+CURATED_INTERVIEW_PUZZLES: list[CuratedPuzzle] = [
+    CuratedPuzzle(
+        slug_suffix="two-sum-hashmap",
+        title="Two Sum con hashmap",
+        topic="two-sum",
+        code_snippet="nums = [2, 7, 11, 15]\ntarget = 9\nseen = {}\nfor i, n in enumerate(nums):\n    if target - n in seen:\n        print(seen[target - n], i)\n        break\n    seen[n] = i",
+        correct_output="0 1",
+        explanation="2 + 7 = 9. Cuando i=1 (n=7), `target-n = 2` ya está en seen con índice 0.",
+        hint="El hashmap permite verificar el complemento en O(1).",
+        elo_rating=1400,
+    ),
+    CuratedPuzzle(
+        slug_suffix="reverse-linked-iterative",
+        title="Suma de dígitos iterativa",
+        topic="loops",
+        code_snippet="n = 1234\ntotal = 0\nwhile n:\n    total += n % 10\n    n //= 10\nprint(total)",
+        correct_output="10",
+        explanation="1+2+3+4 = 10. `% 10` extrae último dígito; `// 10` lo descarta.",
+        hint="Modulo y división entera son la herramienta clásica.",
+        elo_rating=1430,
+    ),
+    CuratedPuzzle(
+        slug_suffix="binary-search",
+        title="Búsqueda binaria",
+        topic="search",
+        code_snippet="arr = [1, 3, 5, 7, 9, 11]\ntarget = 7\nlo, hi = 0, len(arr) - 1\nidx = -1\nwhile lo <= hi:\n    mid = (lo + hi) // 2\n    if arr[mid] == target:\n        idx = mid\n        break\n    if arr[mid] < target:\n        lo = mid + 1\n    else:\n        hi = mid - 1\nprint(idx)",
+        correct_output="3",
+        explanation="7 está en índice 3. Búsqueda binaria converge en O(log n).",
+        hint="Compara el valor del medio con el target.",
+        elo_rating=1500,
+    ),
+    CuratedPuzzle(
+        slug_suffix="fibonacci-memo",
+        title="Fibonacci con memoización",
+        topic="dp",
+        code_snippet="memo = {0: 0, 1: 1}\ndef fib(n):\n    if n not in memo:\n        memo[n] = fib(n-1) + fib(n-2)\n    return memo[n]\n\nprint(fib(10))",
+        correct_output="55",
+        explanation="fib(10) = 55. La memoización evita recalcular subproblemas.",
+        hint="Sin memo, fib(10) tarda mucho. Con memo, es O(n).",
+        elo_rating=1550,
+    ),
+    CuratedPuzzle(
+        slug_suffix="anagrams-counter",
+        title="Detectar anagramas con Counter",
+        topic="strings",
+        code_snippet='from collections import Counter\na, b = "listen", "silent"\nprint(Counter(a) == Counter(b))',
+        correct_output="True",
+        explanation="`Counter` cuenta apariciones; dos anagramas tienen el mismo conteo de letras.",
+        hint="Es O(n) sin necesidad de ordenar.",
+        elo_rating=1600,
+    ),
+]
 
 
-def _pandas_puzzle_snippet(seed: int) -> tuple[str, str, str]:
-    s1 = seed * 10
-    s2 = seed * 10 + 5
-    s3 = seed * 10 + 20
-    snippet = (
-        "import pandas as pd\n"
-        f"df = pd.DataFrame({{'team': ['A','A','B'], 'score': [{s1}, {s2}, {s3}]}})\n"
-        "res = df.groupby('team')['score'].mean().to_dict()\n"
-        "print(res['A'])\n"
-        "print(res['B'])"
-    )
-    out_a = (s1 + s2) / 2
-    out_b = float(s3)
-    return snippet, f"{out_a}\n{out_b}", "pandas"
+_PUZZLE_CATALOG: list[tuple[str, list[CuratedPuzzle]]] = [
+    ("python", CURATED_PYTHON_PUZZLES),
+    ("numpy", CURATED_NUMPY_PUZZLES),
+    ("pandas", CURATED_PANDAS_PUZZLES),
+    ("interview", CURATED_INTERVIEW_PUZZLES),
+]
+
+
+async def _deactivate_legacy_generated_puzzles(db: AsyncSession) -> int:
+    """Marca como inactivos los puzzles del banco viejo (variantes con seed).
+
+    Los slugs viejos siguen el patrón
+    `pycode-curated-open-{cat}-{prefix}-{N}` donde prefix era 'pandas-group',
+    'py-arithmetic', 'py-strings', 'py-lists', 'numpy-vector' o
+    'interview-pattern'. Los desactivamos para que no aparezcan más en la
+    lista pública.
+    """
+    legacy_prefixes = [
+        "pandas-group",
+        "py-arithmetic",
+        "py-strings",
+        "py-lists",
+        "numpy-vector",
+        "interview-pattern",
+    ]
+    affected = 0
+    for prefix in legacy_prefixes:
+        result = await db.execute(
+            select(Puzzle).where(
+                Puzzle.slug.like(f"{CURATED_SOURCE}-%-{prefix}-%"),
+                Puzzle.is_active.is_(True),
+            )
+        )
+        for puzzle in result.scalars().all():
+            puzzle.is_active = False
+            affected += 1
+    if affected:
+        await db.commit()
+    return affected
 
 
 async def seed_generated_puzzles(db: AsyncSession) -> int:
-    """Insert a large generated puzzle set across categories."""
-    inserted = 0
-    generators = [
-        ("python", "Py Arithmetic", _python_puzzle_snippet, 900),
-        ("python", "Py Strings", _string_puzzle_snippet, 980),
-        ("python", "Py Lists", _list_puzzle_snippet, 1040),
-        ("numpy", "NumPy Vector", _numpy_puzzle_snippet, 1300),
-        ("pandas", "Pandas Group", _pandas_puzzle_snippet, 1350),
-        ("interview", "Interview Pattern", _interview_puzzle_snippet, 1400),
-    ]
+    """Insert curated conceptual puzzles across categories.
 
-    for category, title_prefix, builder, base_elo in generators:
-        for seed in range(1, 26):
-            slug = f"{CURATED_SOURCE}-{category}-{title_prefix.lower().replace(' ', '-')}-{seed}"
+    Antes de insertar, desactiva los puzzles del banco viejo (variantes
+    con seed) para que la lista solo muestre los curados.
+    """
+    await _deactivate_legacy_generated_puzzles(db)
+
+    inserted = 0
+    for category, puzzles in _PUZZLE_CATALOG:
+        for puzzle in puzzles:
+            slug = f"{CURATED_SOURCE}-{category}-{puzzle.slug_suffix}"
             existing = await db.execute(select(Puzzle.id).where(Puzzle.slug == slug))
             if existing.scalar_one_or_none() is not None:
                 continue
 
-            code_snippet, correct_output, topic = builder(seed)
-            difficulty = "easy" if seed <= 8 else "medium" if seed <= 17 else "hard"
-            elo = _difficulty_elo(difficulty, (seed % 7) * 10) + (base_elo - 900)
-
-            puzzle = Puzzle(
-                title=f"{title_prefix} #{seed}",
+            row = Puzzle(
+                title=puzzle.title,
                 slug=slug,
                 category=category,
-                topic=topic,
-                code_snippet=code_snippet,
-                correct_output=correct_output,
-                explanation="Analiza el flujo del codigo paso a paso y verifica cada print.",
-                hint="Traza manualmente variables clave antes de responder.",
-                elo_rating=elo,
-                elo_initial=elo,
-                is_advanced=elo >= 1450,
+                topic=puzzle.topic,
+                code_snippet=puzzle.code_snippet,
+                correct_output=puzzle.correct_output,
+                explanation=puzzle.explanation,
+                hint=puzzle.hint,
+                elo_rating=puzzle.elo_rating,
+                elo_initial=puzzle.elo_rating,
+                is_advanced=puzzle.elo_rating >= 1450,
                 is_active=True,
-                source_book="Curated Open Practice Bank",
+                source_book="Curated Conceptual Bank",
             )
-            db.add(puzzle)
+            db.add(row)
             inserted += 1
 
     if inserted:
