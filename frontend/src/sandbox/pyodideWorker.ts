@@ -1,7 +1,14 @@
 /// <reference lib="webworker" />
 import * as Comlink from "comlink";
 import { loadPyodide, type PyodideInterface } from "pyodide";
-import type { RunRequest, RunResult, KernelInfo } from "./types";
+import type {
+  RunRequest,
+  RunResult,
+  KernelInfo,
+  RunTestsRequest,
+  RunTestsResult,
+  TestVerdict,
+} from "./types";
 
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 
@@ -61,6 +68,66 @@ class Kernel {
       if (timer !== undefined) self.clearTimeout(timer);
     }
   }
+
+  async runTests({
+    studentCode,
+    tests,
+    timeoutMs = 30_000,
+  }: RunTestsRequest): Promise<RunTestsResult> {
+    if (!this.py) await this.init();
+    const start = performance.now();
+    const verdicts: TestVerdict[] = [];
+
+    // Cada test corre en un namespace fresco para aislar efectos
+    // secundarios entre tests. Concatenamos studentCode + test.code y
+    // tratamos "no excepción" como pass.
+    for (const test of tests) {
+      const ns = this.py!.toPy({});
+      const program = `${studentCode}\n\n${test.code}\n`;
+      let timer: number | undefined;
+      let timedOut = false;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timer = self.setTimeout(() => {
+          timedOut = true;
+          reject(new Error(`Timeout (${timeoutMs}ms)`));
+        }, timeoutMs);
+      });
+      try {
+        await Promise.race([
+          this.py!.runPythonAsync(program, { globals: ns }),
+          timeoutPromise,
+        ]);
+        verdicts.push({ name: test.name, passed: true });
+      } catch (err) {
+        const raw = err instanceof Error ? err.message : String(err);
+        verdicts.push({
+          name: test.name,
+          passed: false,
+          errorMessage: timedOut ? `Timeout (${timeoutMs}ms)` : truncateError(raw),
+        });
+      } finally {
+        if (timer !== undefined) self.clearTimeout(timer);
+        try {
+          ns.destroy();
+        } catch {
+          /* ns ya liberado */
+        }
+      }
+    }
+
+    return {
+      total: tests.length,
+      passed: verdicts.filter((v) => v.passed).length,
+      verdicts,
+      durationMs: performance.now() - start,
+    };
+  }
+}
+
+function truncateError(msg: string, maxLines = 6): string {
+  const lines = msg.split("\n");
+  if (lines.length <= maxLines) return msg;
+  return [...lines.slice(0, 2), "...", ...lines.slice(-3)].join("\n");
 }
 
 Comlink.expose(new Kernel());

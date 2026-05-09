@@ -1,11 +1,19 @@
 import * as Comlink from "comlink";
-import type { RunRequest, RunResult, KernelInfo, RunStatus } from "./types";
+import type {
+  RunRequest,
+  RunResult,
+  KernelInfo,
+  RunStatus,
+  RunTestsRequest,
+  RunTestsResult,
+} from "./types";
 
 export class PyodideSandbox {
   private worker: Worker | null = null;
   private kernel: Comlink.Remote<{
     init(): Promise<KernelInfo>;
     run(req: RunRequest): Promise<RunResult>;
+    runTests(req: RunTestsRequest): Promise<RunTestsResult>;
   }> | null = null;
   private _status: RunStatus = "idle";
   private listeners = new Set<(s: RunStatus) => void>();
@@ -44,6 +52,27 @@ export class PyodideSandbox {
     try {
       const result = await this.kernel!.run({ code, timeoutMs });
       this.setStatus(result.ok ? "ready" : "error");
+      return result;
+    } catch (e) {
+      this.setStatus("error");
+      throw e;
+    }
+  }
+
+  async runTests(
+    studentCode: string,
+    tests: { name: string; code: string }[],
+    timeoutMs = 30_000,
+  ): Promise<RunTestsResult> {
+    await this.init();
+    this.setStatus("running");
+    try {
+      const result = await this.kernel!.runTests({
+        studentCode,
+        tests,
+        timeoutMs,
+      });
+      this.setStatus(result.passed === result.total ? "ready" : "error");
       return result;
     } catch (e) {
       this.setStatus("error");

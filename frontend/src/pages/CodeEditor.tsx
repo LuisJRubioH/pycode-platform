@@ -8,11 +8,15 @@ import {
   Terminal,
   Settings,
   ClipboardCheck,
+  CheckCircle2,
+  XCircle,
+  TestTube2,
   X,
 } from 'lucide-react'
-import { runPythonCode, getCodeRunner } from '../services/codeRunner'
+import { runPythonCode, runHiddenTests, getCodeRunner } from '../services/codeRunner'
 import { api } from '../services/api'
-import type { RunStatus } from '@/sandbox'
+import { loadTutorContext } from '../services/tutorContext'
+import type { HiddenTest, RunStatus, RunTestsResult } from '@/sandbox'
 
 const INITIAL_CODE = `# Escribe tu codigo Python aqui
 print("Hola, Mundo!")
@@ -52,8 +56,21 @@ const CodeEditor: React.FC = () => {
   const [isEvaluating, setIsEvaluating] = useState(false)
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null)
   const [evaluationError, setEvaluationError] = useState('')
+  const [exerciseId, setExerciseId] = useState<number | null>(null)
+  const [isRunningTests, setIsRunningTests] = useState(false)
+  const [testsResult, setTestsResult] = useState<RunTestsResult | null>(null)
+  const [testsError, setTestsError] = useState('')
 
   const monaco = useMonaco()
+
+  useEffect(() => {
+    const ctx = loadTutorContext()
+    if (!ctx) return
+    if (ctx.student_code) setCode(ctx.student_code)
+    if (ctx.problem_description) setProblemDescription(ctx.problem_description)
+    if (ctx.expected_output) setExpectedOutput(ctx.expected_output)
+    if (typeof ctx.exercise_id === 'number') setExerciseId(ctx.exercise_id)
+  }, [])
 
   useEffect(() => {
     if (monaco) {
@@ -92,6 +109,8 @@ const CodeEditor: React.FC = () => {
     setExpectedOutput('')
     setEvaluation(null)
     setEvaluationError('')
+    setTestsResult(null)
+    setTestsError('')
   }
 
   const saveCode = () => {
@@ -117,6 +136,32 @@ const CodeEditor: React.FC = () => {
     } catch (error) {
       alert('Error al copiar el codigo')
       console.error(error)
+    }
+  }
+
+  const runTests = async () => {
+    if (exerciseId === null) return
+    setTestsError('')
+    setTestsResult(null)
+    setIsRunningTests(true)
+    try {
+      const res = await api.get(`/exercises/${exerciseId}/hidden-tests`)
+      if (!res.ok) {
+        setTestsError('No se pudieron obtener los tests del ejercicio.')
+        return
+      }
+      const body = (await res.json()) as { tests: HiddenTest[] }
+      if (body.tests.length === 0) {
+        setTestsError('Este ejercicio aún no tiene tests configurados.')
+        return
+      }
+      const result = await runHiddenTests(code, body.tests)
+      setTestsResult(result)
+    } catch (err) {
+      console.error('Error al ejecutar tests:', err)
+      setTestsError('Error al ejecutar los tests en el sandbox.')
+    } finally {
+      setIsRunningTests(false)
     }
   }
 
@@ -200,6 +245,18 @@ const CodeEditor: React.FC = () => {
           <button onClick={shareCode} className="btn-secondary" title="Copiar codigo al portapapeles">
             <Share2 className="h-4 w-4" />
           </button>
+
+          {exerciseId !== null && (
+            <button
+              onClick={runTests}
+              disabled={isRunningTests}
+              className="btn-secondary disabled:opacity-50"
+              title="Correr los tests ocultos del ejercicio en Pyodide"
+            >
+              <TestTube2 className="h-4 w-4 mr-2" />
+              {isRunningTests ? 'Ejecutando tests...' : 'Ejecutar tests'}
+            </button>
+          )}
 
           <button
             onClick={evaluateCode}
@@ -304,6 +361,66 @@ const CodeEditor: React.FC = () => {
       {evaluationError && (
         <div className="bg-red-50 border-y border-red-200 px-4 py-2 text-sm text-red-700">
           {evaluationError}
+        </div>
+      )}
+
+      {testsError && (
+        <div className="bg-amber-50 border-y border-amber-200 px-4 py-2 text-sm text-amber-800">
+          {testsError}
+        </div>
+      )}
+
+      {testsResult && (
+        <div
+          className={`border-y px-4 py-3 ${
+            testsResult.passed === testsResult.total
+              ? 'bg-emerald-50 border-emerald-200'
+              : 'bg-rose-50 border-rose-200'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <TestTube2
+                className={`h-4 w-4 ${
+                  testsResult.passed === testsResult.total
+                    ? 'text-emerald-600'
+                    : 'text-rose-600'
+                }`}
+              />
+              <span className="text-sm font-semibold text-slate-800">
+                Tests: {testsResult.passed} / {testsResult.total} pasaron
+                <span className="text-slate-500 font-normal ml-2">
+                  ({testsResult.durationMs.toFixed(0)} ms)
+                </span>
+              </span>
+            </div>
+            <button
+              onClick={() => setTestsResult(null)}
+              className="text-slate-400 hover:text-slate-600"
+              aria-label="Cerrar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <ul className="mt-2 space-y-1 text-sm">
+            {testsResult.verdicts.map((v, i) => (
+              <li key={i} className="flex items-start gap-2">
+                {v.passed ? (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-rose-600 mt-0.5 flex-shrink-0" />
+                )}
+                <div className="flex-1">
+                  <span className="text-slate-800">{v.name || `Test ${i + 1}`}</span>
+                  {!v.passed && v.errorMessage && (
+                    <pre className="mt-1 text-xs font-mono whitespace-pre-wrap text-rose-700 bg-white/60 rounded px-2 py-1">
+                      {v.errorMessage}
+                    </pre>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

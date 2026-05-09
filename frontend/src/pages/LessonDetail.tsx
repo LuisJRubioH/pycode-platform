@@ -74,6 +74,7 @@ const LessonDetail: React.FC = () => {
       current_lesson: `lesson-${lesson.id}`,
       level: lesson.difficulty,
       source: `lesson:${lesson.id}:exercise:${exercise.id}`,
+      exercise_id: exercise.id,
     })
     navigate('/editor')
   }

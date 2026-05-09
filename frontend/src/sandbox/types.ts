@@ -18,3 +18,27 @@ export interface KernelInfo {
   ready: boolean;
   pyodideVersion?: string;
 }
+
+export interface HiddenTest {
+  name: string;
+  code: string;
+}
+
+export interface TestVerdict {
+  name: string;
+  passed: boolean;
+  errorMessage?: string;
+}
+
+export interface RunTestsRequest {
+  studentCode: string;
+  tests: HiddenTest[];
+  timeoutMs?: number;
+}
+
+export interface RunTestsResult {
+  total: number;
+  passed: number;
+  verdicts: TestVerdict[];
+  durationMs: number;
+}

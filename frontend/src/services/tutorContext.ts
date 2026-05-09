@@ -9,6 +9,7 @@ export interface TutorContextPayload {
   level?: string
   recent_errors?: string[]
   source?: string
+  exercise_id?: number
 }
 
 export function saveTutorContext(context: TutorContextPayload) {
