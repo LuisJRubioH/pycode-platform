@@ -1,9 +1,8 @@
 # Fase 0 — Checklist de salida
 
-Estado al 2026-05-06. **27 de 30 tasks completadas.** Solo queda el
-smoke test contra el entorno staging real (Task 29) — requiere
-proyectos creados en Render/Vercel/Supabase. Task 30 cierra cuando
-Task 29 quede verde.
+Estado al 2026-05-08. **Fase 0 cerrada (30/30).** Smoke test pasó
+contra producción real (Render + Vercel + Supabase + UptimeRobot).
+Tag `fase-0-complete` aplicado.
 
 ## Hecho
 
@@ -77,18 +76,24 @@ Task 29 quede verde.
   `test_a_cannot_use_b_token_after_logout`.
   — Task 19
 
-## Pendiente
+- [x] Smoke test contra producción — Task 29:
+  - `https://pycode-backend.onrender.com/health` → 200 + 6 headers
+    seguros (HSTS, CSP, XCTO, XFO, Referrer-Policy, Permissions-Policy)
+  - Auth flow: `POST /auth/register` → 201, `POST /auth/login` → JWT,
+    `GET /lessons/` con Bearer → 200 (25 lecciones seedeadas)
+  - GDPR: `DELETE /me` purga al usuario y dependientes en cascada
+  - Frontend Vercel: registro/login/dashboard/editor con Pyodide
+    funcionando contra el backend de Render via rewrite
+  - Tutor IA conectado por WS directo a Render (Vercel Hobby no
+    proxea WS); Groq responde en estilo socrático
+  - UptimeRobot pingueando `/health` cada 5min para evitar cold start
+- [x] Cleanup final + tag `fase-0-complete` — Task 30
 
-- [ ] **Smoke test full-stack contra entorno staging** — Task 29.
-  Bloqueador: depende de proyectos creados en Render + Vercel +
-  Supabase + UptimeRobot (operativo, no código).
+## Producción
 
-## Cómo retomar
-
-1. Crear cuentas Render + Vercel + Supabase + UptimeRobot.
-2. Aprovisionar usando `render.yaml`, `vercel.json` y los pasos de
-   `docs/DEPLOY.md`.
-3. Ejecutar Task 29 contra el entorno staging según
-   `docs/superpowers/plans/2026-05-03-fase-0-fundamentos-seguridad.md`.
-4. Cuando todo esté verde, marcar este checklist completo, cerrar
-   Task 30 y crear el tag `fase-0-complete`.
+| Servicio | URL | Notas |
+|---|---|---|
+| Frontend | https://pycode-platform.vercel.app | Vercel Hobby, Vite build |
+| Backend | https://pycode-backend.onrender.com | Render Free, Docker |
+| DB | Supabase Postgres `medutbqsurjnaaymmrin` | sa-east-1, RLS habilitada |
+| Watchdog | UptimeRobot monitor `pycode-backend health` | HTTP 5min |

@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 PyCode Platform — learning platform for Python with Monaco editor, sandboxed code execution, a Socratic AI tutor, and a Finxter-inspired ELO puzzle progression system. 
 
-**Current Status (Fase 0 v2)**: 🚧 Fundamentos + seguridad base — 27/30 tasks
+**Current Status (Fase 0 v2)**: ✅ **Fase 0 cerrada (30/30) — tag `fase-0-complete` (2026-05-08)**
 - Postgres + Alembic + migraciones versionadas (sin SQLite ni `create_all` en prod)
 - RLS habilitada por tabla con `current_setting('app.current_user_id')` + tests cross-user
 - Pyodide en Web Worker reemplaza el subprocess executor; backend ya no ejecuta código
@@ -16,76 +16,22 @@ PyCode Platform — learning platform for Python with Monaco editor, sandboxed c
 - Logging structlog con redaction PII, Sentry con scrubbing, Dependabot semanal
 - Deploy gratis configurado: Render (backend) + Vercel (frontend) + Supabase (Postgres)
 
-**Pendiente (Task 29):** smoke test full-stack contra entorno staging real tras los primeros deploys. Detalle en `docs/superpowers/plans/fase-0-checklist.md`.
+**Producción**:
+- Frontend: https://pycode-platform.vercel.app (Vercel Hobby)
+- Backend: https://pycode-backend.onrender.com (Render Free, Docker)
+- DB: Supabase Postgres `medutbqsurjnaaymmrin` (sa-east-1, RLS habilitada)
+- Watchdog: UptimeRobot ping `/health` cada 5 min
 
-Próxima fase: Fase 1 — pulido y sistema ELO completo. Spec en `docs/superpowers/specs/2026-05-03-pycode-platform-v2-design.md`.
+**Próxima fase: Fase 1** — pulido del Track 1 + sistema ELO completo. Spec en `docs/superpowers/specs/2026-05-03-pycode-platform-v2-design.md`. Primer trabajo identificado: separar el evaluador de código del tutor de Q&A (dos roles, dos tablas, dos system prompts). Detalle en memoria persistente `project_fase1_tutor_redesign.md`.
 
-See [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for the vision and [PYCODE_SPEC.md](PYCODE_SPEC.md) for the phased implementation spec (which is the source of truth for pending work).
+See [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for the vision and [PYCODE_SPEC.md](PYCODE_SPEC.md) for the phased implementation spec.
 
-## ⚠️ Para cerrar Fase 0 (lee esto primero en sesiones futuras)
+## Notas operativas (post-deploy)
 
-Cuando el usuario vuelva, **antes de cualquier otra cosa** dile que para cerrar Fase 0 necesita ejecutar estos pasos operativos (no son cambios de código):
-
-### 1. Aprovisionar Supabase (5 min)
-- [supabase.com](https://supabase.com) → New Project (free tier, región más cercana).
-- Anotar de **Project Settings → Database → Connection string (URI)**: el valor con prefijo `postgresql://` y reemplazarlo por `postgresql+asyncpg://...?sslmode=require` para guardarlo como `DATABASE_URL`.
-- Anotar de **Project Settings → API**: `Project URL` (→ `SUPABASE_URL`), `anon public key` (→ `SUPABASE_ANON_KEY`), `service_role key` (→ `SUPABASE_SERVICE_KEY`).
-
-### 2. Desplegar backend en Render (5 min)
-- [render.com](https://render.com) → New → Blueprint → conectar el repo GitHub.
-- Render lee `render.yaml` y crea el servicio web `pycode-backend` con el Dockerfile.
-- En **Settings → Environment** pegar los valores reales para los marcados `sync: false`: `DATABASE_URL`, `SECRET_KEY` (generar con `openssl rand -hex 32`), `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_KEY`, `GROQ_API_KEY` (de [console.groq.com](https://console.groq.com)), opcional `SENTRY_DSN`.
-- **Manual Deploy**. El `CMD` del Dockerfile aplica `alembic upgrade head` antes de uvicorn — debería levantar en limpio sobre Supabase.
-
-### 3. Desplegar frontend en Vercel (3 min)
-- [vercel.com](https://vercel.com) → New Project → import del mismo repo.
-- Root directory: `frontend`. Build command: `npm run build`. Output: `dist`. Sin env vars.
-- Vercel lee `vercel.json` y configura los rewrites `/api/*` y `/ws/*` hacia `https://pycode-backend.onrender.com`.
-
-### 4. UptimeRobot (2 min)
-- [uptimerobot.com](https://uptimerobot.com) → Add Monitor → HTTP(s) → URL `https://pycode-backend.onrender.com/health` cada 14 min (Render free duerme tras 15 min de inactividad).
-
-### 5. Smoke test Task 29 (10 min)
-Una vez todo levantado, ejecutar:
-
-```bash
-# Backend público
-curl -s https://pycode-backend.onrender.com/health
-curl -sI https://pycode-backend.onrender.com/health | grep -iE "strict-transport|content-security|x-frame|x-content"
-
-# Flow de auth contra Supabase real
-curl -s -X POST https://pycode-backend.onrender.com/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"smoke@example.com","username":"smoke","password":"SmokePass123"}'
-curl -s -X POST https://pycode-backend.onrender.com/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"smoke@example.com","password":"SmokePass123"}'
-# guardar access_token
-curl -s https://pycode-backend.onrender.com/api/v1/lessons/ \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-Y en `https://<tu-deploy>.vercel.app`:
-- Login con la cuenta smoke.
-- Cargar lecciones (deben llegar 25).
-- Editor: ejecutar `print("hola")` — Pyodide debe correr en el browser (la primera vez tarda 2-3s en bajar el runtime de cdn.jsdelivr.net).
-- Tutor IA: hacer una pregunta — debe responder vía Groq.
-
-### 6. Cerrar Fase 0
-Cuando todo lo de arriba pase:
-
-```bash
-git tag fase-0-complete
-git push --tags
-```
-
-Marcar Task 29 y Task 30 como completed. Actualizar `docs/superpowers/plans/fase-0-checklist.md` y `CLAUDE.md` para que reflejen Fase 0 = ✅ y borrar este bloque "Para cerrar Fase 0" (su trabajo termina ahí).
-
-### Si el usuario tropieza
-- **CORS errors en frontend**: verificar que `CORS_ORIGINS` en Render incluye el dominio Vercel exacto (incluyendo subdomain de preview si aplica).
-- **`alembic upgrade head` falla en Render** con error de RLS en migración 0004: confirmar que el role de la connection string tiene `BYPASSRLS` o suficientes privilegios; el role `postgres` de Supabase los tiene por default, los roles personalizados no.
-- **Pyodide no carga**: revisar el CSP del navegador en DevTools — `cdn.jsdelivr.net` debe aparecer en `script-src` y `connect-src` (lo está; si Vercel inyecta un CSP propio puede pisarlo).
-- **Rate limit te bloquea durante el smoke**: SlowAPI guarda contadores en memoria del proceso; un redeploy de Render lo resetea.
+- **Cold start de Render free**: el contenedor duerme tras 15 min de inactividad; UptimeRobot lo evita pingueando `/health` cada 5 min. Si UptimeRobot se cae, las primeras llamadas tras un período idle pueden tardar 30-60s o devolver 502.
+- **WebSocket del Tutor IA**: Vercel Hobby no proxea WebSockets de forma confiable a través de los rewrites de `vercel.json`. `TutorChat.tsx` conecta directamente a `wss://pycode-backend.onrender.com/ws/tutor` cuando `import.meta.env.PROD` es true.
+- **CORS_ORIGINS** en Render incluye el dominio Vercel exacto (`https://pycode-platform.vercel.app`). Si se cambia el dominio de Vercel (ej. dominio custom), hay que actualizar `CORS_ORIGINS` en Render Settings → Environment y redesplegar.
+- **Rate limit de SlowAPI** guarda contadores en memoria del proceso de Render; un redeploy los resetea, útil si te bloqueas durante pruebas.
 
 ## Common commands
 
