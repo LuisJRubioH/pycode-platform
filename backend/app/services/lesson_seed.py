@@ -23,6 +23,7 @@ class ExerciseTemplate:
     hints: list[str] = field(default_factory=list)
     points: int = 10
     difficulty: str = "easy"
+    hidden_tests: list[dict] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -198,12 +199,36 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                 description="Funcion con retorno.",
                 instructions="Implementa `area_rectangulo(base, altura)`.",
                 starter_code="def area_rectangulo(base: float, altura: float) -> float:\n    # TODO\n    pass\n",
+                hidden_tests=[
+                    {
+                        "name": "rectangulo 3x4 da 12",
+                        "code": "assert area_rectangulo(3, 4) == 12",
+                    },
+                    {
+                        "name": "soporta floats (2.5 x 4 = 10.0)",
+                        "code": "assert abs(area_rectangulo(2.5, 4) - 10.0) < 1e-9",
+                    },
+                    {
+                        "name": "altura 0 da 0",
+                        "code": "assert area_rectangulo(7, 0) == 0",
+                    },
+                ],
             ),
             ExerciseTemplate(
                 title="Saludo configurable",
                 description="Parametro por defecto.",
                 instructions="Implementa `saludar(nombre, prefijo='Hola')`.",
                 starter_code="def saludar(nombre: str, prefijo: str = 'Hola') -> str:\n    # TODO\n    pass\n",
+                hidden_tests=[
+                    {
+                        "name": "prefijo por defecto",
+                        "code": "assert saludar('Ana') == 'Hola, Ana'",
+                    },
+                    {
+                        "name": "prefijo personalizado",
+                        "code": "assert saludar('Luis', prefijo='Hey') == 'Hey, Luis'",
+                    },
+                ],
             ),
         ],
     ),
@@ -266,6 +291,20 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                 description="Captura errores comunes.",
                 instructions="Implementa `division_segura(a, b)` que retorne None si b es 0.",
                 starter_code="def division_segura(a: float, b: float):\n    # TODO\n    pass\n",
+                hidden_tests=[
+                    {
+                        "name": "10 / 2 da 5",
+                        "code": "assert division_segura(10, 2) == 5",
+                    },
+                    {
+                        "name": "5 / 0 retorna None",
+                        "code": "assert division_segura(5, 0) is None",
+                    },
+                    {
+                        "name": "negativos: -8 / 4 da -2",
+                        "code": "assert division_segura(-8, 4) == -2",
+                    },
+                ],
             ),
         ],
     ),
@@ -408,6 +447,7 @@ async def seed_lessons_with_exercises(db: AsyncSession) -> int:
                     starter_code=ex.starter_code,
                     solution_code=None,
                     test_cases=[],
+                    hidden_tests=list(ex.hidden_tests),
                     hints=ex.hints,
                     points=ex.points,
                     difficulty=ex.difficulty,
