@@ -11,11 +11,13 @@ import {
   CheckCircle2,
   XCircle,
   TestTube2,
+  History,
   X,
 } from 'lucide-react'
 import { runPythonCode, runHiddenTests, getCodeRunner } from '../services/codeRunner'
 import { api } from '../services/api'
 import { loadTutorContext } from '../services/tutorContext'
+import EvaluationHistoryModal from '../components/EvaluationHistoryModal'
 import type { HiddenTest, RunStatus, RunTestsResult } from '@/sandbox'
 
 const INITIAL_CODE = `# Escribe tu codigo Python aqui
@@ -60,6 +62,7 @@ const CodeEditor: React.FC = () => {
   const [isRunningTests, setIsRunningTests] = useState(false)
   const [testsResult, setTestsResult] = useState<RunTestsResult | null>(null)
   const [testsError, setTestsError] = useState('')
+  const [showHistory, setShowHistory] = useState(false)
 
   const monaco = useMonaco()
 
@@ -255,6 +258,17 @@ const CodeEditor: React.FC = () => {
             >
               <TestTube2 className="h-4 w-4 mr-2" />
               {isRunningTests ? 'Ejecutando tests...' : 'Ejecutar tests'}
+            </button>
+          )}
+
+          {exerciseId !== null && (
+            <button
+              onClick={() => setShowHistory(true)}
+              className="btn-secondary"
+              title="Ver evaluaciones previas de este ejercicio"
+            >
+              <History className="h-4 w-4 mr-2" />
+              Historial
             </button>
           )}
 
@@ -476,6 +490,13 @@ const CodeEditor: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {showHistory && exerciseId !== null && (
+        <EvaluationHistoryModal
+          exerciseId={exerciseId}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
 
       {evaluation && (
         <div
