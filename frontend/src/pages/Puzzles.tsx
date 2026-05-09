@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, BrainCircuit, CheckCircle2, XCircle } from 'lucide-react'
+import { ArrowRight, BrainCircuit, CheckCircle2 } from 'lucide-react'
 import { api } from '../services/api'
 import { saveTutorContext } from '../services/tutorContext'
+import EloResultModal, { EloAttemptResult } from '../components/EloResultModal'
 
 interface Puzzle {
   id: number
@@ -17,24 +18,13 @@ interface Puzzle {
   solved: boolean
 }
 
-interface AttemptResult {
-  correct: boolean
-  correct_output: string
-  explanation: string
-  user_elo_before: number
-  user_elo_after: number
-  elo_delta_user: number
-  rank_before: string
-  rank_after: string
-}
-
 const Puzzles: React.FC = () => {
   const navigate = useNavigate()
   const [category, setCategory] = useState<'python' | 'numpy' | 'pandas'>('python')
   const [items, setItems] = useState<Puzzle[]>([])
   const [selected, setSelected] = useState<Puzzle | null>(null)
   const [answer, setAnswer] = useState('')
-  const [result, setResult] = useState<AttemptResult | null>(null)
+  const [result, setResult] = useState<EloAttemptResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
@@ -81,7 +71,7 @@ const Puzzles: React.FC = () => {
         setError('No pudimos evaluar tu respuesta. Vuelve a intentarlo.')
         return
       }
-      const attemptResult: AttemptResult = await res.json()
+      const attemptResult: EloAttemptResult = await res.json()
       setResult(attemptResult)
       // Marcar el puzzle como atacado y, si fue correcto, resuelto.
       // Optimista: evita re-pedir la lista entera al backend.
@@ -107,6 +97,19 @@ const Puzzles: React.FC = () => {
     } finally {
       setSending(false)
     }
+  }
+
+  const goToNext = () => {
+    if (!selected) return
+    const currentIndex = items.findIndex((p) => p.id === selected.id)
+    const ordered = [
+      ...items.slice(currentIndex + 1),
+      ...items.slice(0, currentIndex),
+    ]
+    const nextPuzzle = ordered.find((p) => !p.solved) || ordered[0] || null
+    setResult(null)
+    setAnswer('')
+    if (nextPuzzle) setSelected(nextPuzzle)
   }
 
   const sendToTutor = () => {
@@ -257,33 +260,19 @@ const Puzzles: React.FC = () => {
                 </button>
               </div>
 
-              {result && (
-                <div
-                  className={`rounded-xl border p-4 ${
-                    result.correct ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {result.correct ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-amber-700" />
-                    )}
-                    <p className="font-semibold text-slate-900">
-                      {result.correct ? 'Respuesta correcta' : 'Respuesta por mejorar'}
-                    </p>
-                  </div>
-                  <p className="text-sm text-slate-700 mt-2">{result.explanation}</p>
-                  <p className="text-xs text-slate-600 mt-2">
-                    ELO {result.user_elo_before} → {result.user_elo_after} ({result.elo_delta_user > 0 ? '+' : ''}
-                    {result.elo_delta_user})
-                  </p>
-                </div>
-              )}
             </div>
           )}
         </div>
       </div>
+
+      {result && (
+        <EloResultModal
+          result={result}
+          onClose={() => setResult(null)}
+          onNext={goToNext}
+          nextLabel="Siguiente puzzle"
+        />
+      )}
     </div>
   )
 }

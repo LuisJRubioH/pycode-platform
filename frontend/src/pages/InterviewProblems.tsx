@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Briefcase, ArrowRight, CheckCircle2, XCircle } from 'lucide-react'
+import { Briefcase, ArrowRight } from 'lucide-react'
 import { api } from '../services/api'
 import { saveTutorContext } from '../services/tutorContext'
+import EloResultModal, { EloAttemptResult } from '../components/EloResultModal'
 
 interface InterviewPuzzle {
   id: number
@@ -15,23 +16,12 @@ interface InterviewPuzzle {
   solve_rate: number
 }
 
-interface InterviewAttemptResult {
-  correct: boolean
-  correct_output: string
-  explanation: string
-  user_elo_before: number
-  user_elo_after: number
-  elo_delta_user: number
-  rank_before: string
-  rank_after: string
-}
-
 const InterviewProblems: React.FC = () => {
   const navigate = useNavigate()
   const [items, setItems] = useState<InterviewPuzzle[]>([])
   const [selected, setSelected] = useState<InterviewPuzzle | null>(null)
   const [answer, setAnswer] = useState('')
-  const [result, setResult] = useState<InterviewAttemptResult | null>(null)
+  const [result, setResult] = useState<EloAttemptResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
@@ -90,6 +80,18 @@ const InterviewProblems: React.FC = () => {
     } finally {
       setSending(false)
     }
+  }
+
+  const goToNext = () => {
+    if (!selected) return
+    const currentIndex = items.findIndex((p) => p.id === selected.id)
+    const nextItem =
+      items[currentIndex + 1] ||
+      items.find((p) => p.id !== selected.id) ||
+      null
+    setResult(null)
+    setAnswer('')
+    if (nextItem) setSelected(nextItem)
   }
 
   const reviewWithTutor = () => {
@@ -198,33 +200,19 @@ const InterviewProblems: React.FC = () => {
                 </button>
               </div>
 
-              {result && (
-                <div
-                  className={`rounded-xl border p-4 ${
-                    result.correct ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {result.correct ? (
-                      <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-amber-700" />
-                    )}
-                    <p className="font-semibold text-slate-900">
-                      {result.correct ? 'Correcto' : 'Aun se puede mejorar'}
-                    </p>
-                  </div>
-                  <p className="text-sm text-slate-700 mt-2">{result.explanation}</p>
-                  <p className="text-xs text-slate-600 mt-2">
-                    ELO {result.user_elo_before} → {result.user_elo_after} ({result.elo_delta_user > 0 ? '+' : ''}
-                    {result.elo_delta_user})
-                  </p>
-                </div>
-              )}
             </div>
           )}
         </div>
       </div>
+
+      {result && (
+        <EloResultModal
+          result={result}
+          onClose={() => setResult(null)}
+          onNext={goToNext}
+          nextLabel="Siguiente ejercicio"
+        />
+      )}
     </div>
   )
 }
