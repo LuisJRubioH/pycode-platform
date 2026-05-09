@@ -130,12 +130,17 @@ const Lessons: React.FC = () => {
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((lesson) => (
-            <div key={lesson.id} className="card p-6 hover:shadow-md transition-shadow">
+            <div
+              key={lesson.id}
+              className={`card p-6 hover:shadow-md transition-shadow ${
+                lesson.status === 'completed' ? 'border-emerald-200 bg-emerald-50/40' : ''
+              }`}
+            >
               <div className="flex items-start justify-between mb-4">
                 <div
                   className={`w-10 h-10 rounded-lg flex items-center justify-center ${
                     lesson.status === 'completed'
-                      ? 'bg-green-100 text-green-600'
+                      ? 'bg-emerald-100 text-emerald-600'
                       : lesson.status === 'in_progress'
                         ? 'bg-primary-100 text-primary-600'
                         : 'bg-slate-100 text-slate-600'
@@ -149,9 +154,21 @@ const Lessons: React.FC = () => {
                     <BookOpen className="h-5 w-5" />
                   )}
                 </div>
-                <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
-                  {difficultyLabel[lesson.difficulty] || lesson.difficulty}
-                </span>
+                <div className="flex items-center gap-2">
+                  {lesson.status === 'completed' && (
+                    <span className="text-[10px] uppercase tracking-wide text-emerald-700 bg-emerald-100 rounded px-1.5 py-0.5 font-semibold">
+                      Hecho
+                    </span>
+                  )}
+                  {lesson.status === 'in_progress' && (
+                    <span className="text-[10px] uppercase tracking-wide text-primary-700 bg-primary-100 rounded px-1.5 py-0.5 font-semibold">
+                      En curso
+                    </span>
+                  )}
+                  <span className="text-xs font-medium text-slate-600 bg-slate-100 px-2 py-1 rounded-full">
+                    {difficultyLabel[lesson.difficulty] || lesson.difficulty}
+                  </span>
+                </div>
               </div>
 
               <h3 className="text-lg font-semibold text-slate-900 mb-2">{lesson.title}</h3>
