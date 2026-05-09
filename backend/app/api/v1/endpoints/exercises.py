@@ -12,7 +12,12 @@ from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.user import User
 from app.models.learning import Exercise, CodeSubmission, UserProgress
-from app.schemas.learning import CodeSubmissionCreate, CodeSubmissionResponse
+from app.schemas.learning import (
+    CodeSubmissionCreate,
+    CodeSubmissionResponse,
+    HiddenTest,
+    HiddenTestsResponse,
+)
 
 router = APIRouter()
 
@@ -126,6 +131,34 @@ async def submit_exercise(
     await db.refresh(code_submission)
 
     return code_submission
+
+
+@router.get("/{exercise_id}/hidden-tests", response_model=HiddenTestsResponse)
+async def get_hidden_tests(
+    exercise_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Tests ocultos del ejercicio para que el worker Pyodide los corra.
+
+    El cliente los recibe solo al pulsar "Ejecutar tests" y los pasa al
+    worker; la UI nunca los renderiza, solo muestra verdict por test.
+    Otros endpoints (lesson list, lesson detail) NO los exponen.
+    """
+    result = await db.execute(select(Exercise).where(Exercise.id == exercise_id))
+    exercise = result.scalar_one_or_none()
+    if not exercise:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found"
+        )
+
+    raw_tests = exercise.hidden_tests or []
+    tests = [
+        HiddenTest(name=t.get("name", ""), code=t.get("code", ""))
+        for t in raw_tests
+        if isinstance(t, dict) and t.get("code")
+    ]
+    return HiddenTestsResponse(exercise_id=exercise_id, tests=tests)
 
 
 @router.get("/{exercise_id}/hints")

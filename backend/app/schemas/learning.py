@@ -81,6 +81,16 @@ class CodeSubmissionResponse(BaseModel):
         from_attributes = True
 
 
+class HiddenTest(BaseModel):
+    name: str
+    code: str
+
+
+class HiddenTestsResponse(BaseModel):
+    exercise_id: int
+    tests: List[HiddenTest]
+
+
 class ProgressUpdate(BaseModel):
     lesson_id: int
     progress: int
