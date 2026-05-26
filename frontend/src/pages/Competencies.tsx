@@ -123,12 +123,22 @@ const Competencies: React.FC = () => {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900">Mapa de competencias</h1>
-        <p className="text-slate-600 mt-2">
-          Tus avances agrupados por área del Track 1. Cada tarjeta muestra cuántas
-          lecciones y ejercicios llevas resueltos.
-        </p>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Mapa de competencias</h1>
+          <p className="text-slate-600 mt-2">
+            Tus avances agrupados por área del Track 1. Cada tarjeta muestra cuántas
+            lecciones y ejercicios llevas resueltos.
+          </p>
+        </div>
+        <Link
+          to="/capstones/track-1-cli-ventas"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-medium shadow-sm transition-colors"
+        >
+          <Trophy className="h-4 w-4" />
+          Capstone Track 1
+          <ArrowRight className="h-4 w-4" />
+        </Link>
       </div>
 
       {error && (
