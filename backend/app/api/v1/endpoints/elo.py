@@ -12,6 +12,11 @@ from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.elo_models import EloHistory, Puzzle, PuzzleAttempt
 from app.models.user import User, UserProfile
+from app.services.elo_rating_service import (
+    DOMAIN_PUZZLE,
+    apply_result_to_rating,
+    get_or_init_rating,
+)
 from app.schemas.elo_schemas import (
     EloHistoryOut,
     EloHistoryPoint,
@@ -72,16 +77,21 @@ async def get_elo_profile(
 @router.get("/history", response_model=EloHistoryOut)
 async def get_elo_history(
     limit: int = 50,
+    domain: str | None = None,
+    scope: str | None = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
+    """Timeline ELO del usuario. Opcionalmente filtra por track (`domain` +
+    `scope`) para graficar la progresión de una categoría concreta. Sin
+    filtros devuelve todos los puntos (compatibilidad con la UI anterior)."""
     profile = await _get_or_create_profile(db, current_user.id)
-    result = await db.execute(
-        select(EloHistory)
-        .where(EloHistory.user_profile_id == profile.id)
-        .order_by(EloHistory.created_at)
-        .limit(limit)
-    )
+    query = select(EloHistory).where(EloHistory.user_profile_id == profile.id)
+    if domain is not None:
+        query = query.where(EloHistory.domain == domain)
+    if scope is not None:
+        query = query.where(EloHistory.category == scope)
+    result = await db.execute(query.order_by(EloHistory.created_at).limit(limit))
     history = result.scalars().all()
     await db.commit()
     return EloHistoryOut(
@@ -375,16 +385,37 @@ async def submit_puzzle_attempt(
     db.add(attempt)
     await db.flush()
 
+    # Rating por track (dominio "puzzle", scope = categoría del puzzle).
+    # Calcula independiente del overall global: usa el ELO de la track como
+    # user_elo y el ELO del puzzle ANTES del intento. Lazy-init heredando el
+    # ELO global para dar continuidad al separar.
+    track = await get_or_init_rating(
+        db,
+        current_user.id,
+        DOMAIN_PUZZLE,
+        puzzle.category,
+        fallback_elo=result.user_elo_before,
+    )
+    track_result = process_attempt(
+        user_elo=track.elo_rating,
+        puzzle_elo=result.puzzle_elo_before,
+        correct=is_correct,
+        advanced=puzzle.is_advanced,
+    )
+    apply_result_to_rating(track, track_result)
+
+    # El timeline vive por track: elo_value/delta/rank son los de la track.
     history_point = EloHistory(
         user_profile_id=profile.id,
         puzzle_id=puzzle.id,
         attempt_id=attempt.id,
-        elo_value=result.user_elo_after,
-        delta=result.delta_user,
+        elo_value=track_result.user_elo_after,
+        delta=track_result.delta_user,
         correct=is_correct,
-        rank_label=result.rank_after.value,
+        rank_label=track_result.rank_after.value,
         puzzle_title=puzzle.title,
         category=puzzle.category,
+        domain=DOMAIN_PUZZLE,
     )
     db.add(history_point)
     await db.commit()

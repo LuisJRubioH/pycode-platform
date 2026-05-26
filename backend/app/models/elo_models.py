@@ -10,9 +10,11 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -97,6 +99,52 @@ class PuzzleAttempt(Base):
     puzzle = relationship("Puzzle", back_populates="attempts")
 
 
+class EloRating(Base):
+    """Rating ELO independiente por *(usuario, dominio, scope)*.
+
+    Patrón multidominio: cada actividad/categoría lleva su propio ELO, rango,
+    racha e historial. Guardamos las hojas; los agregados (overall por dominio,
+    global) se calculan al leer. Lazy-init: la primera vez que un usuario toca
+    una categoría, su rating hereda el `UserProfile.elo_rating` global actual
+    para no resetear su progreso.
+
+    - `domain`: actividad ("puzzle", "challenge").
+    - `scope`: categoría dentro del dominio ("python"/"numpy"/"pandas"/
+      "interview" para puzzles; "easy"/"medium"/"hard" para retos).
+    """
+
+    __tablename__ = "elo_ratings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    domain = Column(String(40), nullable=False)
+    scope = Column(String(40), nullable=False)
+    elo_rating = Column(Integer, default=1000, nullable=False)
+    elo_peak = Column(Integer, default=1000, nullable=False)
+    rank = Column(String(50), default="Beginner", nullable=False)
+    attempts = Column(Integer, default=0, nullable=False)
+    correct = Column(Integer, default=0, nullable=False)
+    streak_current = Column(Integer, default=0, nullable=False)
+    streak_best = Column(Integer, default=0, nullable=False)
+    last_activity = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "domain", "scope", name="uq_elo_rating_track"),
+        Index("ix_elo_ratings_user_domain", "user_id", "domain"),
+    )
+
+    @property
+    def accuracy(self) -> float:
+        if self.attempts == 0:
+            return 0.0
+        return round(self.correct / self.attempts * 100, 1)
+
+
 class EloHistory(Base):
     """Time series for the user's ELO progression."""
 
@@ -114,6 +162,9 @@ class EloHistory(Base):
     rank_label = Column(String(50), nullable=False)
     puzzle_title = Column(String(200), nullable=False)
     category = Column(String(50), nullable=False)
+    # Dominio de actividad de la track ("puzzle"|"challenge"). Junto con
+    # `category` (scope) define a qué rating pertenece este punto del timeline.
+    domain = Column(String(40), nullable=False, default="puzzle")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user_profile = relationship("UserProfile", back_populates="elo_history")
