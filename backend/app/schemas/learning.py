@@ -134,3 +134,25 @@ class CompetencyOut(BaseModel):
     exercises_total: int
     exercises_completed: int
     lessons: List[CompetencyLessonItem]
+
+
+class TrackStatusItem(BaseModel):
+    """Estado agregado de un Track para el usuario actual.
+
+    El `certificate_unlocked` es la decision gate: queda True cuando
+    `capstone_status == "passed"`. El certificado PDF en si se genera
+    en una pieza posterior, pero la condicion de desbloqueo ya esta aqui.
+    """
+
+    track: str
+    title: str
+    lessons_total: int
+    lessons_completed: int
+    exercises_total: int
+    exercises_completed: int
+    capstone_slug: Optional[str] = None
+    capstone_title: Optional[str] = None
+    capstone_status: Optional[str] = None
+    capstone_tests_passed: Optional[int] = None
+    capstone_tests_total: Optional[int] = None
+    certificate_unlocked: bool = False

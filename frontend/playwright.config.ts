@@ -23,9 +23,17 @@ export default defineConfig({
     navigationTimeout: 60_000,
   },
   projects: [
+    // Setup que logea un solo usuario E2E y persiste storageState. Los
+    // otros proyectos dependen de el para evitar reaplicar login en cada
+    // test (rate limit 5/min en /login + 3/hour en /register).
+    { name: 'setup', testMatch: /.*\.setup\.ts/ },
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'e2e/.auth/user.json',
+      },
+      dependencies: ['setup'],
     },
   ],
   // webServer: {

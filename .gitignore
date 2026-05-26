@@ -70,6 +70,7 @@ frontend/test-results/
 frontend/playwright-report/
 frontend/screenshots/
 frontend/playwright/.cache/
+frontend/e2e/.auth/
 
 # =========================
 # MATERIAL EXTERNO LOCAL (NO COMMITTEAR)
