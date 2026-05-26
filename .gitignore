@@ -50,6 +50,7 @@ Thumbs.db
 # =========================
 .vscode/
 .idea/
+.claude/
 
 # =========================
 # DOCKER
@@ -61,3 +62,11 @@ Thumbs.db
 # =========================
 *.swp
 *.tmp
+
+# =========================
+# MATERIAL EXTERNO LOCAL (NO COMMITTEAR)
+# =========================
+# Carpeta de staging del autor con material de Coursera/MoureDev/Platzi
+# que se recrea internamente. Inventario versionado en docs/staging/.
+PARA_INTEGRAR/
+Nuevo Documento de texto*.txt
