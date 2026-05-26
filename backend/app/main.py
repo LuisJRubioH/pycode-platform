@@ -28,6 +28,7 @@ from app.models import refresh_token  # noqa: F401
 from app.models import user  # noqa: F401
 from app.services.capstone_seed import seed_capstones_if_empty
 from app.services.challenge_importer import import_external_challenges
+from app.services.curated_retos import seed_curated_retos
 from app.services.generated_bank import (
     seed_generated_challenges,
     seed_generated_puzzles,
@@ -54,6 +55,7 @@ async def lifespan(app: FastAPI):
         await seed_generated_puzzles(session)
         await import_external_challenges(session)
         await seed_generated_challenges(session)
+        await seed_curated_retos(session)
         await seed_lessons_with_exercises(session)
         await seed_capstones_if_empty(session)
     yield
