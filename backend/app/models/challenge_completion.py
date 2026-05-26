@@ -2,7 +2,13 @@
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, UniqueConstraint
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    UniqueConstraint,
+)
 
 from app.core.database import Base
 
@@ -31,4 +37,7 @@ class ChallengeCompletion(Base):
         nullable=False,
         index=True,
     )
+    # ELO otorgado al marcar (rating `challenge:<difficulty>`). Se guarda para
+    # poder revertirlo exactamente al desmarcar y evitar farmear con toggle.
+    elo_delta = Column(Integer, default=0, nullable=False)
     completed_at = Column(DateTime, default=datetime.utcnow, nullable=False)

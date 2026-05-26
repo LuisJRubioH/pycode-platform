@@ -3,13 +3,14 @@ Endpoints for imported coding challenges.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import asc, delete, select
+from sqlalchemy import asc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.challenge import CodingChallenge
 from app.models.challenge_completion import ChallengeCompletion
+from app.models.elo_models import EloRating
 from app.models.user import User, UserProfile
 from app.schemas.challenge import (
     CodingChallengeDetail,
@@ -17,6 +18,13 @@ from app.schemas.challenge import (
     CodingChallengeSummary,
 )
 from app.services.challenge_importer import recommended_difficulty_for_elo
+from app.services.elo_rating_service import (
+    DOMAIN_CHALLENGE,
+    apply_result_to_rating,
+    get_or_init_rating,
+    nominal_elo_for_difficulty,
+)
+from app.services.elo_service import get_rank, process_attempt
 
 router = APIRouter()
 
@@ -127,7 +135,11 @@ async def mark_challenge_completed(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Marca el reto como hecho. Idempotente — re-marcar es no-op."""
+    """Marca el reto como hecho y otorga ELO a la track `challenge:<dificultad>`.
+
+    Idempotente: si ya estaba marcado, no re-otorga. El ELO concedido se guarda
+    en la completación para poder revertirlo exacto al desmarcar.
+    """
     challenge = await db.get(CodingChallenge, challenge_id)
     if not challenge or not challenge.is_active:
         raise HTTPException(status_code=404, detail="Challenge not found")
@@ -139,7 +151,28 @@ async def mark_challenge_completed(
         )
     )
     if existing.scalar_one_or_none() is None:
-        db.add(ChallengeCompletion(user_id=current_user.id, challenge_id=challenge_id))
+        profile = await _get_user_profile(db, current_user.id)
+        fallback = profile.elo_rating if profile else 1000
+        rating = await get_or_init_rating(
+            db,
+            current_user.id,
+            DOMAIN_CHALLENGE,
+            challenge.difficulty,
+            fallback_elo=fallback,
+        )
+        result = process_attempt(
+            user_elo=rating.elo_rating,
+            puzzle_elo=nominal_elo_for_difficulty(challenge.difficulty),
+            correct=True,
+        )
+        apply_result_to_rating(rating, result)
+        db.add(
+            ChallengeCompletion(
+                user_id=current_user.id,
+                challenge_id=challenge_id,
+                elo_delta=result.delta_user,
+            )
+        )
         await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -150,12 +183,34 @@ async def unmark_challenge_completed(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Quita la marca de hecho. Permite al alumno desmarcar un reto."""
-    await db.execute(
-        delete(ChallengeCompletion).where(
+    """Quita la marca de hecho y revierte el ELO otorgado al marcar."""
+    row = await db.execute(
+        select(ChallengeCompletion).where(
             ChallengeCompletion.user_id == current_user.id,
             ChallengeCompletion.challenge_id == challenge_id,
         )
     )
+    completion = row.scalar_one_or_none()
+    if completion is None:
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+    challenge = await db.get(CodingChallenge, challenge_id)
+    if challenge is not None:
+        rating_row = await db.execute(
+            select(EloRating).where(
+                EloRating.user_id == current_user.id,
+                EloRating.domain == DOMAIN_CHALLENGE,
+                EloRating.scope == challenge.difficulty,
+            )
+        )
+        rating = rating_row.scalar_one_or_none()
+        if rating is not None:
+            rating.elo_rating = max(0, rating.elo_rating - (completion.elo_delta or 0))
+            rating.attempts = max(0, rating.attempts - 1)
+            rating.correct = max(0, rating.correct - 1)
+            rating.streak_current = max(0, rating.streak_current - 1)
+            rating.rank = get_rank(rating.elo_rating).value
+
+    await db.delete(completion)
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

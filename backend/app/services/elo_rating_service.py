@@ -20,6 +20,14 @@ from app.services.elo_service import EloResult, get_rank
 DOMAIN_PUZZLE = "puzzle"
 DOMAIN_CHALLENGE = "challenge"
 
+# ELO nominal de un reto según su dificultad: se usa como "elo del rival" al
+# otorgar ELO por completar un reto (la completación cuenta como acierto).
+CHALLENGE_DIFFICULTY_ELO = {"easy": 850, "medium": 1200, "hard": 1550}
+
+
+def nominal_elo_for_difficulty(difficulty: str) -> int:
+    return CHALLENGE_DIFFICULTY_ELO.get(difficulty, 1200)
+
 
 async def get_or_init_rating(
     db: AsyncSession,
