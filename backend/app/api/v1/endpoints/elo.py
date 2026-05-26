@@ -23,6 +23,7 @@ from app.schemas.elo_schemas import (
     PuzzleAttemptHistoryOut,
     PuzzleAttemptIn,
     PuzzleAttemptOut,
+    PuzzleOfTheDayOut,
     PuzzleOut,
 )
 from app.services.elo_service import (
@@ -134,6 +135,41 @@ async def get_rank_table(
 
     return EloRankTableOut(
         rows=rows, user_elo=user_elo, user_rank=get_rank(user_elo).value
+    )
+
+
+@router.get("/puzzle-of-the-day", response_model=PuzzleOfTheDayOut)
+async def get_puzzle_of_the_day(db: AsyncSession = Depends(get_db)):
+    """Puzzle del día PÚBLICO (sin auth).
+
+    Selección determinista por fecha UTC sobre los puzzles activos no
+    avanzados: cambia cada día y es estable durante todo el día. Sirve de
+    gancho en la landing — cualquiera lo ve, pero para resolverlo y ganar
+    ELO hay que registrarse.
+
+    Guard rail: la respuesta NUNCA incluye `correct_output`/`explanation`.
+    """
+    result = await db.execute(
+        select(Puzzle)
+        .where(Puzzle.is_active.is_(True), Puzzle.is_advanced.is_(False))
+        .order_by(Puzzle.id.asc())
+    )
+    puzzles = result.scalars().all()
+    if not puzzles:
+        raise HTTPException(status_code=404, detail="No puzzles available")
+
+    today = datetime.utcnow().date()
+    puzzle = puzzles[today.toordinal() % len(puzzles)]
+    return PuzzleOfTheDayOut(
+        id=puzzle.id,
+        date=today,
+        title=puzzle.title,
+        category=puzzle.category,
+        topic=puzzle.topic,
+        code_snippet=puzzle.code_snippet,
+        difficulty_label=puzzle.difficulty_label,
+        elo_rating=puzzle.elo_rating,
+        solve_rate=puzzle.solve_rate,
     )
 
 

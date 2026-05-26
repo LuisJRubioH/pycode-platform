@@ -2,10 +2,25 @@
 Pydantic schemas for the ELO API.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel
+
+
+class PuzzleOfTheDayOut(BaseModel):
+    """Puzzle del día PÚBLICO. Nunca incluye la respuesta (`correct_output`)
+    ni `explanation`/`hint`: el alumno debe resolverlo para verla."""
+
+    id: int
+    date: date
+    title: str
+    category: str
+    topic: str
+    code_snippet: str
+    difficulty_label: str
+    elo_rating: int
+    solve_rate: float
 
 
 class PuzzleOut(BaseModel):

@@ -1,6 +1,7 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
 import { Code2, BookOpen, MessageSquare, Trophy } from 'lucide-react'
+import PuzzleOfTheDay from '../components/PuzzleOfTheDay'
 
 const Home: React.FC = () => {
   return (
@@ -24,6 +25,9 @@ const Home: React.FC = () => {
           </Link>
         </div>
       </section>
+
+      {/* Puzzle del día (público) */}
+      <PuzzleOfTheDay />
 
       {/* Features */}
       <section className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
