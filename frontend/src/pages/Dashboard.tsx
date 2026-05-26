@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { api } from '../services/api'
 import { useAuthStore } from '../stores/authStore'
 import ELODashboard from '../components/ELODashboard'
+import EloTracks from '../components/EloTracks'
 
 interface Stats {
   total_lessons: number
@@ -335,8 +336,9 @@ const Dashboard: React.FC = () => {
       <section className="space-y-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Motor ELO</h2>
-          <p className="text-slate-600">Tu progreso en puzzles ahora se mide con rating, rachas e historial.</p>
+          <p className="text-slate-600">Cada actividad y categoría mide su propio rating, rango y racha.</p>
         </div>
+        <EloTracks />
         <ELODashboard />
       </section>
 

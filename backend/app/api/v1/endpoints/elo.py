@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
-from app.models.elo_models import EloHistory, Puzzle, PuzzleAttempt
+from app.models.elo_models import EloHistory, EloRating, Puzzle, PuzzleAttempt
 from app.models.user import User, UserProfile
 from app.services.elo_rating_service import (
     DOMAIN_PUZZLE,
@@ -18,10 +18,13 @@ from app.services.elo_rating_service import (
     get_or_init_rating,
 )
 from app.schemas.elo_schemas import (
+    EloDomainSummary,
     EloHistoryOut,
     EloHistoryPoint,
     EloProfileOut,
     EloRankTableOut,
+    EloRatingItem,
+    EloRatingsOut,
     EloTableRow,
     PuzzleListOut,
     PuzzleAttemptHistoryItem,
@@ -71,6 +74,76 @@ async def get_elo_profile(
         accuracy=profile.accuracy,
         streak_current=profile.streak_current,
         streak_best=profile.streak_best,
+    )
+
+
+@router.get("/ratings", response_model=EloRatingsOut)
+async def get_elo_ratings(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """ELO multidominio del usuario: overall global + agregados por dominio +
+    todas las tracks hoja (puzzle:<categoria>, challenge:<dificultad>)."""
+    profile = await _get_or_create_profile(db, current_user.id)
+    rows = (
+        (
+            await db.execute(
+                select(EloRating)
+                .where(EloRating.user_id == current_user.id)
+                .order_by(EloRating.domain, EloRating.scope)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    await db.commit()
+
+    tracks: list[EloRatingItem] = []
+    by_domain: dict[str, dict] = {}
+    for r in rows:
+        tracks.append(
+            EloRatingItem(
+                domain=r.domain,
+                scope=r.scope,
+                elo_rating=r.elo_rating,
+                elo_peak=r.elo_peak,
+                rank=r.rank,
+                rank_color=get_rank_color(get_rank(r.elo_rating)),
+                attempts=r.attempts,
+                correct=r.correct,
+                accuracy=r.accuracy,
+                streak_current=r.streak_current,
+                streak_best=r.streak_best,
+            )
+        )
+        agg = by_domain.setdefault(r.domain, {"elos": [], "attempts": 0, "correct": 0})
+        agg["elos"].append(r.elo_rating)
+        agg["attempts"] += r.attempts
+        agg["correct"] += r.correct
+
+    domains: list[EloDomainSummary] = []
+    for domain, agg in by_domain.items():
+        overall = round(sum(agg["elos"]) / len(agg["elos"]))
+        rank_enum = get_rank(overall)
+        domains.append(
+            EloDomainSummary(
+                domain=domain,
+                overall_elo=overall,
+                rank=rank_enum.value,
+                rank_color=get_rank_color(rank_enum),
+                tracks=len(agg["elos"]),
+                attempts=agg["attempts"],
+                correct=agg["correct"],
+            )
+        )
+
+    global_rank = get_rank(profile.elo_rating)
+    return EloRatingsOut(
+        global_elo=profile.elo_rating,
+        global_rank=global_rank.value,
+        global_rank_color=get_rank_color(global_rank),
+        domains=domains,
+        tracks=tracks,
     )
 
 

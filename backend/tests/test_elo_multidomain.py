@@ -135,3 +135,26 @@ async def test_profile_endpoint_still_works(client, user_a):
     r = await client.get("/api/v1/elo/profile", headers=user_a["headers"])
     assert r.status_code == 200, r.text
     assert "elo_rating" in r.json()
+
+
+@pytest.mark.asyncio
+async def test_ratings_endpoint_lists_tracks_and_domain_summary(client, user_a):
+    py = await _make_puzzle("python", "42")
+    np = await _make_puzzle("numpy", "7")
+    await _attempt(client, user_a["headers"], py, "42")
+    await _attempt(client, user_a["headers"], np, "7")
+
+    r = await client.get("/api/v1/elo/ratings", headers=user_a["headers"])
+    assert r.status_code == 200, r.text
+    body = r.json()
+    track_keys = {f"{t['domain']}:{t['scope']}" for t in body["tracks"]}
+    assert {"puzzle:python", "puzzle:numpy"} <= track_keys
+    domain_names = {d["domain"] for d in body["domains"]}
+    assert "puzzle" in domain_names
+    assert "global_elo" in body and "global_rank_color" in body
+
+
+@pytest.mark.asyncio
+async def test_ratings_endpoint_requires_auth(client):
+    r = await client.get("/api/v1/elo/ratings")
+    assert r.status_code in (401, 403)

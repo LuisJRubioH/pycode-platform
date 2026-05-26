@@ -82,6 +82,44 @@ class EloProfileOut(BaseModel):
     streak_best: int
 
 
+class EloRatingItem(BaseModel):
+    """Una track de rating (dominio + scope) con su estado actual."""
+
+    domain: str
+    scope: str
+    elo_rating: int
+    elo_peak: int
+    rank: str
+    rank_color: str
+    attempts: int
+    correct: int
+    accuracy: float
+    streak_current: int
+    streak_best: int
+
+
+class EloDomainSummary(BaseModel):
+    """Agregado por dominio (promedio de sus tracks)."""
+
+    domain: str
+    overall_elo: int
+    rank: str
+    rank_color: str
+    tracks: int
+    attempts: int
+    correct: int
+
+
+class EloRatingsOut(BaseModel):
+    """ELO multidominio: overall global + agregados por dominio + tracks hoja."""
+
+    global_elo: int
+    global_rank: str
+    global_rank_color: str
+    domains: list[EloDomainSummary]
+    tracks: list[EloRatingItem]
+
+
 class EloHistoryPoint(BaseModel):
     elo_value: int
     delta: int
