@@ -64,6 +64,14 @@ Thumbs.db
 *.tmp
 
 # =========================
+# PLAYWRIGHT (E2E TESTING)
+# =========================
+frontend/test-results/
+frontend/playwright-report/
+frontend/screenshots/
+frontend/playwright/.cache/
+
+# =========================
 # MATERIAL EXTERNO LOCAL (NO COMMITTEAR)
 # =========================
 # Carpeta de staging del autor con material de Coursera/MoureDev/Platzi
