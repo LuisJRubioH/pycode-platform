@@ -237,6 +237,7 @@ CAPSTONES: list[dict] = [
             {
                 "name": "add_venta agrega una venta",
                 "code": (
+                    "from store import SalesStore\n"
                     "store = SalesStore()\n"
                     "store.add_venta('pan', 5, 2.0)\n"
                     "ventas = store.list_ventas()\n"
@@ -249,6 +250,7 @@ CAPSTONES: list[dict] = [
             {
                 "name": "add_venta rechaza cantidad cero o negativa",
                 "code": (
+                    "from store import SalesStore\n"
                     "store = SalesStore()\n"
                     "try:\n"
                     "    store.add_venta('pan', 0, 2.0)\n"
@@ -265,6 +267,7 @@ CAPSTONES: list[dict] = [
             {
                 "name": "add_venta rechaza precio cero o negativo",
                 "code": (
+                    "from store import SalesStore\n"
                     "store = SalesStore()\n"
                     "try:\n"
                     "    store.add_venta('pan', 5, 0)\n"
@@ -281,6 +284,7 @@ CAPSTONES: list[dict] = [
             {
                 "name": "remove_producto retorna cuenta correcta",
                 "code": (
+                    "from store import SalesStore\n"
                     "store = SalesStore()\n"
                     "store.add_venta('pan', 5, 2.0)\n"
                     "store.add_venta('cafe', 3, 4.0)\n"

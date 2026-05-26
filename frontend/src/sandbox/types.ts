@@ -42,3 +42,14 @@ export interface RunTestsResult {
   verdicts: TestVerdict[];
   durationMs: number;
 }
+
+export interface CapstoneFileInput {
+  path: string;
+  content: string;
+}
+
+export interface RunCapstoneTestsRequest {
+  files: CapstoneFileInput[];
+  tests: HiddenTest[];
+  timeoutMs?: number;
+}

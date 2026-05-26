@@ -6,6 +6,9 @@ import type {
   RunStatus,
   RunTestsRequest,
   RunTestsResult,
+  RunCapstoneTestsRequest,
+  CapstoneFileInput,
+  HiddenTest,
 } from "./types";
 
 export class PyodideSandbox {
@@ -14,6 +17,7 @@ export class PyodideSandbox {
     init(): Promise<KernelInfo>;
     run(req: RunRequest): Promise<RunResult>;
     runTests(req: RunTestsRequest): Promise<RunTestsResult>;
+    runCapstoneTests(req: RunCapstoneTestsRequest): Promise<RunTestsResult>;
   }> | null = null;
   private _status: RunStatus = "idle";
   private listeners = new Set<(s: RunStatus) => void>();
@@ -69,6 +73,27 @@ export class PyodideSandbox {
     try {
       const result = await this.kernel!.runTests({
         studentCode,
+        tests,
+        timeoutMs,
+      });
+      this.setStatus(result.passed === result.total ? "ready" : "error");
+      return result;
+    } catch (e) {
+      this.setStatus("error");
+      throw e;
+    }
+  }
+
+  async runCapstoneTests(
+    files: CapstoneFileInput[],
+    tests: HiddenTest[],
+    timeoutMs = 30_000,
+  ): Promise<RunTestsResult> {
+    await this.init();
+    this.setStatus("running");
+    try {
+      const result = await this.kernel!.runCapstoneTests({
+        files,
         tests,
         timeoutMs,
       });

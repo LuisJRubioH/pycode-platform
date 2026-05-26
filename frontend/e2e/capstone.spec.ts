@@ -68,10 +68,10 @@ test('capstone detail muestra titulo, requisitos y archivos starter', async ({
   await expect(page.getByRole('button', { name: /^Copiar$/i })).toHaveCount(3)
   await expect(page.getByRole('button', { name: /^Descargar$/i })).toHaveCount(3)
 
-  // CTA enviar capstone (disabled)
+  // CTA enviar capstone (habilitado desde Pieza D.3)
   const enviar = page.getByRole('button', { name: /Enviar capstone/i })
   await expect(enviar).toBeVisible()
-  await expect(enviar).toBeDisabled()
+  await expect(enviar).toBeEnabled()
 })
 
 test('capstone detail NO expone hidden_tests en el DOM', async ({ page }) => {

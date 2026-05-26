@@ -69,3 +69,32 @@ class CapstoneSubmissionOut(BaseModel):
     tests_total: int
     test_results: Optional[list[dict]] = None
     created_at: datetime
+
+
+class CapstoneHiddenTest(BaseModel):
+    name: str
+    code: str
+
+
+class CapstoneHiddenTestsResponse(BaseModel):
+    capstone_id: int
+    slug: str
+    tests: list[CapstoneHiddenTest]
+
+
+class CapstoneSubmissionFile(BaseModel):
+    path: str
+    content: str
+
+
+class CapstoneTestVerdict(BaseModel):
+    name: str
+    passed: bool
+    error_message: Optional[str] = None
+
+
+class CapstoneSubmissionCreate(BaseModel):
+    files: list[CapstoneSubmissionFile]
+    tests_passed: int
+    tests_total: int
+    test_results: list[CapstoneTestVerdict]

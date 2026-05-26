@@ -19,7 +19,7 @@ test('screenshot capstone detail', async ({ page }) => {
   await page.fill('input[type=email]', TEST_EMAIL)
   await page.fill('input[type=password]', TEST_PASSWORD)
   await page.click('button[type=submit]')
-  await page.waitForURL(/\/(dashboard|$)/)
+  await page.waitForURL(/\/(dashboard|$)/, { timeout: 15_000 })
 
   await page.goto('/capstones/track-1-cli-ventas', {
     waitUntil: 'networkidle',
