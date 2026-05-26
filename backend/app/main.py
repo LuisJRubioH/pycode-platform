@@ -17,6 +17,7 @@ from app.core.logging_config import configure_logging
 from app.core.observability import init_sentry
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.security_headers import SecurityHeadersMiddleware
+from app.models import capstone  # noqa: F401
 from app.models import challenge  # noqa: F401
 from app.models import challenge_completion  # noqa: F401
 from app.models import code_evaluation  # noqa: F401
@@ -24,6 +25,7 @@ from app.models import elo_models  # noqa: F401
 from app.models import learning  # noqa: F401
 from app.models import refresh_token  # noqa: F401
 from app.models import user  # noqa: F401
+from app.services.capstone_seed import seed_capstones_if_empty
 from app.services.challenge_importer import import_external_challenges
 from app.services.generated_bank import (
     seed_generated_challenges,
@@ -52,6 +54,7 @@ async def lifespan(app: FastAPI):
         await import_external_challenges(session)
         await seed_generated_challenges(session)
         await seed_lessons_with_exercises(session)
+        await seed_capstones_if_empty(session)
     yield
     # Shutdown
     await engine.dispose()

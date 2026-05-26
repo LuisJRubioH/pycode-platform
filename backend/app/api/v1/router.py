@@ -14,6 +14,7 @@ from app.api.v1.endpoints import (
     progress,
     elo,
     challenges,
+    capstones,
 )
 
 api_router = APIRouter()
@@ -30,3 +31,4 @@ api_router.include_router(tutor.router, prefix="/tutor", tags=["AI tutor"])
 api_router.include_router(progress.router, prefix="/progress", tags=["progress"])
 api_router.include_router(elo.router, prefix="/elo", tags=["elo"])
 api_router.include_router(challenges.router, prefix="/challenges", tags=["challenges"])
+api_router.include_router(capstones.router, prefix="/capstones", tags=["capstones"])

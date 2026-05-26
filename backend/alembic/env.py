@@ -16,6 +16,7 @@ import app.models.challenge  # noqa: F401
 import app.models.refresh_token  # noqa: F401
 import app.models.code_evaluation  # noqa: F401
 import app.models.challenge_completion  # noqa: F401
+import app.models.capstone  # noqa: F401
 
 config = context.config
 
