@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { BookOpen, Code2, MessageSquare, Trophy, Flame, Target, TrendingUp, Award, BrainCircuit, CheckCircle2, Lock } from 'lucide-react'
+import { BookOpen, Code2, MessageSquare, Trophy, Flame, Target, TrendingUp, Award, BrainCircuit, CheckCircle2, Lock, Download } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { api } from '../services/api'
 import { useAuthStore } from '../stores/authStore'
 import ELODashboard from '../components/ELODashboard'
@@ -52,6 +53,7 @@ const Dashboard: React.FC = () => {
   const [nextLessons, setNextLessons] = useState<Lesson[]>([])
   const [tracks, setTracks] = useState<TrackStatus[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [downloadingTrack, setDownloadingTrack] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,6 +89,31 @@ const Dashboard: React.FC = () => {
 
     fetchData()
   }, [])
+
+  const handleDownloadCertificate = async (track: string) => {
+    setDownloadingTrack(track)
+    try {
+      const res = await api.get(`/certificates/${track}/download`)
+      if (!res.ok) {
+        toast.error('No se pudo generar el certificado. ¿Aprobaste el capstone?')
+        return
+      }
+      const blob = await res.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `certificado-pycode-${track}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+      toast.success('Certificado descargado')
+    } catch {
+      toast.error('Error al descargar el certificado')
+    } finally {
+      setDownloadingTrack(null)
+    }
+  }
 
   const stats = [
     { label: 'Días de racha', value: statsData?.streak_days?.toString() || '0', icon: Flame, color: 'text-orange-500' },
@@ -283,6 +310,20 @@ const Dashboard: React.FC = () => {
                         {track.capstone_status === 'passed' ? 'Ver capstone' : 'Ir al capstone'}
                       </Link>
                     </div>
+                  )}
+
+                  {track.certificate_unlocked && (
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadCertificate(track.track)}
+                      disabled={downloadingTrack === track.track}
+                      className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-sm font-semibold"
+                    >
+                      <Download className="h-4 w-4" />
+                      {downloadingTrack === track.track
+                        ? 'Generando…'
+                        : 'Descargar certificado'}
+                    </button>
                   )}
                 </article>
               )

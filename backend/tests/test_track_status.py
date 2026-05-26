@@ -58,9 +58,7 @@ async def test_track_status_certificate_unlocked_when_passed(client, user_a):
     cap_id = await _ensure_seeded_capstone()
     await _seed_submission(user_a["id"], cap_id, status="passed")
 
-    r = await client.get(
-        "/api/v1/progress/track-status", headers=user_a["headers"]
-    )
+    r = await client.get("/api/v1/progress/track-status", headers=user_a["headers"])
     assert r.status_code == 200
     t = r.json()[0]
     assert t["capstone_status"] == "passed"

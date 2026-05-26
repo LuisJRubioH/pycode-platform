@@ -10,6 +10,7 @@ from sqlalchemy import select, func
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
+from app.core.tracks import TRACK_TITLES
 from app.models.user import User
 from app.models.capstone import Capstone, CapstoneSubmission
 from app.models.learning import UserProgress, Lesson, CodeSubmission, Exercise
@@ -211,16 +212,6 @@ async def get_competencies(
         )
 
     return [CompetencyOut(**bucket) for bucket in by_category.values()]
-
-
-TRACK_TITLES: dict[str, str] = {
-    "track-1": "Track 1 · Python",
-    "track-2": "Track 2 · Data Science",
-    "track-3": "Track 3 · ML Clasico",
-    "track-4": "Track 4 · Deep Learning",
-    "track-5": "Track 5 · AI Engineering",
-    "track-6": "Track 6 · MLOps",
-}
 
 
 @router.get("/track-status", response_model=List[TrackStatusItem])

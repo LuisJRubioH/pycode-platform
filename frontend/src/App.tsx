@@ -10,6 +10,7 @@ import Lessons from './pages/Lessons'
 import LessonDetail from './pages/LessonDetail'
 import Competencies from './pages/Competencies'
 import CapstoneDetail from './pages/CapstoneDetail'
+import CertificateVerify from './pages/CertificateVerify'
 import TutorChat from './pages/TutorChat'
 import Challenges from './pages/Challenges'
 import Puzzles from './pages/Puzzles'
@@ -31,6 +32,7 @@ function App() {
           <Route path="lessons/:lessonId" element={<LessonDetail />} />
           <Route path="competencias" element={<Competencies />} />
           <Route path="capstones/:slug" element={<CapstoneDetail />} />
+          <Route path="verify/:code" element={<CertificateVerify />} />
           <Route path="challenges" element={<Challenges />} />
           <Route path="puzzles" element={<Puzzles />} />
           <Route path="interview" element={<InterviewProblems />} />

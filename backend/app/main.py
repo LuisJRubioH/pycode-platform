@@ -18,6 +18,7 @@ from app.core.observability import init_sentry
 from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.models import capstone  # noqa: F401
+from app.models import certificate  # noqa: F401
 from app.models import challenge  # noqa: F401
 from app.models import challenge_completion  # noqa: F401
 from app.models import code_evaluation  # noqa: F401
