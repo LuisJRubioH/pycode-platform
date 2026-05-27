@@ -10,9 +10,11 @@ from app.core.database import get_db
 from app.core.rate_limit import limiter
 from app.core.security import get_current_active_user
 from app.models.code_evaluation import CodeEvaluation
+from app.models.code_quality import CodeQualitySnapshot
 from app.models.user import User
 from app.schemas.evaluation import EvaluationRequest, EvaluationResponse
 from app.services.ai_tutor import AITutorService
+from app.services.code_quality_service import analyze_code
 from app.services.evaluation_service import EvaluationService
 
 router = APIRouter()
@@ -84,6 +86,22 @@ async def evaluate_code(
         model_used=evaluation_service.model_used,
     )
     db.add(record)
+    await db.flush()
+
+    # Snapshot de calidad: combina los scores del LLM con el análisis estático
+    # (ast, sin ejecutar) para construir la progresión en /progress/code-quality.
+    analysis = analyze_code(payload.code)
+    db.add(
+        CodeQualitySnapshot(
+            user_id=current_user.id,
+            source="evaluation",
+            reference_id=record.id,
+            logic_score=verdict.logic_score,
+            general_score=verdict.general_score,
+            static_score=analysis.static_score,
+            metrics=analysis.metrics,
+        )
+    )
     await db.commit()
     await db.refresh(record)
     return record

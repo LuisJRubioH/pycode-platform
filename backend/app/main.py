@@ -22,6 +22,7 @@ from app.models import certificate  # noqa: F401
 from app.models import challenge  # noqa: F401
 from app.models import challenge_completion  # noqa: F401
 from app.models import code_evaluation  # noqa: F401
+from app.models import code_quality  # noqa: F401
 from app.models import elo_models  # noqa: F401
 from app.models import learning  # noqa: F401
 from app.models import refresh_token  # noqa: F401
