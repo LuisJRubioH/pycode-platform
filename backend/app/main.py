@@ -6,6 +6,7 @@ FastAPI backend for the Python learning platform with AI tutor.
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -104,3 +105,25 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/health/db")
+async def health_check_db():
+    """Health check que toca la DB con un `SELECT 1`.
+
+    UptimeRobot debe pinguear ESTE endpoint (no solo `/health`) para mantener
+    viva la conexión a Supabase: el free tier pausa el proyecto tras ~7 días
+    de inactividad de la base, y `/health` no genera actividad de DB.
+    """
+    from sqlalchemy import text
+
+    from app.core.database import async_session_maker
+
+    try:
+        async with async_session_maker() as session:
+            await session.execute(text("SELECT 1"))
+        return {"status": "healthy", "db": "up"}
+    except Exception:
+        return JSONResponse(
+            status_code=503, content={"status": "unhealthy", "db": "down"}
+        )
