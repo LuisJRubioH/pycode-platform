@@ -106,3 +106,35 @@ async def test_quality_snapshot_isolated_per_user(client, user_a, user_b):
             .all()
         )
     assert rows_b == []
+
+
+@pytest.mark.asyncio
+async def test_progress_code_quality_endpoint(client, user_a):
+    payload = {
+        "problem_description": "Sumar dos numeros enteros y devolver el total.",
+        "code": CLEAN,
+    }
+    await client.post("/api/v1/tutor/evaluate", json=payload, headers=user_a["headers"])
+
+    r = await client.get("/api/v1/progress/code-quality", headers=user_a["headers"])
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["summary"]["count"] == 1
+    assert body["summary"]["avg_static"] == 100.0
+    assert body["summary"]["latest_static"] == 100
+    assert len(body["points"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_progress_code_quality_empty(client, auth_headers):
+    r = await client.get("/api/v1/progress/code-quality", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["summary"]["count"] == 0
+    assert body["points"] == []
+
+
+@pytest.mark.asyncio
+async def test_progress_code_quality_requires_auth(client):
+    r = await client.get("/api/v1/progress/code-quality")
+    assert r.status_code in (401, 403)

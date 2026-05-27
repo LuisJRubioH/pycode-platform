@@ -6,6 +6,7 @@ import { api } from '../services/api'
 import { useAuthStore } from '../stores/authStore'
 import ELODashboard from '../components/ELODashboard'
 import EloTracks from '../components/EloTracks'
+import CodeQualityPanel from '../components/CodeQualityPanel'
 
 interface Stats {
   total_lessons: number
@@ -340,6 +341,14 @@ const Dashboard: React.FC = () => {
         </div>
         <EloTracks />
         <ELODashboard />
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900">Calidad de código</h2>
+          <p className="text-slate-600">Tu progreso en lógica y calidad del código a medida que avanzas.</p>
+        </div>
+        <CodeQualityPanel />
       </section>
 
       {/* Quick Actions */}

@@ -13,8 +13,12 @@ from app.core.security import get_current_active_user
 from app.core.tracks import TRACK_TITLES
 from app.models.user import User
 from app.models.capstone import Capstone, CapstoneSubmission
+from app.models.code_quality import CodeQualitySnapshot
 from app.models.learning import UserProgress, Lesson, CodeSubmission, Exercise
 from app.schemas.learning import (
+    CodeQualityPoint,
+    CodeQualityProgressOut,
+    CodeQualitySummary,
     CompetencyLessonItem,
     CompetencyOut,
     ProgressResponse,
@@ -328,6 +332,55 @@ async def get_track_status(
             certificate_unlocked=certificate_unlocked,
         )
     ]
+
+
+@router.get("/code-quality", response_model=CodeQualityProgressOut)
+async def get_code_quality_progress(
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Progresión de calidad de código del usuario.
+
+    Serie temporal de snapshots (logic/general del evaluador LLM + static del
+    análisis estático) + medias agregadas. Filtro por user_id; un usuario
+    nunca ve datos de otro.
+    """
+    limit = max(1, min(limit, 200))
+    rows = (
+        (
+            await db.execute(
+                select(CodeQualitySnapshot)
+                .where(CodeQualitySnapshot.user_id == current_user.id)
+                .order_by(CodeQualitySnapshot.created_at)
+                .limit(limit)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+    def avg(values: list) -> float | None:
+        nums = [v for v in values if v is not None]
+        return round(sum(nums) / len(nums), 1) if nums else None
+
+    points = [
+        CodeQualityPoint(
+            created_at=r.created_at,
+            logic_score=r.logic_score,
+            general_score=r.general_score,
+            static_score=r.static_score,
+        )
+        for r in rows
+    ]
+    summary = CodeQualitySummary(
+        count=len(rows),
+        avg_logic=avg([r.logic_score for r in rows]),
+        avg_general=avg([r.general_score for r in rows]),
+        avg_static=avg([r.static_score for r in rows]),
+        latest_static=rows[-1].static_score if rows else None,
+    )
+    return CodeQualityProgressOut(points=points, summary=summary)
 
 
 @router.get("/recent-activity")

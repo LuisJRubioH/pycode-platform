@@ -156,3 +156,27 @@ class TrackStatusItem(BaseModel):
     capstone_tests_passed: Optional[int] = None
     capstone_tests_total: Optional[int] = None
     certificate_unlocked: bool = False
+
+
+class CodeQualityPoint(BaseModel):
+    """Un punto de la progresión de calidad de código."""
+
+    created_at: datetime
+    logic_score: Optional[int] = None
+    general_score: Optional[int] = None
+    static_score: Optional[int] = None
+
+
+class CodeQualitySummary(BaseModel):
+    """Resumen agregado de la calidad de código del usuario."""
+
+    count: int
+    avg_logic: Optional[float] = None
+    avg_general: Optional[float] = None
+    avg_static: Optional[float] = None
+    latest_static: Optional[int] = None
+
+
+class CodeQualityProgressOut(BaseModel):
+    points: List[CodeQualityPoint]
+    summary: CodeQualitySummary
