@@ -1,7 +1,7 @@
-fastapi==0.104.1
+fastapi>=0.115.0
 uvicorn[standard]==0.24.0
-python-multipart==0.0.6
-python-jose[cryptography]==3.3.0
+python-multipart>=0.0.18
+python-jose[cryptography]>=3.4.0
 passlib[bcrypt]==1.7.4
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
@@ -10,12 +10,12 @@ alembic==1.12.1
 redis==5.0.1
 slowapi==0.1.9
 structlog==24.1.0
-sentry-sdk[fastapi]==1.45.0
+sentry-sdk[fastapi]>=1.45.1
 openai==1.3.6
 groq==0.5.0
 pydantic[email]==2.5.0
 pydantic-settings==2.1.0
-python-dotenv==1.0.0
+python-dotenv>=1.2.2
 httpx==0.25.2
 websockets==12.0
 celery==5.3.4
@@ -33,3 +33,7 @@ reportlab==4.5.1
 pillow==12.2.0
 numpy==2.4.4
 pandas==3.0.2
+# Floors de seguridad para deps transitivas (Dependabot): urllib3 (PYSEC-2026-141/142),
+# idna (CVE-2026-45409). pip-compile las resuelve via requests/sentry/anyio/httpx.
+urllib3>=2.7.0
+idna>=3.15

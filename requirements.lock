@@ -12,11 +12,12 @@ alembic==1.12.1
     # via -r requirements.txt
 amqp==5.3.1
     # via kombu
+annotated-doc==0.0.4
+    # via fastapi
 annotated-types==0.7.0
     # via pydantic
 anyio==3.7.1
     # via
-    #   fastapi
     #   groq
     #   httpx
     #   openai
@@ -84,7 +85,7 @@ ecdsa==0.19.2
     # via python-jose
 email-validator==2.3.0
     # via pydantic
-fastapi==0.104.1
+fastapi==0.125.0
     # via
     #   -r requirements.txt
     #   sentry-sdk
@@ -111,8 +112,9 @@ httpx==0.25.2
     #   openai
 humanize==4.15.0
     # via flower
-idna==3.13
+idna==3.16
     # via
+    #   -r requirements.txt
     #   anyio
     #   email-validator
     #   httpx
@@ -201,14 +203,14 @@ python-dateutil==2.9.0.post0
     # via
     #   celery
     #   pandas
-python-dotenv==1.0.0
+python-dotenv==1.2.2
     # via
     #   -r requirements.txt
     #   pydantic-settings
     #   uvicorn
-python-jose[cryptography]==3.3.0
+python-jose[cryptography]==3.5.0
     # via -r requirements.txt
-python-multipart==0.0.6
+python-multipart==0.0.29
     # via -r requirements.txt
 pytz==2026.2
     # via flower
@@ -222,7 +224,7 @@ requests==2.33.1
     # via stripe
 rsa==4.9.1
     # via python-jose
-sentry-sdk[fastapi]==1.45.0
+sentry-sdk[fastapi]==2.60.0
     # via -r requirements.txt
 six==1.17.0
     # via
@@ -240,7 +242,7 @@ sqlalchemy==2.0.23
     # via
     #   -r requirements.txt
     #   alembic
-starlette==0.27.0
+starlette==0.50.0
     # via fastapi
 stripe==7.8.0
     # via -r requirements.txt
@@ -262,14 +264,16 @@ typing-extensions==4.15.0
     #   pydantic
     #   pydantic-core
     #   sqlalchemy
+    #   starlette
     #   stripe
 tzdata==2026.2
     # via
     #   celery
     #   kombu
     #   pandas
-urllib3==2.6.3
+urllib3==2.7.0
     # via
+    #   -r requirements.txt
     #   requests
     #   sentry-sdk
 uvicorn[standard]==0.24.0
