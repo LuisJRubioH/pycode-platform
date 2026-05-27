@@ -24,7 +24,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install black flake8 mypy
+      # Versiones fijadas para que el formato coincida con el local/requirements
+      # (black sin pin trae una version nueva con reglas distintas -> falsos fallos).
+      - run: pip install black==23.11.0 flake8==6.1.0 mypy==1.7.1
       - run: cd backend && black --check . && flake8 .
       - name: SQLi guard
         run: cd backend && python scripts/check_no_sqli.py
