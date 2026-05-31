@@ -1,6 +1,7 @@
 """
 Endpoint de validación de código (no ejecuta — la ejecución vive en cliente Pyodide).
 """
+
 import ast
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field

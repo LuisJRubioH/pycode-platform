@@ -8,12 +8,12 @@ Crea `code_quality_snapshots`: una fila por evaluación con los scores del
 evaluador LLM (logic/general) + el score y métricas del análisis estático.
 RLS en Postgres (datos por usuario).
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-
 
 revision: str = "0012"
 down_revision: Union[str, None] = "0011"
@@ -57,21 +57,17 @@ def upgrade() -> None:
 
     if is_postgres:
         op.execute("ALTER TABLE code_quality_snapshots ENABLE ROW LEVEL SECURITY")
-        op.execute(
-            """
+        op.execute("""
             CREATE POLICY code_quality_select_own ON code_quality_snapshots
             FOR SELECT
             USING (user_id = current_setting('app.current_user_id', true)::int)
-            """
-        )
-        op.execute(
-            """
+            """)
+        op.execute("""
             CREATE POLICY code_quality_modify_own ON code_quality_snapshots
             FOR ALL
             USING (user_id = current_setting('app.current_user_id', true)::int)
             WITH CHECK (user_id = current_setting('app.current_user_id', true)::int)
-            """
-        )
+            """)
 
 
 def downgrade() -> None:

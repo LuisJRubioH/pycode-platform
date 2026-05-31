@@ -2,6 +2,7 @@
 Rate limiting universal — SlowAPI con keyfunc por user_id (autenticado) o IP.
 Tabla de límites consolidada en sec. 9.10 del spec.
 """
+
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address

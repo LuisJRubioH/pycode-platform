@@ -1,6 +1,7 @@
 """
 structlog + redaction de PII (sec. 9.11 del spec).
 """
+
 import logging
 import re
 from typing import Iterable

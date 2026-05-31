@@ -20,7 +20,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.capstone import Capstone
 
-
 CAPSTONES: list[dict] = [
     {
         "slug": "track-1-cli-ventas",

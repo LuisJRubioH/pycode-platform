@@ -12,11 +12,11 @@ diseño una credencial compartible/verificable. El `verification_code`
 impredecible actúa como capacidad para el endpoint público de verificación;
 el listado "mis certificados" filtra por `user_id` en la capa de app.
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-
 
 revision: str = "0009"
 down_revision: Union[str, None] = "0008"

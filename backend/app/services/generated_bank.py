@@ -16,7 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.challenge import CodingChallenge
 from app.models.elo_models import Puzzle
 
-
 CURATED_SOURCE = "pycode-curated-open"
 
 

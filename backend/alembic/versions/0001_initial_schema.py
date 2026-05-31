@@ -1,15 +1,15 @@
 """0001_initial_schema
 
 Revision ID: 0001
-Revises: 
+Revises:
 Create Date: 2026-05-06 17:28:17.751012
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-
 
 # revision identifiers, used by Alembic.
 revision: str = "0001"

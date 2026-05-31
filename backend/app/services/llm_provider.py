@@ -2,6 +2,7 @@
 Abstracción de proveedor LLM (sec. 5.5 del spec).
 Default: Groq. Fallback: OpenAI. Stub si no hay API key configurada.
 """
+
 from abc import ABC, abstractmethod
 
 import structlog
@@ -17,8 +18,7 @@ class LLMProvider(ABC):
         user: str,
         max_tokens: int = 700,
         temperature: float = 0.4,
-    ) -> str:
-        ...
+    ) -> str: ...
 
 
 class GroqProvider(LLMProvider):

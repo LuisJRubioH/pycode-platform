@@ -8,12 +8,12 @@ Crea la tabla `code_evaluations` para persistir cada evaluación
 socrática del código del estudiante. Independiente de
 `tutor_sessions` (que queda para el chat de Q&A multi-turn).
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-
 
 revision: str = "0005"
 down_revision: Union[str, None] = "0004"
@@ -67,21 +67,17 @@ def upgrade() -> None:
     # `user_id = current_setting('app.current_user_id')`.
     if is_postgres:
         op.execute("ALTER TABLE code_evaluations ENABLE ROW LEVEL SECURITY")
-        op.execute(
-            """
+        op.execute("""
             CREATE POLICY code_evaluations_select_own ON code_evaluations
             FOR SELECT
             USING (user_id = current_setting('app.current_user_id', true)::int)
-            """
-        )
-        op.execute(
-            """
+            """)
+        op.execute("""
             CREATE POLICY code_evaluations_modify_own ON code_evaluations
             FOR ALL
             USING (user_id = current_setting('app.current_user_id', true)::int)
             WITH CHECK (user_id = current_setting('app.current_user_id', true)::int)
-            """
-        )
+            """)
 
 
 def downgrade() -> None:

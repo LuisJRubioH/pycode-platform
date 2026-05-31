@@ -6,6 +6,7 @@ current_user.id). En Postgres se suma RLS (migración 0004) como
 segunda línea. Estos tests pasan en ambos backends; sirven como
 contrato de comportamiento independientemente del dialect.
 """
+
 import pytest
 
 

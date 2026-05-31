@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.elo_models import Puzzle
 
-
 CORE_PUZZLES = [
     {
         "title": "Hello World",

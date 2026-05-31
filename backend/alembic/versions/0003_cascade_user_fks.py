@@ -13,10 +13,10 @@ no-op en ese dialect. Para tests SQLite el cascade lo provee
 SQLAlchemy ORM relationships; para Postgres prod la constraint queda
 enforced en DB.
 """
+
 from typing import Sequence, Union
 
 from alembic import op
-
 
 revision: str = "0003"
 down_revision: Union[str, None] = "0002"
