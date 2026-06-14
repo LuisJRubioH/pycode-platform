@@ -875,6 +875,292 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="Pandas: groupby, agregaciones y pivot",
+        description="Agrupacion con multiples claves, agg multi-metrica, transform vs apply, y reshape con pivot_table.",
+        content=(
+            "## Por que importa\n"
+            "El 80% del trabajo de un analista DS es **agrupar y agregar**.\n"
+            "Pandas tiene un set de herramientas para hacerlo en una sola\n"
+            "linea y de forma vectorizada. Sin esto terminas con loops sobre\n"
+            "filas y matas la performance.\n\n"
+            "## groupby — el patron split-apply-combine\n"
+            "```python\n"
+            "import pandas as pd\n\n"
+            "df = pd.DataFrame({\n"
+            "    'sucursal': ['centro','centro','norte','norte','sur'],\n"
+            "    'producto': ['cafe','te','cafe','te','cafe'],\n"
+            "    'ingreso':  [120,    80,  90,    70,   60],\n"
+            "})\n"
+            "df.groupby('sucursal')['ingreso'].sum()\n"
+            "# sucursal\n"
+            "# centro    200\n"
+            "# norte     160\n"
+            "# sur        60\n"
+            "```\n"
+            "El objeto `df.groupby(...)` no calcula nada hasta que aplicas\n"
+            "una agregacion (`.sum`, `.mean`, `.count`, etc.).\n\n"
+            "## Agrupar por varias columnas\n"
+            "```python\n"
+            "df.groupby(['sucursal','producto'])['ingreso'].sum()\n"
+            "```\n"
+            "Devuelve una Serie con **MultiIndex**: cada fila esta indexada\n"
+            "por la tupla (sucursal, producto). Para volver a DataFrame\n"
+            "plano usa `.reset_index()`.\n\n"
+            "## agg — varias metricas a la vez\n"
+            "```python\n"
+            "df.groupby('sucursal')['ingreso'].agg(['sum','mean','count'])\n"
+            "```\n"
+            "Devuelve un DataFrame con una columna por metrica. Tambien acepta\n"
+            "un dict para metricas por columna:\n"
+            "```python\n"
+            "df.groupby('sucursal').agg({\n"
+            "    'ingreso': 'sum',\n"
+            "    'producto': 'nunique',\n"
+            "})\n"
+            "```\n\n"
+            "## transform — agregar al original\n"
+            "`groupby().agg(...)` colapsa filas. `transform(...)` devuelve\n"
+            "un Series del **mismo largo** que el DataFrame, util para\n"
+            "agregar una columna calculada por grupo:\n"
+            "```python\n"
+            "df['ingreso_total_sucursal'] = df.groupby('sucursal')['ingreso'].transform('sum')\n"
+            "```\n"
+            "Ahora cada fila tiene el total de su sucursal al lado. Esto\n"
+            "permite calcular porcentajes (`fila['ingreso'] / total_sucursal`)\n"
+            "sin merge manual.\n\n"
+            "## pivot_table — reshape facil\n"
+            "Cuando tu data esta en formato 'largo' (cada fila es una observacion)\n"
+            "y la queres en formato 'ancho' (filas y columnas con sus combinaciones):\n"
+            "```python\n"
+            "df.pivot_table(\n"
+            "    index='sucursal',\n"
+            "    columns='producto',\n"
+            "    values='ingreso',\n"
+            "    aggfunc='sum',\n"
+            "    fill_value=0,\n"
+            ")\n"
+            "# producto    cafe   te\n"
+            "# sucursal\n"
+            "# centro       120   80\n"
+            "# norte         90   70\n"
+            "# sur           60    0\n"
+            "```\n"
+            "Es el equivalente a una tabla dinamica de Excel pero programable.\n\n"
+            "## Errores comunes\n"
+            "- Olvidar `reset_index()` despues de un groupby cuando necesitas\n"
+            "  pasar el resultado a otra funcion que espera DataFrame plano.\n"
+            "- Usar `groupby().apply(lambda x: ...)` para algo que ya hace\n"
+            "  `agg` o `transform`. `apply` es la opcion mas lenta y mas\n"
+            "  flexible — usala cuando las otras dos no alcancen.\n"
+            "- En `pivot_table`, olvidar `fill_value` deja NaN en combinaciones\n"
+            "  inexistentes (sur no vendio te → NaN). Casi siempre queres 0.\n"
+            "- Confundir `groupby` con `pivot_table`: `groupby` colapsa filas\n"
+            "  manteniendo el orden tabular; `pivot_table` reshapea filas a\n"
+            "  columnas.\n\n"
+            "## Resumen\n"
+            "- `groupby` divide en grupos; las agregaciones colapsan filas.\n"
+            "- `agg` permite multiples metricas / columnas en una llamada.\n"
+            "- `transform` mantiene el largo original — util para columnas\n"
+            "  derivadas por grupo.\n"
+            "- `pivot_table` reshapea largo → ancho con agregaciones.\n"
+        ),
+        difficulty="intermediate",
+        category="pandas",
+        order=13,
+        track="track-2",
+        estimated_duration=50,
+        prerequisites_titles=["Pandas esencial: Series, DataFrame e indexing"],
+        exercises=[
+            ExerciseTemplate(
+                title="Total por sucursal y producto",
+                description="Suma de ingresos agrupando por dos columnas.",
+                instructions=(
+                    "Implementa `total_por_sucursal_producto(df)` que recibe un "
+                    "DataFrame con columnas 'sucursal', 'producto' e 'ingreso' "
+                    "y devuelve una Series con MultiIndex (sucursal, producto) "
+                    "y la suma de ingresos. Usa groupby con lista de columnas."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def total_por_sucursal_producto(df: pd.DataFrame) -> pd.Series:\n"
+                    "    # TODO: df.groupby([col1, col2])['ingreso'].sum()\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "groupby acepta una lista de columnas: df.groupby(['sucursal','producto']).",
+                    "El resultado es una Series con MultiIndex.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "es una pandas Series",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'sucursal':['centro','centro','norte','norte','sur'],\n"
+                            "    'producto':['cafe','te','cafe','te','cafe'],\n"
+                            "    'ingreso':[120,80,90,70,60],\n"
+                            "})\n"
+                            "out = total_por_sucursal_producto(df)\n"
+                            "assert isinstance(out, pd.Series)"
+                        ),
+                    },
+                    {
+                        "name": "MultiIndex con 2 niveles",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'sucursal':['centro','centro','norte','norte','sur'],\n"
+                            "    'producto':['cafe','te','cafe','te','cafe'],\n"
+                            "    'ingreso':[120,80,90,70,60],\n"
+                            "})\n"
+                            "out = total_por_sucursal_producto(df)\n"
+                            "assert isinstance(out.index, pd.MultiIndex)\n"
+                            "assert out.index.nlevels == 2"
+                        ),
+                    },
+                    {
+                        "name": "totales correctos",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'sucursal':['centro','centro','norte','norte','sur'],\n"
+                            "    'producto':['cafe','te','cafe','te','cafe'],\n"
+                            "    'ingreso':[120,80,90,70,60],\n"
+                            "})\n"
+                            "out = total_por_sucursal_producto(df)\n"
+                            "assert out[('centro','cafe')] == 120\n"
+                            "assert out[('centro','te')] == 80\n"
+                            "assert out[('sur','cafe')] == 60"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Multiples metricas por sucursal",
+                description="Agregar varias estadisticas en una llamada usando agg.",
+                instructions=(
+                    "Implementa `metricas_sucursal(df)` que devuelve un "
+                    "DataFrame indexado por 'sucursal' con tres columnas: "
+                    "'total_ingreso' (suma), 'venta_promedio' (mean) y "
+                    "'cantidad' (count) de la columna 'ingreso'. Una sola "
+                    "llamada con agg + named aggregation."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def metricas_sucursal(df: pd.DataFrame) -> pd.DataFrame:\n"
+                    "    # TODO: df.groupby('sucursal').agg(total_ingreso=('ingreso','sum'), ...)\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Named aggregation: agg(col_nueva=('col_origen','funcion')).",
+                    "Devolves un DataFrame con sucursal como indice y las 3 columnas.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "es un DataFrame con las 3 columnas",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'sucursal':['c','c','n','n'],\n"
+                            "    'ingreso':[100,50,80,20],\n"
+                            "})\n"
+                            "out = metricas_sucursal(df)\n"
+                            "assert isinstance(out, pd.DataFrame)\n"
+                            "assert set(out.columns) == {'total_ingreso','venta_promedio','cantidad'}"
+                        ),
+                    },
+                    {
+                        "name": "valores correctos para 2 sucursales",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'sucursal':['c','c','n','n'],\n"
+                            "    'ingreso':[100,50,80,20],\n"
+                            "})\n"
+                            "out = metricas_sucursal(df)\n"
+                            "assert out.loc['c','total_ingreso'] == 150\n"
+                            "assert out.loc['n','venta_promedio'] == 50\n"
+                            "assert out.loc['c','cantidad'] == 2"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Pivot ventas por sucursal y producto",
+                description="Reshape de formato largo a ancho con pivot_table.",
+                instructions=(
+                    "Implementa `pivot_ventas(df)` que devuelve un DataFrame "
+                    "con sucursal como indice, producto como columnas, y suma "
+                    "de 'ingreso' como valores. Combinaciones inexistentes "
+                    "deben quedar en 0, no en NaN."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def pivot_ventas(df: pd.DataFrame) -> pd.DataFrame:\n"
+                    "    # TODO: pd.pivot_table(df, index=..., columns=..., values=..., aggfunc='sum', fill_value=0)\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Usa pd.pivot_table o df.pivot_table — la API es igual.",
+                    "fill_value=0 reemplaza los NaN de las combinaciones que no existen.",
+                    "aggfunc='sum' especifica que agregamos sumando los ingresos.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "es DataFrame con sucursal de index",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'sucursal':['c','c','n','sur'],\n"
+                            "    'producto':['cafe','te','cafe','cafe'],\n"
+                            "    'ingreso':[100,50,80,60],\n"
+                            "})\n"
+                            "out = pivot_ventas(df)\n"
+                            "assert isinstance(out, pd.DataFrame)\n"
+                            "assert out.index.name == 'sucursal'"
+                        ),
+                    },
+                    {
+                        "name": "combinacion inexistente queda en 0 (no NaN)",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'sucursal':['c','c','n','sur'],\n"
+                            "    'producto':['cafe','te','cafe','cafe'],\n"
+                            "    'ingreso':[100,50,80,60],\n"
+                            "})\n"
+                            "out = pivot_ventas(df)\n"
+                            "# sur no vendio te → debe ser 0, no NaN\n"
+                            "assert out.loc['sur','te'] == 0"
+                        ),
+                    },
+                    {
+                        "name": "sumas correctas en celdas con datos",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'sucursal':['c','c','c','n'],\n"
+                            "    'producto':['cafe','cafe','te','cafe'],\n"
+                            "    'ingreso':[100,50,80,90],\n"
+                            "})\n"
+                            "out = pivot_ventas(df)\n"
+                            "# c-cafe = 100 + 50 = 150\n"
+                            "assert out.loc['c','cafe'] == 150\n"
+                            "assert out.loc['c','te'] == 80\n"
+                            "assert out.loc['n','cafe'] == 90"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
