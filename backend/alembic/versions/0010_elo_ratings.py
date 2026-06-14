@@ -11,11 +11,11 @@ columna `domain` a `elo_history` para separar el timeline por track.
 `elo_history` usa batch_alter_table para ser no-op-safe en SQLite (los tests
 corren con SQLite).
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-
 
 revision: str = "0010"
 down_revision: Union[str, None] = "0009"
@@ -66,21 +66,17 @@ def upgrade() -> None:
 
     if is_postgres:
         op.execute("ALTER TABLE elo_ratings ENABLE ROW LEVEL SECURITY")
-        op.execute(
-            """
+        op.execute("""
             CREATE POLICY elo_ratings_select_own ON elo_ratings
             FOR SELECT
             USING (user_id = current_setting('app.current_user_id', true)::int)
-            """
-        )
-        op.execute(
-            """
+            """)
+        op.execute("""
             CREATE POLICY elo_ratings_modify_own ON elo_ratings
             FOR ALL
             USING (user_id = current_setting('app.current_user_id', true)::int)
             WITH CHECK (user_id = current_setting('app.current_user_id', true)::int)
-            """
-        )
+            """)
 
 
 def downgrade() -> None:

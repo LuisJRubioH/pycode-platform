@@ -19,11 +19,11 @@ Cada test se concatena al código del estudiante en un namespace nuevo;
 "no excepción" = pass, "excepción" = fail. Mismo patrón que se replicará
 en Tracks 2-6 (Pandas/sklearn/PyTorch validators).
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-
 
 revision: str = "0007"
 down_revision: Union[str, None] = "0006"

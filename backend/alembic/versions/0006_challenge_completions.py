@@ -7,11 +7,11 @@ Create Date: 2026-05-08 23:55:00.000000
 Tabla `challenge_completions`: marca manual de "hecho" sobre un reto.
 Una fila por (user, challenge), idempotente vía UNIQUE.
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-
 
 revision: str = "0006"
 down_revision: Union[str, None] = "0005"
@@ -49,21 +49,17 @@ def upgrade() -> None:
     # RLS solo en Postgres; mismo patrón que migraciones anteriores.
     if op.get_bind().dialect.name == "postgresql":
         op.execute("ALTER TABLE challenge_completions ENABLE ROW LEVEL SECURITY")
-        op.execute(
-            """
+        op.execute("""
             CREATE POLICY challenge_completions_select_own ON challenge_completions
             FOR SELECT
             USING (user_id = current_setting('app.current_user_id', true)::int)
-            """
-        )
-        op.execute(
-            """
+            """)
+        op.execute("""
             CREATE POLICY challenge_completions_modify_own ON challenge_completions
             FOR ALL
             USING (user_id = current_setting('app.current_user_id', true)::int)
             WITH CHECK (user_id = current_setting('app.current_user_id', true)::int)
-            """
-        )
+            """)
 
 
 def downgrade() -> None:

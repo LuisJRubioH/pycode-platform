@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.models.challenge import CodingChallenge
 
-
 CHALLENGE_SOURCES = [
     ("Retos/Nivel-1-facil", "easy", "retos-python-core"),
     ("Retos/Nivel-2-medio", "medium", "retos-python-core"),

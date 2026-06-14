@@ -8,11 +8,11 @@ Añade `elo_delta` a `challenge_completions` para guardar cuánto ELO otorgó
 marcar el reto (rating `challenge:<difficulty>`) y poder revertirlo exacto al
 desmarcar. batch_alter_table para ser no-op-safe en SQLite (tests).
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-
 
 revision: str = "0011"
 down_revision: Union[str, None] = "0010"

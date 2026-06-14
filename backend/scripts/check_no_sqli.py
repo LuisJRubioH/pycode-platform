@@ -3,6 +3,7 @@ Falla si encuentra SQL construido por interpolación de strings.
 Permitido: text("SELECT ... :param") con bindeo, text(\""" SQL literal \""")
 Prohibido: text(f"..."), text("..." + var), execute(f"...")
 """
+
 import re
 import sys
 from pathlib import Path

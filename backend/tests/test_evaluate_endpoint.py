@@ -7,7 +7,6 @@ import pytest
 from app.api.v1.endpoints import tutor as tutor_endpoint
 from app.schemas.evaluation import EvaluationVerdict
 
-
 _FAKE_RAW = (
     "CALIFICACION:\n"
     "- Logica: 82/100 (clara)\n"

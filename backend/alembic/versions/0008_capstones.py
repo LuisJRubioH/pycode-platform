@@ -10,12 +10,12 @@ Crea las tablas `capstones` (definicional, seeded por Track) y
 `capstone_submissions` lleva RLS en Postgres (datos por usuario);
 `capstones` es público (todos los usuarios ven la lista del catálogo).
 """
+
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-
 
 revision: str = "0008"
 down_revision: Union[str, None] = "0007"
@@ -106,21 +106,17 @@ def upgrade() -> None:
 
     if is_postgres:
         op.execute("ALTER TABLE capstone_submissions ENABLE ROW LEVEL SECURITY")
-        op.execute(
-            """
+        op.execute("""
             CREATE POLICY capstone_submissions_select_own ON capstone_submissions
             FOR SELECT
             USING (user_id = current_setting('app.current_user_id', true)::int)
-            """
-        )
-        op.execute(
-            """
+            """)
+        op.execute("""
             CREATE POLICY capstone_submissions_modify_own ON capstone_submissions
             FOR ALL
             USING (user_id = current_setting('app.current_user_id', true)::int)
             WITH CHECK (user_id = current_setting('app.current_user_id', true)::int)
-            """
-        )
+            """)
 
 
 def downgrade() -> None:
