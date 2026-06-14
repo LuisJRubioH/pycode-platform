@@ -71,6 +71,11 @@ frontend/playwright-report/
 frontend/screenshots/
 frontend/playwright/.cache/
 frontend/e2e/.auth/
+# Scripts de smoke ad-hoc + screenshots locales (no son specs ni CI)
+frontend/e2e/prod-screenshots/
+frontend/e2e/prod-smoke.mjs
+frontend/e2e/track2-*.mjs
+backend/test_pycode.db
 
 # =========================
 # MATERIAL EXTERNO LOCAL (NO COMMITTEAR)
