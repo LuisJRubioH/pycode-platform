@@ -31,6 +31,13 @@ print(f"Estoy aprendiendo {nombre}")
 const PLACEHOLDER_PROBLEM =
   'Describe aqui que deberia hacer tu codigo. Mientras mas claro sea el objetivo, mejor sera la evaluacion del tutor.'
 
+// Detecta si el codigo importa un paquete que Pyodide carga lazy desde el
+// CDN (numpy, pandas, scipy, scikit-learn, matplotlib). El primer test que
+// los use tarda ~3-5s adicionales mientras se descarga; despues queda
+// cacheado en el browser. Usamos esto para mostrar un hint al usuario.
+const HEAVY_PYODIDE_PACKAGES = /\b(?:import|from)\s+(numpy|pandas|scipy|sklearn|matplotlib)\b/
+const usesHeavyImport = (code: string) => HEAVY_PYODIDE_PACKAGES.test(code)
+
 interface EvaluationVerdict {
   raw: string
   logic_score: number | null
@@ -250,15 +257,22 @@ const CodeEditor: React.FC = () => {
           </button>
 
           {exerciseId !== null && (
-            <button
-              onClick={runTests}
-              disabled={isRunningTests}
-              className="btn-secondary disabled:opacity-50"
-              title="Correr los tests ocultos del ejercicio en Pyodide"
-            >
-              <TestTube2 className="h-4 w-4 mr-2" />
-              {isRunningTests ? 'Ejecutando tests...' : 'Ejecutar tests'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={runTests}
+                disabled={isRunningTests}
+                className="btn-secondary disabled:opacity-50"
+                title="Correr los tests ocultos del ejercicio en Pyodide"
+              >
+                <TestTube2 className="h-4 w-4 mr-2" />
+                {isRunningTests ? 'Ejecutando tests...' : 'Ejecutar tests'}
+              </button>
+              {isRunningTests && usesHeavyImport(code) && (
+                <span className="text-xs text-amber-700 italic">
+                  Primera vez: ~5s mientras Pyodide carga numpy/pandas del CDN
+                </span>
+              )}
+            </div>
           )}
 
           {exerciseId !== null && (

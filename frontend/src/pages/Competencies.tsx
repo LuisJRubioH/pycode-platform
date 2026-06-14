@@ -165,7 +165,7 @@ const Competencies: React.FC = () => {
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Mapa de competencias</h1>
           <p className="text-slate-600 mt-2">
-            Tus avances agrupados por área del Track 1. Cada tarjeta muestra cuántas
+            Tus avances agrupados por track y por área. Cada tarjeta muestra cuántas
             lecciones y ejercicios llevas resueltos.
           </p>
         </div>
