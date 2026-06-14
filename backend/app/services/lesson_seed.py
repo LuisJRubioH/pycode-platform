@@ -1161,6 +1161,272 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="Pandas: merge, join y fechas",
+        description="Unir tablas con merge (inner/left/right/outer), parsear fechas con to_datetime y extraer componentes con el accessor .dt.",
+        content=(
+            "## Por que merge\n"
+            "Casi ningun dataset llega completo. La info que necesitas suele\n"
+            "estar **separada en varias tablas** (ventas + productos + clientes)\n"
+            "y la juntas por una clave comun. Es la operacion equivalente a un\n"
+            "JOIN en SQL, pero sintaxis Python.\n\n"
+            "## merge basico\n"
+            "```python\n"
+            "import pandas as pd\n\n"
+            "ventas = pd.DataFrame({\n"
+            "    'producto_id': [1, 2, 1, 3],\n"
+            "    'unidades':    [5, 2, 3, 1],\n"
+            "})\n"
+            "productos = pd.DataFrame({\n"
+            "    'producto_id': [1, 2, 3, 4],\n"
+            "    'nombre':      ['cafe','te','torta','sandwich'],\n"
+            "    'precio':      [3.5, 2.5, 4.5, 6.0],\n"
+            "})\n\n"
+            "df = ventas.merge(productos, on='producto_id')\n"
+            "```\n"
+            "Por defecto, `merge` hace un **inner join**: solo filas con clave\n"
+            "presente en ambas tablas. Los `producto_id=4` (sandwich) y filas\n"
+            "huerfanas en ventas desaparecen.\n\n"
+            "## El parametro how — controla el tipo de join\n"
+            "```python\n"
+            "# Quiero TODAS las ventas, aunque el producto no exista en el catalogo\n"
+            "ventas.merge(productos, on='producto_id', how='left')\n\n"
+            "# Quiero TODOS los productos, aunque no se hayan vendido\n"
+            "ventas.merge(productos, on='producto_id', how='right')\n\n"
+            "# Quiero TODO (ventas huerfanas + productos sin ventas)\n"
+            "ventas.merge(productos, on='producto_id', how='outer')\n"
+            "```\n"
+            "Las filas sin match del otro lado quedan con NaN en las columnas\n"
+            "que aporta la tabla ausente.\n\n"
+            "## Claves con nombres distintos\n"
+            "Cuando las columnas se llaman distinto en cada tabla, usa\n"
+            "`left_on` y `right_on`:\n"
+            "```python\n"
+            "ventas.merge(productos, left_on='producto_id', right_on='id')\n"
+            "```\n\n"
+            "## pd.to_datetime — parsear fechas en serio\n"
+            "Pandas no infiere fechas por defecto: una columna `'2026-06-14'`\n"
+            "queda como `object` (string). Convertir explicitamente:\n"
+            "```python\n"
+            "df['fecha'] = pd.to_datetime(df['fecha'])  # detecta el formato\n"
+            "df['fecha'] = pd.to_datetime(df['fecha'], format='%d/%m/%Y')  # explicit\n"
+            "```\n"
+            "Despues de esto, `df['fecha'].dtype` es `datetime64[ns]` y\n"
+            "podes hacer aritmetica de fechas y comparaciones.\n\n"
+            "## El accessor .dt — extraer componentes\n"
+            "Sobre una columna datetime, `.dt` expone propiedades:\n"
+            "```python\n"
+            "df['mes'] = df['fecha'].dt.month        # 1..12\n"
+            "df['dia_semana'] = df['fecha'].dt.day_name()  # 'Monday', ...\n"
+            "df['anio'] = df['fecha'].dt.year\n"
+            "df['es_fin_de_semana'] = df['fecha'].dt.dayofweek >= 5\n"
+            "```\n\n"
+            "## resample — agregar por ventana temporal\n"
+            "Si la fecha es indice del DataFrame, `resample(...)` agrupa por\n"
+            "ventana de tiempo (similar a `groupby` pero para series temporales):\n"
+            "```python\n"
+            "df2 = df.set_index('fecha')\n"
+            "df2['ingreso'].resample('W').sum()  # suma por semana\n"
+            "df2['ingreso'].resample('M').mean() # promedio por mes\n"
+            "```\n\n"
+            "## Errores comunes\n"
+            "- Hacer merge sin especificar `on=`: pandas adivina por columnas\n"
+            "  con el mismo nombre, lo que puede mezclar columnas\n"
+            "  irrelevantes (`fecha` por ejemplo) o fallar silenciosamente.\n"
+            "  **Siempre se explicito con `on=` o `left_on/right_on`**.\n"
+            "- Olvidar `how=` cuando queres preservar filas sin match: te\n"
+            "  perdes data sin darte cuenta.\n"
+            "- Hacer `.dt.year` sobre una columna que sigue siendo string:\n"
+            "  da AttributeError. Llamar `pd.to_datetime` primero.\n"
+            "- Mergear con duplicados en la clave: el resultado tiene\n"
+            "  **producto cartesiano** de los duplicados — el numero de filas\n"
+            "  explota. Revisa `df['clave'].duplicated().sum()` antes.\n\n"
+            "## Resumen\n"
+            "- `merge(on=, how=)` une tablas; inner es default. Usa left/right/\n"
+            "  outer cuando necesitas preservar filas sin match.\n"
+            "- `pd.to_datetime` antes de operar sobre fechas. Sin esto, son strings.\n"
+            "- `.dt` expone month/year/day_name/dayofweek/... sobre columnas datetime.\n"
+            "- `resample` agrega por ventana temporal cuando el indice es datetime.\n"
+        ),
+        difficulty="intermediate",
+        category="pandas",
+        order=14,
+        track="track-2",
+        estimated_duration=55,
+        prerequisites_titles=["Pandas: groupby, agregaciones y pivot"],
+        exercises=[
+            ExerciseTemplate(
+                title="Join ventas con catalogo (inner)",
+                description="Unir dos DataFrames por producto_id con inner join.",
+                instructions=(
+                    "Implementa `unir_con_catalogo(ventas, productos)` que "
+                    "merge ventas con productos por 'producto_id' con inner join. "
+                    "Devuelve el DataFrame combinado."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def unir_con_catalogo(ventas: pd.DataFrame, productos: pd.DataFrame) -> pd.DataFrame:\n"
+                    "    # TODO: merge por 'producto_id', how='inner'.\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "ventas.merge(productos, on='producto_id') hace inner por defecto.",
+                    "Las filas sin match en ambas tablas desaparecen.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "devuelve un DataFrame",
+                        "code": (
+                            "import pandas as pd\n"
+                            "v = pd.DataFrame({'producto_id':[1,2,1], 'unidades':[5,2,3]})\n"
+                            "p = pd.DataFrame({'producto_id':[1,2], 'nombre':['cafe','te']})\n"
+                            "out = unir_con_catalogo(v, p)\n"
+                            "assert isinstance(out, pd.DataFrame)"
+                        ),
+                    },
+                    {
+                        "name": "incluye la columna 'nombre' del catalogo",
+                        "code": (
+                            "import pandas as pd\n"
+                            "v = pd.DataFrame({'producto_id':[1,2,1], 'unidades':[5,2,3]})\n"
+                            "p = pd.DataFrame({'producto_id':[1,2], 'nombre':['cafe','te']})\n"
+                            "out = unir_con_catalogo(v, p)\n"
+                            "assert 'nombre' in out.columns\n"
+                            "assert 'unidades' in out.columns"
+                        ),
+                    },
+                    {
+                        "name": "huerfanas en ventas no aparecen (inner)",
+                        "code": (
+                            "import pandas as pd\n"
+                            "v = pd.DataFrame({'producto_id':[1,2,99], 'unidades':[5,2,1]})\n"
+                            "p = pd.DataFrame({'producto_id':[1,2], 'nombre':['cafe','te']})\n"
+                            "out = unir_con_catalogo(v, p)\n"
+                            "assert 99 not in out['producto_id'].tolist()\n"
+                            "assert len(out) == 2"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Extraer mes de una fecha",
+                description="Parsear fechas y agregar columna con el mes.",
+                instructions=(
+                    "Implementa `con_mes(df)` que recibe un DataFrame con "
+                    "columna 'fecha' (strings tipo '2026-06-14') y devuelve el "
+                    "mismo DataFrame con una nueva columna 'mes' (int 1..12). "
+                    "No modifiques el DataFrame original — devuelve una copia."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def con_mes(df: pd.DataFrame) -> pd.DataFrame:\n"
+                    "    # TODO: copia, parsea fecha con pd.to_datetime, usa .dt.month.\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "df_copy = df.copy() para no mutar el original.",
+                    "pd.to_datetime(df_copy['fecha']).dt.month da int 1..12.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "no muta el DataFrame original",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'fecha': ['2026-01-15', '2026-06-30']})\n"
+                            "_ = con_mes(df)\n"
+                            "assert 'mes' not in df.columns, 'no muta el original'"
+                        ),
+                    },
+                    {
+                        "name": "agrega columna mes con valores correctos",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'fecha': ['2026-01-15', '2026-06-30', '2026-12-01']})\n"
+                            "out = con_mes(df)\n"
+                            "assert 'mes' in out.columns\n"
+                            "assert out['mes'].tolist() == [1, 6, 12]"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Ingresos por semana (resample)",
+                description="Join + parseo de fechas + resample semanal de ingresos.",
+                instructions=(
+                    "Implementa `ingresos_semanales(ventas, productos)` que: "
+                    "(1) mergea por 'producto_id', (2) calcula 'ingreso' = "
+                    "unidades * precio, (3) parsea 'fecha' a datetime, (4) "
+                    "devuelve una Serie con la suma de ingresos por semana, "
+                    "indexada por fecha de fin de semana. Usa resample('W')."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def ingresos_semanales(ventas: pd.DataFrame, productos: pd.DataFrame) -> pd.Series:\n"
+                    "    # TODO: merge, calcular ingreso, to_datetime, set_index, resample('W').sum()\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "df['ingreso'] = df['unidades'] * df['precio'] (vectorizado).",
+                    "df = df.set_index('fecha') antes de resamplear.",
+                    "df['ingreso'].resample('W').sum() agrupa por semana terminando en domingo.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "devuelve una pandas Series",
+                        "code": (
+                            "import pandas as pd\n"
+                            "v = pd.DataFrame({\n"
+                            "    'fecha':['2026-01-05','2026-01-06','2026-01-13'],\n"
+                            "    'producto_id':[1,2,1],\n"
+                            "    'unidades':[2,3,1],\n"
+                            "})\n"
+                            "p = pd.DataFrame({'producto_id':[1,2], 'precio':[10.0, 5.0]})\n"
+                            "out = ingresos_semanales(v, p)\n"
+                            "assert isinstance(out, pd.Series)"
+                        ),
+                    },
+                    {
+                        "name": "indice es datetime",
+                        "code": (
+                            "import pandas as pd\n"
+                            "v = pd.DataFrame({\n"
+                            "    'fecha':['2026-01-05','2026-01-06','2026-01-13'],\n"
+                            "    'producto_id':[1,2,1],\n"
+                            "    'unidades':[2,3,1],\n"
+                            "})\n"
+                            "p = pd.DataFrame({'producto_id':[1,2], 'precio':[10.0, 5.0]})\n"
+                            "out = ingresos_semanales(v, p)\n"
+                            "assert pd.api.types.is_datetime64_any_dtype(out.index)"
+                        ),
+                    },
+                    {
+                        "name": "ingresos sumados correctamente por semana",
+                        "code": (
+                            "import pandas as pd\n"
+                            "# 5-ene (lun) y 6-ene (mar) caen en la misma semana W (term. domingo 11)\n"
+                            "# 13-ene (mar) cae en la semana terminando domingo 18\n"
+                            "v = pd.DataFrame({\n"
+                            "    'fecha':['2026-01-05','2026-01-06','2026-01-13'],\n"
+                            "    'producto_id':[1,2,1],\n"
+                            "    'unidades':[2,3,1],\n"
+                            "})\n"
+                            "p = pd.DataFrame({'producto_id':[1,2], 'precio':[10.0, 5.0]})\n"
+                            "out = ingresos_semanales(v, p)\n"
+                            "# semana 1: 2*10 + 3*5 = 35\n"
+                            "# semana 2: 1*10 = 10\n"
+                            "assert sorted(out.values.tolist()) == [10.0, 35.0]"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
