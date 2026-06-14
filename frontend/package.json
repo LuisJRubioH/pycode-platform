@@ -24,7 +24,7 @@
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",
     "react-markdown": "^9.0.1",
-    "react-router-dom": "^6.30.4",
+    "react-router-dom": "^7.17.0",
     "recharts": "^2.10.3",
     "remark-gfm": "^4.0.0",
     "tailwind-merge": "^2.1.0",
@@ -40,15 +40,15 @@
     "@types/react-dom": "^18.2.17",
     "@typescript-eslint/eslint-plugin": "^8.60.0",
     "@typescript-eslint/parser": "^8.60.0",
-    "@vitejs/plugin-react": "^4.2.1",
+    "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.4.16",
     "eslint": "^8.57.1",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
     "postcss": "^8.4.32",
     "typescript": "^5.2.2",
-    "vite": "^5.0.8",
-    "vitest": "^1.0.4"
+    "vite": "^8.0.16",
+    "vitest": "^4.1.8"
   },
   "overrides": {
     "dompurify": "^3.4.6"
