@@ -1427,6 +1427,292 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="Pandas: limpieza de datos y missing values",
+        description="Detectar y manejar NaN con isna/fillna/dropna, eliminar duplicados, convertir tipos con errors=coerce, y limpiar strings con el accessor .str.",
+        content=(
+            "## Por que limpiar\n"
+            "Los datos reales tienen problemas: celdas vacias, espacios al\n"
+            "principio de strings, fechas en formato mixto, numeros guardados\n"
+            "como texto, duplicados. La regla general en DS: **70% del tiempo\n"
+            "es limpieza, 30% es modelado**. Esta leccion es la caja de\n"
+            "herramientas que vas a usar todos los dias.\n\n"
+            "## Detectar missing values\n"
+            "```python\n"
+            "df.isna()           # DataFrame booleano del mismo shape\n"
+            "df.isna().sum()     # cuantos NaN por columna\n"
+            "df['col'].notna()   # mascara inversa\n"
+            "df.isna().any(axis=1).sum()  # cuantas FILAS tienen al menos un NaN\n"
+            "```\n"
+            "Recorda: en pandas `NaN` vale `float('nan')` y `None` vale\n"
+            "`np.nan` cuando entra en una columna numerica. `isna` detecta\n"
+            "ambos sin distinguir.\n\n"
+            "## fillna — rellenar NaN\n"
+            "```python\n"
+            "df['edad'].fillna(0)                  # con escalar\n"
+            "df['edad'].fillna(df['edad'].mean())  # con la media\n"
+            "df['edad'].fillna(method='ffill')     # propaga el ultimo valido\n"
+            "df.fillna({'edad': 0, 'plan': 'basico'})  # distinto por columna\n"
+            "```\n"
+            "**Decisiones de imputacion**:\n"
+            "- Numerico no critico: media o mediana.\n"
+            "- Series temporales: `ffill` o `bfill`.\n"
+            "- Categorico: una categoria nueva tipo `'desconocido'`.\n"
+            "- Critico (target del modelo): mejor `dropna`.\n\n"
+            "## dropna — eliminar filas/columnas con NaN\n"
+            "```python\n"
+            "df.dropna()                       # filas con CUALQUIER NaN\n"
+            "df.dropna(subset=['edad'])        # solo si 'edad' es NaN\n"
+            "df.dropna(axis=1, how='all')      # columnas que son TODAS NaN\n"
+            "df.dropna(thresh=3)               # filas con al menos 3 no-NaN\n"
+            "```\n\n"
+            "## drop_duplicates — quitar filas repetidas\n"
+            "```python\n"
+            "df.drop_duplicates()                              # filas identicas\n"
+            "df.drop_duplicates(subset=['email'])              # por una columna\n"
+            "df.drop_duplicates(subset=['id'], keep='last')    # quedate con la ultima\n"
+            "```\n"
+            "Verifica antes con `df.duplicated().sum()` cuantas hay.\n\n"
+            "## astype — convertir tipos\n"
+            "```python\n"
+            "df['edad'] = df['edad'].astype(int)          # falla si hay NaN\n"
+            "df['edad'] = df['edad'].astype('Int64')      # int nullable de pandas\n"
+            "df['precio'] = df['precio'].astype(float)\n"
+            "df['fecha'] = pd.to_datetime(df['fecha'], errors='coerce')\n"
+            "```\n"
+            "`errors='coerce'` convierte lo que no parsea a NaN en vez de crashear.\n"
+            "Util para datasets sucios.\n\n"
+            "## El accessor .str — limpiar texto\n"
+            "Sobre columnas string, `.str` expone metodos vectorizados:\n"
+            "```python\n"
+            "df['email'] = df['email'].str.strip().str.lower()\n"
+            "df['telefono'] = df['telefono'].str.replace(r'[^0-9]', '', regex=True)\n"
+            "df['pais'] = df['pais'].str.title()  # 'argentina' -> 'Argentina'\n"
+            "df['valida'] = df['email'].str.contains('@', na=False)\n"
+            "```\n"
+            "Sin `.str` estarias usando un loop Python sobre cada fila — lento\n"
+            "y feo.\n\n"
+            "## Errores comunes\n"
+            "- Llamar `df.fillna(0)` sobre TODO el DataFrame cuando solo una\n"
+            "  columna lo necesita. Eso reemplaza NaN de strings con 0 (string\n"
+            "  inconsistente) y oculta problemas en otras columnas. Usa dict.\n"
+            "- `df.dropna()` sin `subset=`: borra cualquier fila con UN NaN.\n"
+            "  Si tu dataset tiene una columna con muchos NaN no criticos\n"
+            "  puede quedarse con cero filas.\n"
+            "- `astype(int)` con NaN presente: ValueError. Usar `'Int64'`\n"
+            "  (mayuscula) o llenar NaN antes.\n"
+            "- Usar `.str` sobre una columna que tiene NaN: la mayoria de\n"
+            "  metodos `.str` propagan NaN correctamente, pero `.str.contains`\n"
+            "  devuelve NaN como tercer estado. Pasar `na=False`.\n\n"
+            "## Resumen\n"
+            "- `isna().sum()` te dice donde estan los NaN, columna por columna.\n"
+            "- `fillna` decide la estrategia de imputacion; `dropna` borra.\n"
+            "- `drop_duplicates(subset=)` quita repetidos por clave.\n"
+            "- `astype` + `errors='coerce'` convierte tipos sin crashear.\n"
+            "- `.str` aplica metodos de string vectorizados sobre toda la columna.\n"
+        ),
+        difficulty="intermediate",
+        category="pandas",
+        order=15,
+        track="track-2",
+        estimated_duration=55,
+        prerequisites_titles=["Pandas: merge, join y fechas"],
+        exercises=[
+            ExerciseTemplate(
+                title="Contar nulos por columna",
+                description="Devolver una Serie con la cantidad de NaN por columna.",
+                instructions=(
+                    "Implementa `nulos_por_columna(df)` que recibe un DataFrame "
+                    "y devuelve una Serie indexada por nombre de columna con la "
+                    "cantidad de NaN en cada una. Las columnas sin NaN deben "
+                    "aparecer con valor 0."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def nulos_por_columna(df: pd.DataFrame) -> pd.Series:\n"
+                    "    # TODO: df.isna().sum() devuelve exactamente eso.\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "df.isna() es un DataFrame booleano.",
+                    ".sum() por defecto suma por columna (axis=0).",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "es una pandas Series",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "df = pd.DataFrame({'a':[1,np.nan,3], 'b':[4,5,6]})\n"
+                            "out = nulos_por_columna(df)\n"
+                            "assert isinstance(out, pd.Series)"
+                        ),
+                    },
+                    {
+                        "name": "cuenta los NaN correctamente",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "df = pd.DataFrame({\n"
+                            "    'a':[1,np.nan,3,np.nan],\n"
+                            "    'b':[4,5,6,7],\n"
+                            "    'c':[np.nan,np.nan,np.nan,1],\n"
+                            "})\n"
+                            "out = nulos_por_columna(df)\n"
+                            "assert out['a'] == 2\n"
+                            "assert out['b'] == 0\n"
+                            "assert out['c'] == 3"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Rellenar edad con la media",
+                description="fillna con la media de la columna, preservando dtype.",
+                instructions=(
+                    "Implementa `rellenar_edad_con_media(df)` que devuelve una "
+                    "copia de df donde los NaN en la columna 'edad' fueron "
+                    "reemplazados por la media de 'edad' (calculada sin contar "
+                    "los NaN). No modifiques el DataFrame original."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def rellenar_edad_con_media(df: pd.DataFrame) -> pd.DataFrame:\n"
+                    "    # TODO: copia, calcula media, fillna en columna edad.\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "df.copy() para no mutar el original.",
+                    "media = df['edad'].mean() — pandas ignora NaN automaticamente.",
+                    "out['edad'] = out['edad'].fillna(media)",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "no muta el original",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "df = pd.DataFrame({'edad':[20.0, np.nan, 40.0]})\n"
+                            "_ = rellenar_edad_con_media(df)\n"
+                            "assert df['edad'].isna().any(), 'no muta el original'"
+                        ),
+                    },
+                    {
+                        "name": "rellena con la media correcta",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "df = pd.DataFrame({'edad':[20.0, np.nan, 40.0]})\n"
+                            "out = rellenar_edad_con_media(df)\n"
+                            "# media de [20, 40] = 30\n"
+                            "assert out['edad'].isna().sum() == 0\n"
+                            "assert abs(out['edad'].iloc[1] - 30.0) < 1e-9"
+                        ),
+                    },
+                    {
+                        "name": "preserva valores no nulos sin cambios",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "df = pd.DataFrame({'edad':[25.0, np.nan, 35.0, 45.0]})\n"
+                            "out = rellenar_edad_con_media(df)\n"
+                            "assert out['edad'].iloc[0] == 25.0\n"
+                            "assert out['edad'].iloc[2] == 35.0\n"
+                            "assert out['edad'].iloc[3] == 45.0"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Pipeline de limpieza completo",
+                description="Strip + lower + drop_duplicates + fillna en una funcion.",
+                instructions=(
+                    "Implementa `limpiar_clientes(df)` que recibe un DataFrame "
+                    "con columnas 'email' (string posiblemente con espacios y "
+                    "mayusculas mixtas) y 'edad' (float con NaN). Devuelve una "
+                    "copia donde: (1) 'email' fue strip + lower, (2) NaN de "
+                    "'edad' rellenados con la mediana, (3) duplicados por "
+                    "'email' eliminados (queda la primera ocurrencia)."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def limpiar_clientes(df: pd.DataFrame) -> pd.DataFrame:\n"
+                    "    # TODO: copia, .str.strip().str.lower() en email,\n"
+                    "    # fillna con mediana de edad, drop_duplicates por email.\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "out['email'] = out['email'].str.strip().str.lower()",
+                    "mediana = out['edad'].median()",
+                    "out = out.drop_duplicates(subset=['email'])",
+                    "El orden de los pasos importa: limpia email ANTES de quitar duplicados.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "no muta el DataFrame original",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "df = pd.DataFrame({\n"
+                            "    'email':['  A@x.com','b@x.com'],\n"
+                            "    'edad':[30.0, np.nan],\n"
+                            "})\n"
+                            "_ = limpiar_clientes(df)\n"
+                            "assert df['email'].iloc[0] == '  A@x.com'"
+                        ),
+                    },
+                    {
+                        "name": "emails normalizados (strip + lower)",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "df = pd.DataFrame({\n"
+                            "    'email':['  A@x.com','B@X.com '],\n"
+                            "    'edad':[30.0, 40.0],\n"
+                            "})\n"
+                            "out = limpiar_clientes(df)\n"
+                            "assert set(out['email']) == {'a@x.com','b@x.com'}"
+                        ),
+                    },
+                    {
+                        "name": "edad rellenada con mediana",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "df = pd.DataFrame({\n"
+                            "    'email':['a@x.com','b@x.com','c@x.com'],\n"
+                            "    'edad':[20.0, np.nan, 40.0],\n"
+                            "})\n"
+                            "out = limpiar_clientes(df)\n"
+                            "# mediana de [20, 40] = 30\n"
+                            "assert out['edad'].isna().sum() == 0\n"
+                            "assert 30.0 in out['edad'].tolist()"
+                        ),
+                    },
+                    {
+                        "name": "duplicados por email eliminados despues de normalizar",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "df = pd.DataFrame({\n"
+                            "    'email':['A@x.com','a@x.com  ','b@x.com'],\n"
+                            "    'edad':[30.0, 35.0, 40.0],\n"
+                            "})\n"
+                            "out = limpiar_clientes(df)\n"
+                            "assert len(out) == 2\n"
+                            "assert set(out['email']) == {'a@x.com','b@x.com'}"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
