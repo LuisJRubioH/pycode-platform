@@ -24,11 +24,13 @@ from app.models import challenge  # noqa: F401
 from app.models import challenge_completion  # noqa: F401
 from app.models import code_evaluation  # noqa: F401
 from app.models import code_quality  # noqa: F401
+from app.models import dataset  # noqa: F401
 from app.models import elo_models  # noqa: F401
 from app.models import learning  # noqa: F401
 from app.models import refresh_token  # noqa: F401
 from app.models import user  # noqa: F401
 from app.services.capstone_seed import seed_capstones_if_empty
+from app.services.dataset_seed import seed_datasets_if_empty
 from app.services.challenge_importer import import_external_challenges
 from app.services.curated_retos import seed_curated_retos
 from app.services.generated_bank import (
@@ -60,6 +62,7 @@ async def lifespan(app: FastAPI):
         await seed_curated_retos(session)
         await seed_lessons_with_exercises(session)
         await seed_capstones_if_empty(session)
+        await seed_datasets_if_empty(session)
     yield
     # Shutdown
     await engine.dispose()

@@ -25,6 +25,37 @@ class Kernel {
       stdout: (line) => this.stdoutBuf.push(line),
       stderr: (line) => this.stderrBuf.push(line),
     });
+    // Registra el modulo `pycode` con helpers para Track 2 (datasets).
+    // Uso desde el editor:
+    //   df = await pycode.load_dataset("iris")
+    // La carga del CDN de pandas la dispara loadPackagesFromImports cuando
+    // el codigo del estudiante haga `import pandas as pd`.
+    await this.py.runPythonAsync(`
+import sys, types
+
+if 'pycode' not in sys.modules:
+    _mod = types.ModuleType('pycode')
+
+    async def load_dataset(slug):
+        """Carga un dataset curado como pandas.DataFrame.
+
+        Hace fetch a /api/v1/datasets/{slug}/csv (endpoint publico de PyCode).
+        Usa await porque el browser no expone HTTP sincronico.
+        """
+        from pyodide.http import pyfetch
+        import io
+        import pandas as pd
+        response = await pyfetch(f'/api/v1/datasets/{slug}/csv')
+        if response.status != 200:
+            raise FileNotFoundError(
+                f'Dataset no encontrado: {slug!r} (status {response.status})'
+            )
+        text = await response.string()
+        return pd.read_csv(io.StringIO(text))
+
+    _mod.load_dataset = load_dataset
+    sys.modules['pycode'] = _mod
+`);
     return { ready: true, pyodideVersion: this.py.version };
   }
 

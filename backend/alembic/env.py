@@ -19,6 +19,7 @@ import app.models.code_quality  # noqa: F401
 import app.models.challenge_completion  # noqa: F401
 import app.models.capstone  # noqa: F401
 import app.models.certificate  # noqa: F401
+import app.models.dataset  # noqa: F401
 
 config = context.config
 

@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     challenges,
     capstones,
     certificates,
+    datasets,
 )
 
 api_router = APIRouter()
@@ -36,3 +37,4 @@ api_router.include_router(capstones.router, prefix="/capstones", tags=["capstone
 api_router.include_router(
     certificates.router, prefix="/certificates", tags=["certificates"]
 )
+api_router.include_router(datasets.router, prefix="/datasets", tags=["datasets"])
