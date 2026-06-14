@@ -13,6 +13,7 @@ class LessonListResponse(BaseModel):
     description: Optional[str]
     difficulty: str
     category: Optional[str]
+    track: str = "track-1"
     estimated_duration: int
     progress: int = 0
     status: str = "not_started"
@@ -44,6 +45,7 @@ class LessonResponse(BaseModel):
     content: Optional[str]
     difficulty: str
     category: Optional[str]
+    track: str = "track-1"
     estimated_duration: int
     prerequisites: List[Any] = []
     exercises: List[ExerciseResponse] = []

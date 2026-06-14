@@ -34,8 +34,32 @@ const CATEGORY_LABELS: Record<string, string> = {
   stdlib: 'Stdlib',
   testing: 'Testing',
   performance: 'Performance',
+  numpy: 'NumPy',
+  pandas: 'Pandas',
+  visualizacion: 'Visualización',
   otros: 'Otros',
 }
+
+const CATEGORY_TO_TRACK: Record<string, string> = {
+  numpy: 'track-2',
+  pandas: 'track-2',
+  visualizacion: 'track-2',
+}
+
+const TRACK_INFO: Record<string, { title: string; subtitle: string }> = {
+  'track-1': {
+    title: 'Track 1 · Python Mastery',
+    subtitle: 'Fundamentos del lenguaje. Cimiento para Data Science y ML.',
+  },
+  'track-2': {
+    title: 'Track 2 · Data Science Foundations',
+    subtitle: 'NumPy, Pandas y visualización. La rampa hacia ML y Deep Learning.',
+  },
+}
+
+const TRACK_ORDER = ['track-1', 'track-2']
+
+const trackOf = (category: string) => CATEGORY_TO_TRACK[category] || 'track-1'
 
 const DIFFICULTY_LABEL: Record<string, string> = {
   beginner: 'Principiante',
@@ -99,6 +123,20 @@ const Competencies: React.FC = () => {
     }
     return [...items].sort((a, b) => indexOf(a.category) - indexOf(b.category))
   }, [items])
+
+  const groupedByTrack = useMemo(() => {
+    const groups: Record<string, Competency[]> = {}
+    for (const c of sorted) {
+      const track = trackOf(c.category)
+      if (!groups[track]) groups[track] = []
+      groups[track].push(c)
+    }
+    return TRACK_ORDER.filter((t) => groups[t]?.length).map((t) => ({
+      track: t,
+      info: TRACK_INFO[t],
+      comps: groups[t],
+    }))
+  }, [sorted])
 
   const totals = useMemo(() => {
     return items.reduce(
@@ -193,8 +231,14 @@ const Competencies: React.FC = () => {
           Aún no hay categorías disponibles. Carga lecciones desde el backend.
         </p>
       ) : (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {sorted.map((comp) => {
+        groupedByTrack.map(({ track, info, comps }) => (
+          <section key={track} className="space-y-4">
+            <header>
+              <h2 className="text-xl font-semibold text-slate-900">{info.title}</h2>
+              <p className="text-sm text-slate-500">{info.subtitle}</p>
+            </header>
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {comps.map((comp) => {
             const lessonsPct = comp.lessons_total
               ? Math.round((comp.lessons_completed / comp.lessons_total) * 100)
               : 0
@@ -262,7 +306,9 @@ const Competencies: React.FC = () => {
               </article>
             )
           })}
-        </div>
+            </div>
+          </section>
+        ))
       )}
     </div>
   )

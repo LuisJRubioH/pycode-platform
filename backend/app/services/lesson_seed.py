@@ -37,6 +37,7 @@ class LessonTemplate:
     estimated_duration: int
     prerequisites_titles: list[str] = field(default_factory=list)
     exercises: list[ExerciseTemplate] = field(default_factory=list)
+    track: str = "track-1"
 
 
 LESSON_TEMPLATES: list[LessonTemplate] = [
@@ -396,6 +397,237 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    # -----------------------------------------------------------------------
+    # Track 2 - Data Science Foundations (piloto)
+    # -----------------------------------------------------------------------
+    LessonTemplate(
+        title="NumPy esencial: arrays y broadcasting",
+        description="Crear arrays, indexar, hacer slicing y aprovechar broadcasting para operar vectorizado.",
+        content=(
+            "## Por que NumPy importa\n"
+            "Python puro es lento haciendo loops sobre numeros porque cada\n"
+            "operacion pasa por el interprete. NumPy guarda los numeros en un\n"
+            "buffer contiguo de memoria y opera en bloque con codigo C/Fortran:\n"
+            "un loop de 1 millon de sumas pasa de segundos a milisegundos.\n"
+            "Toda la pila de Data Science y ML (Pandas, scikit-learn, PyTorch)\n"
+            "esta construida encima de arrays NumPy o de sus equivalentes.\n\n"
+            "## Crear arrays\n"
+            "```python\n"
+            "import numpy as np\n\n"
+            "a = np.array([1, 2, 3, 4])        # desde lista\n"
+            "ceros = np.zeros(5)               # [0. 0. 0. 0. 0.]\n"
+            "unos = np.ones((2, 3))            # matriz 2x3 de unos\n"
+            "rango = np.arange(0, 10, 2)       # [0 2 4 6 8]\n"
+            "lin = np.linspace(0, 1, 5)        # 5 numeros equiespaciados\n"
+            "```\n"
+            "Cada array tiene **shape** (forma), **dtype** (tipo numerico) y\n"
+            "**ndim** (numero de dimensiones). Inspeccionalos con `a.shape`,\n"
+            "`a.dtype`, `a.ndim`.\n\n"
+            "## Indexacion y slicing\n"
+            "```python\n"
+            "a = np.array([10, 20, 30, 40, 50])\n"
+            "a[0]       # 10\n"
+            "a[-1]      # 50\n"
+            "a[1:4]     # [20 30 40]  (vista, no copia)\n"
+            "a[a > 20]  # [30 40 50]  (mascara booleana)\n"
+            "a[[0, 2, 4]]  # [10 30 50] (fancy indexing)\n"
+            "```\n"
+            "Las **vistas** comparten memoria con el array original: modificar la\n"
+            "vista modifica el original. `a[1:4].copy()` te da una copia\n"
+            "independiente. En matrices la regla es la misma por eje:\n"
+            "`m[1, 2]` es fila 1 columna 2, `m[:, 0]` es la primera columna entera.\n\n"
+            "## Broadcasting\n"
+            "Operaciones entre arrays de shapes distintas funcionan si las\n"
+            "dimensiones son compatibles: NumPy 'estira' la mas pequeña\n"
+            "siguiendo la regla **de derecha a izquierda**, las dimensiones\n"
+            "deben ser iguales o una de ellas debe ser 1.\n\n"
+            "```python\n"
+            "matriz = np.array([[1, 2, 3], [4, 5, 6]])  # shape (2, 3)\n"
+            "matriz + 10                                # suma 10 a todo\n"
+            "matriz + np.array([10, 20, 30])            # suma fila a fila\n"
+            "matriz - matriz.mean(axis=0)               # centra por columna\n"
+            "```\n"
+            "Esto reemplaza loops anidados y deja el codigo legible.\n\n"
+            "## Operaciones vectorizadas vs loop Python\n"
+            "Cuando alguien escribe `for i in range(n): a[i] = a[i] * 2` en\n"
+            "NumPy, esta tirando a la basura todo lo que NumPy ofrece. La\n"
+            "forma idiomatica es `a = a * 2`. Lo mismo con condiciones:\n"
+            "en vez de un `for` con `if`, usa una mascara booleana:\n\n"
+            "```python\n"
+            "negativos = a < 0\n"
+            "a[negativos] = 0   # ReLU sin loops\n"
+            "```\n\n"
+            "## Errores comunes\n"
+            "- Confundir `a[i, j]` (NumPy multidim) con `a[i][j]` (Python\n"
+            "  encadenado): el primero es mas rapido y aplica slicing real.\n"
+            "- Modificar una **vista** pensando que es copia: si despues lees\n"
+            "  el original encontraras los cambios.\n"
+            "- Olvidar el `axis=` en agregados: `mean()` sin axis colapsa a un\n"
+            "  escalar; con `axis=0` colapsa filas (devuelve una fila), con\n"
+            "  `axis=1` colapsa columnas (devuelve una columna).\n\n"
+            "## Resumen\n"
+            "- NumPy = memoria contigua + operaciones en C. Velocidad real.\n"
+            "- Crea con `array`, `zeros`, `ones`, `arange`, `linspace`.\n"
+            "- Indexa con enteros, slices, mascaras booleanas o fancy indexing.\n"
+            "- Vectoriza: si vas a escribir un `for` para mutar un array,\n"
+            "  primero piensa si broadcasting o una mascara lo hacen mejor.\n"
+        ),
+        difficulty="intermediate",
+        category="numpy",
+        order=11,
+        track="track-2",
+        estimated_duration=45,
+        prerequisites_titles=["Comprensiones y Manejo de Errores"],
+        exercises=[
+            ExerciseTemplate(
+                title="Pares hasta 20",
+                description="Crea un array con los pares del 0 al 20 inclusive.",
+                instructions=(
+                    "Define `pares` como un array NumPy de los enteros pares desde 0 "
+                    "hasta 20 inclusive. Usa `np.arange` con el paso adecuado en una "
+                    "sola linea. No uses loops."
+                ),
+                starter_code=(
+                    "import numpy as np\n\n" "# Define `pares` aqui:\n" "pares = None\n"
+                ),
+                hints=[
+                    "np.arange(start, stop, step) -- stop es exclusivo, asi que apunta a 21.",
+                    "Los pares empiezan en 0 y van de 2 en 2.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "es un ndarray de NumPy",
+                        "code": (
+                            "import numpy as np\n"
+                            "assert isinstance(pares, np.ndarray), "
+                            "'pares debe ser np.ndarray'"
+                        ),
+                    },
+                    {
+                        "name": "contiene los pares de 0 a 20",
+                        "code": (
+                            "import numpy as np\n"
+                            "assert np.array_equal(pares, np.arange(0, 21, 2))"
+                        ),
+                    },
+                    {
+                        "name": "tiene 11 elementos",
+                        "code": "assert len(pares) == 11",
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Centrar una matriz por columna",
+                description="Resta a cada columna su media para que cada columna quede con media cero.",
+                instructions=(
+                    "Implementa `centrar(matriz)` que recibe un array 2D y devuelve "
+                    "una matriz del mismo shape donde a cada columna se le resto su "
+                    "media. Usa broadcasting, no loops."
+                ),
+                starter_code=(
+                    "import numpy as np\n\n"
+                    "def centrar(matriz: np.ndarray) -> np.ndarray:\n"
+                    "    # TODO: calcula la media por columna y restala usando broadcasting.\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "matriz.mean(axis=0) te da un vector con la media de cada columna.",
+                    "Restar ese vector a la matriz aprovecha broadcasting fila por fila.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "preserva el shape original",
+                        "code": (
+                            "import numpy as np\n"
+                            "m = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])\n"
+                            "assert centrar(m).shape == (3, 2)"
+                        ),
+                    },
+                    {
+                        "name": "deja media cero por columna",
+                        "code": (
+                            "import numpy as np\n"
+                            "m = np.array([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])\n"
+                            "assert np.allclose(centrar(m).mean(axis=0), 0)"
+                        ),
+                    },
+                    {
+                        "name": "matriz constante queda en ceros",
+                        "code": (
+                            "import numpy as np\n"
+                            "m = np.full((4, 3), 7.0)\n"
+                            "assert np.allclose(centrar(m), 0)"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="ReLU sin loops",
+                description="Aplica una mascara booleana para poner en cero los valores negativos.",
+                instructions=(
+                    "Implementa `relu(arr)` que recibe un array NumPy de cualquier "
+                    "shape y devuelve un array del mismo shape donde los valores "
+                    "negativos quedan en 0 y los positivos se preservan. No uses "
+                    "loops ni list comprehensions; usa indexacion booleana o "
+                    "`np.maximum`."
+                ),
+                starter_code=(
+                    "import numpy as np\n\n"
+                    "def relu(arr: np.ndarray) -> np.ndarray:\n"
+                    "    # TODO: devolver una copia con los negativos en 0.\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Una opcion: out = arr.copy(); out[out < 0] = 0; return out",
+                    "Otra opcion mas idiomatica: np.maximum(arr, 0)",
+                    "No mutes el array de entrada; haz copia o crea uno nuevo.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "preserva el shape",
+                        "code": (
+                            "import numpy as np\n"
+                            "x = np.array([[-1.0, 2.0, -3.0], [4.0, -5.0, 6.0]])\n"
+                            "assert relu(x).shape == x.shape"
+                        ),
+                    },
+                    {
+                        "name": "no quedan negativos",
+                        "code": (
+                            "import numpy as np\n"
+                            "x = np.array([-2.0, -1.0, 0.0, 1.0, 2.0])\n"
+                            "assert (relu(x) >= 0).all()"
+                        ),
+                    },
+                    {
+                        "name": "valores positivos quedan iguales",
+                        "code": (
+                            "import numpy as np\n"
+                            "x = np.array([-2.0, 5.0, -1.0, 7.0])\n"
+                            "out = relu(x)\n"
+                            "assert out[1] == 5.0 and out[3] == 7.0"
+                        ),
+                    },
+                    {
+                        "name": "no muta el array de entrada",
+                        "code": (
+                            "import numpy as np\n"
+                            "x = np.array([-1.0, 2.0, -3.0])\n"
+                            "original = x.copy()\n"
+                            "_ = relu(x)\n"
+                            "assert np.array_equal(x, original)"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
@@ -417,6 +649,7 @@ async def seed_lessons_with_exercises(db: AsyncSession) -> int:
                 content=template.content,
                 difficulty=template.difficulty,
                 category=template.category,
+                track=template.track,
                 order=template.order,
                 estimated_duration=template.estimated_duration,
                 prerequisites=[],
@@ -430,6 +663,7 @@ async def seed_lessons_with_exercises(db: AsyncSession) -> int:
             lesson.content = template.content
             lesson.difficulty = template.difficulty
             lesson.category = template.category
+            lesson.track = template.track
             lesson.order = template.order
             lesson.estimated_duration = template.estimated_duration
             lesson.is_active = True

@@ -22,6 +22,7 @@ router = APIRouter()
 async def list_lessons(
     category: Optional[str] = None,
     difficulty: Optional[str] = None,
+    track: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
@@ -32,6 +33,8 @@ async def list_lessons(
         query = query.where(Lesson.category == category)
     if difficulty:
         query = query.where(Lesson.difficulty == difficulty)
+    if track:
+        query = query.where(Lesson.track == track)
 
     result = await db.execute(query)
     lessons = result.scalars().all()
@@ -57,6 +60,7 @@ async def list_lessons(
                 "description": lesson.description,
                 "difficulty": lesson.difficulty,
                 "category": lesson.category,
+                "track": lesson.track,
                 "estimated_duration": lesson.estimated_duration,
                 "progress": progress_value,
                 "status": progress.status if progress else "not_started",
@@ -127,6 +131,7 @@ async def get_lesson(
         "content": lesson.content,
         "difficulty": lesson.difficulty,
         "category": lesson.category,
+        "track": lesson.track,
         "estimated_duration": lesson.estimated_duration,
         "prerequisites": lesson.prerequisites or [],
         "exercises": sorted_exercises,

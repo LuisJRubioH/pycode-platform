@@ -31,6 +31,7 @@ class Lesson(Base):
         String(50), default="beginner"
     )  # beginner, intermediate, advanced
     category = Column(String(100))
+    track = Column(String(50), nullable=False, default="track-1")
     order = Column(Integer, default=0)
     estimated_duration = Column(Integer, default=15)  # in minutes
     prerequisites = Column(JSON, default=list)  # List of lesson IDs

@@ -44,6 +44,8 @@ class Kernel {
     });
 
     try {
+      // Carga numpy/pandas/etc desde el CDN de Pyodide si el codigo los importa.
+      await this.py!.loadPackagesFromImports(code);
       await Promise.race([this.py!.runPythonAsync(code), timeoutPromise]);
       return {
         ok: true,
@@ -78,6 +80,14 @@ class Kernel {
     if (!this.py) await this.init();
     const start = performance.now();
     const verdicts: TestVerdict[] = [];
+
+    // Pre-carga paquetes (numpy, pandas, etc.) escaneando los imports de
+    // studentCode + todos los tests en una sola pasada. Los paquetes
+    // quedan disponibles en el runtime de Pyodide para el resto de la
+    // sesion; los namespaces frescos por test no los pierden.
+    const allCode =
+      studentCode + "\n" + tests.map((t) => t.code).join("\n");
+    await this.py!.loadPackagesFromImports(allCode);
 
     // Cada test corre en un namespace fresco para aislar efectos
     // secundarios entre tests. Concatenamos studentCode + test.code y
@@ -165,6 +175,14 @@ class Kernel {
     await this.py!.runPythonAsync(
       `import sys\nif '${baseDir}' not in sys.path: sys.path.insert(0, '${baseDir}')`
     );
+
+    // Pre-carga paquetes (numpy/pandas/etc.) desde los archivos del
+    // estudiante + los tests, antes de empezar el loop.
+    const allCode =
+      files.map((f) => f.content).join("\n") +
+      "\n" +
+      tests.map((t) => t.code).join("\n");
+    await this.py!.loadPackagesFromImports(allCode);
 
     for (const test of tests) {
       const ns = this.py!.toPy({});
