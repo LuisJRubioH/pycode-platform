@@ -1713,6 +1713,314 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="Visualizacion 1: matplotlib esencial",
+        description="Histograma, scatter, lineas y bar charts con matplotlib. Decidir que tipo de plot usar segun la pregunta que quieres responder.",
+        content=(
+            "## Que es matplotlib\n"
+            "matplotlib es la libreria base de visualizacion en Python. Casi\n"
+            "todas las demas (seaborn, pandas.plot, plotly Express) la usan\n"
+            "por dentro o la imitan. Dominar la API te da control total.\n\n"
+            "En PyCode, cuando llames `plt.show()` el plot aparece inline\n"
+            "en el panel de salida del editor — el worker captura la figura\n"
+            "como PNG y la renderiza ahi mismo.\n\n"
+            "## La estructura: Figure y Axes\n"
+            "```python\n"
+            "import matplotlib.pyplot as plt\n\n"
+            "fig, ax = plt.subplots()       # crea figura + 1 eje\n"
+            "ax.plot([1, 2, 3], [10, 20, 15])\n"
+            "ax.set_title('Demo')\n"
+            "ax.set_xlabel('x'); ax.set_ylabel('y')\n"
+            "plt.show()\n"
+            "```\n"
+            "`Figure` es el lienzo. `Axes` es donde dibujas. Una figura puede\n"
+            "tener varios axes (subplots). El API tiene dos modos:\n"
+            "- **Funcional**: `plt.plot`, `plt.title`, `plt.show` (mas corto,\n"
+            "  bueno para exploracion).\n"
+            "- **Orientado a objetos**: `ax.plot`, `ax.set_title` (mas explicito,\n"
+            "  necesario cuando hay multiples subplots).\n\n"
+            "## Cuatro plots que cubren el 80% de los casos\n\n"
+            "### 1. Linea — evolucion temporal\n"
+            "```python\n"
+            "plt.plot(fechas, ventas, marker='o')\n"
+            "```\n"
+            "Pregunta: '¿como cambia X a lo largo del tiempo?'.\n\n"
+            "### 2. Scatter — relacion entre dos variables\n"
+            "```python\n"
+            "plt.scatter(altura, peso, alpha=0.6)\n"
+            "```\n"
+            "Pregunta: '¿hay correlacion entre X e Y?'. `alpha` evita que los\n"
+            "puntos densos tapen lo que hay debajo.\n\n"
+            "### 3. Histograma — distribucion de una variable\n"
+            "```python\n"
+            "plt.hist(notas, bins=10)\n"
+            "```\n"
+            "Pregunta: '¿como se distribuyen los valores de X? ¿hay outliers?'.\n"
+            "Mas bins = mas detalle pero mas ruido.\n\n"
+            "### 4. Barra — comparar categorias\n"
+            "```python\n"
+            "plt.bar(['cafe','te','torta'], [120, 80, 95])\n"
+            "```\n"
+            "Pregunta: '¿que categoria tiene mas X?'. Cuidado: no uses barras\n"
+            "para variables continuas (eso es histograma).\n\n"
+            "## Decorar el plot\n"
+            "```python\n"
+            "plt.title('Notas del trimestre')\n"
+            "plt.xlabel('Estudiante'); plt.ylabel('Nota')\n"
+            "plt.grid(True, alpha=0.3)\n"
+            "plt.legend(['mate', 'lengua'])\n"
+            "plt.tight_layout()  # evita que las labels se corten\n"
+            "```\n\n"
+            "## Multiples plots en una figura (subplots)\n"
+            "```python\n"
+            "fig, axes = plt.subplots(1, 2, figsize=(10, 4))\n"
+            "axes[0].hist(notas_mate, bins=10); axes[0].set_title('Mate')\n"
+            "axes[1].hist(notas_leng, bins=10); axes[1].set_title('Lengua')\n"
+            "plt.tight_layout()\n"
+            "plt.show()\n"
+            "```\n\n"
+            "## Plot directo desde pandas\n"
+            "Series y DataFrame tienen `.plot()` que delega a matplotlib:\n"
+            "```python\n"
+            "df['ingreso'].plot(kind='line')\n"
+            "df['ingreso'].plot(kind='hist', bins=20)\n"
+            "df.plot.scatter(x='altura', y='peso')\n"
+            "```\n"
+            "Para algo rapido es ideal. Para control fino vuelve a `ax.plot`.\n\n"
+            "## Errores comunes\n"
+            "- Olvidar `plt.show()`: en PyCode el plot no aparece. En un\n"
+            "  notebook Jupyter se muestra solo, pero aca explicitamente lo\n"
+            "  necesitas para emitir el PNG.\n"
+            "- Mezclar modo funcional con orientado a objetos en el mismo plot:\n"
+            "  decidi uno y manteneo. Si usas `subplots`, casi obligatorio el\n"
+            "  modo OO.\n"
+            "- Hacer barras con muchas categorias (>15): se vuelve ilegible.\n"
+            "  Mejor un horizontal bar (`plt.barh`) o un boxplot.\n"
+            "- Usar `bins=` muy grande en histograma con pocos datos: cada bin\n"
+            "  tiene 1-2 valores y el histograma se ve como ruido.\n\n"
+            "## Resumen\n"
+            "- 4 plots cubren el 80%: linea (tiempo), scatter (correlacion),\n"
+            "  histograma (distribucion), barra (categorias).\n"
+            "- API funcional para algo rapido; OO para subplots o control fino.\n"
+            "- Siempre `plt.title`, `xlabel`, `ylabel`. Un plot sin etiquetas\n"
+            "  es invendible.\n"
+            "- `plt.show()` para emitir el PNG en PyCode.\n"
+        ),
+        difficulty="intermediate",
+        category="visualizacion",
+        order=16,
+        track="track-2",
+        estimated_duration=50,
+        prerequisites_titles=["Pandas: limpieza de datos y missing values"],
+        exercises=[
+            ExerciseTemplate(
+                title="Histograma de notas",
+                description="Plot de distribucion con plt.hist.",
+                instructions=(
+                    "Implementa `plot_hist_notas(notas)` que recibe una lista o "
+                    "Serie de notas, dibuja un histograma con 10 bins, agrega "
+                    "titulo 'Distribucion de notas' y label de eje y 'Frecuencia'. "
+                    "La funcion debe devolver el objeto Axes que uso para que "
+                    "podamos verificar el plot."
+                ),
+                starter_code=(
+                    "import matplotlib.pyplot as plt\n\n"
+                    "def plot_hist_notas(notas):\n"
+                    "    # TODO: fig, ax = plt.subplots(); ax.hist(...); ax.set_title(...)\n"
+                    "    # return ax\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "fig, ax = plt.subplots(); luego ax.hist(notas, bins=10).",
+                    "ax.set_title('Distribucion de notas'); ax.set_ylabel('Frecuencia').",
+                    "Devolve ax al final para que los tests puedan inspeccionar el plot.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "devuelve un objeto Axes de matplotlib",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "ax = plot_hist_notas([3.0, 4.0, 4.5, 5.0, 2.5, 3.5])\n"
+                            "assert hasattr(ax, 'patches'), 'debe devolver un Axes'\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                    {
+                        "name": "tiene 10 bins",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "ax = plot_hist_notas([3.0, 4.0, 4.5, 5.0, 2.5, 3.5])\n"
+                            "assert len(ax.patches) == 10\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                    {
+                        "name": "tiene titulo y label correctos",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "ax = plot_hist_notas([3.0, 4.0, 4.5, 5.0, 2.5, 3.5])\n"
+                            "assert 'distribucion' in ax.get_title().lower()\n"
+                            "assert 'frecuencia' in ax.get_ylabel().lower()\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Bar chart de ventas por sucursal",
+                description="Agregar con groupby y graficar con plt.bar.",
+                instructions=(
+                    "Implementa `plot_ventas_por_sucursal(df)` que recibe un "
+                    "DataFrame con columnas 'sucursal' e 'ingreso', calcula la "
+                    "suma de ingresos por sucursal con groupby, y dibuja un bar "
+                    "chart con esas sucursales en el eje X. Devuelve el Axes."
+                ),
+                starter_code=(
+                    "import matplotlib.pyplot as plt\n\n"
+                    "def plot_ventas_por_sucursal(df):\n"
+                    "    # TODO: groupby + ax.bar(sucursales, totales)\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "totales = df.groupby('sucursal')['ingreso'].sum()",
+                    "ax.bar(totales.index, totales.values) usa el indice como categorias.",
+                    "Las series de pandas tienen .plot(kind='bar', ax=ax) tambien.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "devuelve un Axes con barras",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'sucursal':['c','c','n','n','sur'],\n"
+                            "    'ingreso':[100,50,80,20,60],\n"
+                            "})\n"
+                            "ax = plot_ventas_por_sucursal(df)\n"
+                            "assert hasattr(ax, 'patches')\n"
+                            "assert len(ax.patches) == 3, '3 sucursales = 3 barras'\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                    {
+                        "name": "alturas corresponden a las sumas",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'sucursal':['c','c','n','n','sur'],\n"
+                            "    'ingreso':[100,50,80,20,60],\n"
+                            "})\n"
+                            "ax = plot_ventas_por_sucursal(df)\n"
+                            "alturas = sorted(p.get_height() for p in ax.patches)\n"
+                            "# centro=150, norte=100, sur=60\n"
+                            "assert alturas == [60.0, 100.0, 150.0]\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Scatter coloreado por categoria",
+                description="Scatter con un color por especie usando un loop sobre groupby.",
+                instructions=(
+                    "Implementa `plot_iris_scatter(df)` que recibe un DataFrame "
+                    "con columnas 'sepal_length', 'petal_length' y 'species'. "
+                    "Dibuja un scatter con sepal_length en X, petal_length en Y, "
+                    "y un color distinto por especie usando groupby + ax.scatter "
+                    "en un loop. Agrega legend con los nombres de especies. "
+                    "Devuelve el Axes."
+                ),
+                starter_code=(
+                    "import matplotlib.pyplot as plt\n\n"
+                    "def plot_iris_scatter(df):\n"
+                    "    # TODO: fig, ax = plt.subplots()\n"
+                    "    # for nombre, grupo in df.groupby('species'):\n"
+                    "    #     ax.scatter(grupo['sepal_length'], grupo['petal_length'], label=nombre)\n"
+                    "    # ax.legend(); return ax\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "df.groupby('species') itera devolviendo (nombre, sub_df).",
+                    "ax.scatter(..., label=nombre) prepara la leyenda; ax.legend() la dibuja.",
+                    "matplotlib elige los colores automaticamente al haber multiples llamadas a scatter.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "devuelve un Axes",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'sepal_length':[5.1, 5.5, 6.3, 6.5, 7.0, 6.7],\n"
+                            "    'petal_length':[1.4, 4.0, 6.0, 4.5, 4.7, 5.8],\n"
+                            "    'species':['setosa','versicolor','virginica','versicolor','versicolor','virginica'],\n"
+                            "})\n"
+                            "ax = plot_iris_scatter(df)\n"
+                            "assert hasattr(ax, 'collections')\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                    {
+                        "name": "3 grupos = 3 colecciones de puntos",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'sepal_length':[5.1, 5.5, 6.3, 6.5, 7.0, 6.7],\n"
+                            "    'petal_length':[1.4, 4.0, 6.0, 4.5, 4.7, 5.8],\n"
+                            "    'species':['setosa','versicolor','virginica','versicolor','versicolor','virginica'],\n"
+                            "})\n"
+                            "ax = plot_iris_scatter(df)\n"
+                            "# Cada ax.scatter(...) crea una PathCollection\n"
+                            "assert len(ax.collections) == 3, '3 especies = 3 scatter calls'\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                    {
+                        "name": "tiene legend con las 3 especies",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'sepal_length':[5.1, 5.5, 6.3, 6.5, 7.0, 6.7],\n"
+                            "    'petal_length':[1.4, 4.0, 6.0, 4.5, 4.7, 5.8],\n"
+                            "    'species':['setosa','versicolor','virginica','versicolor','versicolor','virginica'],\n"
+                            "})\n"
+                            "ax = plot_iris_scatter(df)\n"
+                            "leg = ax.get_legend()\n"
+                            "assert leg is not None, 'falta legend'\n"
+                            "labels = {t.get_text() for t in leg.get_texts()}\n"
+                            "assert labels == {'setosa','versicolor','virginica'}\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
