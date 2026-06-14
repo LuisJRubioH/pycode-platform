@@ -54,6 +54,7 @@ interface EvaluationResult {
 const CodeEditor: React.FC = () => {
   const [code, setCode] = useState(INITIAL_CODE)
   const [output, setOutput] = useState('')
+  const [outputImages, setOutputImages] = useState<string[]>([])
   const [problemDescription, setProblemDescription] = useState('')
   const [expectedOutput, setExpectedOutput] = useState('')
   const [isRunning, setIsRunning] = useState(false)
@@ -98,12 +99,21 @@ const CodeEditor: React.FC = () => {
 
   const runCode = async () => {
     setOutput('')
+    setOutputImages([])
     setIsRunning(true)
     try {
       const result = await runPythonCode(code)
       const combined = [result.stdout, result.stderr].filter(Boolean).join('\n')
-      const finalOutput = combined || (result.ok ? '(sin salida)' : 'Error de ejecución')
+      const hasImages = (result.images || []).length > 0
+      const finalOutput =
+        combined ||
+        (result.ok
+          ? hasImages
+            ? '(plot generado)'
+            : '(sin salida)'
+          : 'Error de ejecución')
       setOutput(finalOutput)
+      setOutputImages(result.images || [])
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       setOutput(`Error: ${msg}\n`)
@@ -115,6 +125,7 @@ const CodeEditor: React.FC = () => {
   const resetCode = () => {
     setCode(INITIAL_CODE)
     setOutput('')
+    setOutputImages([])
     setProblemDescription('')
     setExpectedOutput('')
     setEvaluation(null)
@@ -487,8 +498,20 @@ const CodeEditor: React.FC = () => {
           </div>
 
           <div className="flex-1 p-4 overflow-auto">
-            {output ? (
-              <pre className="text-sm font-mono whitespace-pre-wrap">{output}</pre>
+            {output || outputImages.length > 0 ? (
+              <div className="space-y-3">
+                {output && (
+                  <pre className="text-sm font-mono whitespace-pre-wrap">{output}</pre>
+                )}
+                {outputImages.map((b64, i) => (
+                  <img
+                    key={i}
+                    src={`data:image/png;base64,${b64}`}
+                    alt={`Plot ${i + 1}`}
+                    className="max-w-full bg-white rounded shadow"
+                  />
+                ))}
+              </div>
             ) : (
               <p className="text-slate-400 text-sm">
                 La salida aparecera aqui despues de ejecutar el codigo...

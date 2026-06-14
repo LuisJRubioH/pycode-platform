@@ -7,6 +7,12 @@ export interface RunResult {
   durationMs: number;
   timedOut: boolean;
   error?: string;
+  /**
+   * Imagenes PNG capturadas durante el run (base64). Producidas por
+   * matplotlib.pyplot.show() via el hook del worker. Vacio si el codigo
+   * no genera ningun plot. El stdout devuelto NO contiene los markers.
+   */
+  images: string[];
 }
 
 export interface RunRequest {

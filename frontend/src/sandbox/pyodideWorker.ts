@@ -59,6 +59,42 @@ if 'pycode' not in sys.modules:
     return { ready: true, pyodideVersion: this.py.version };
   }
 
+  /**
+   * Configura matplotlib lazy: backend Agg + hook plt.show() que emite
+   * PNG base64 en stdout con marker. Solo corre cuando el codigo del
+   * estudiante importa matplotlib (detectado por loadPackagesFromImports).
+   * Idempotente — re-ejecutar no rompe nada.
+   */
+  private async setupMatplotlibHookIfLoaded(): Promise<void> {
+    if (!this.py) return;
+    // Solo aplica el hook si matplotlib quedo cargado (sino, no perdamos
+    // tiempo importandolo desde Python). Pyodide expone loadedPackages.
+    const loaded = (this.py as unknown as { loadedPackages?: Record<string, string> })
+      .loadedPackages;
+    if (!loaded || !("matplotlib" in loaded)) return;
+    await this.py.runPythonAsync(`
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as _plt
+import io as _io
+import base64 as _b64
+
+if not getattr(_plt.show, '_pycode_patched', False):
+    def _pycode_show(*args, **kwargs):
+        fig = _plt.gcf()
+        if not fig.get_axes():
+            return
+        buf = _io.BytesIO()
+        fig.savefig(buf, format='png', bbox_inches='tight', dpi=100)
+        _plt.close(fig)
+        buf.seek(0)
+        encoded = _b64.b64encode(buf.read()).decode('ascii')
+        print(f'<<MATPLOTLIB_PNG:{encoded}>>')
+    _pycode_show._pycode_patched = True
+    _plt.show = _pycode_show
+`);
+  }
+
   async run({ code, timeoutMs = 30_000 }: RunRequest): Promise<RunResult> {
     if (!this.py) await this.init();
     this.stdoutBuf = [];
@@ -77,19 +113,28 @@ if 'pycode' not in sys.modules:
     try {
       // Carga numpy/pandas/etc desde el CDN de Pyodide si el codigo los importa.
       await this.py!.loadPackagesFromImports(code);
+      // Si matplotlib quedo cargado, monta el hook de plt.show().
+      await this.setupMatplotlibHookIfLoaded();
       await Promise.race([this.py!.runPythonAsync(code), timeoutPromise]);
+      const { stdout, images } = extractImagesFromStdout(
+        this.stdoutBuf.join("\n"),
+      );
       return {
         ok: true,
-        stdout: this.stdoutBuf.join("\n"),
+        stdout,
         stderr: this.stderrBuf.join("\n"),
         durationMs: performance.now() - start,
         timedOut: false,
+        images,
       };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      const { stdout, images } = extractImagesFromStdout(
+        this.stdoutBuf.join("\n"),
+      );
       return {
         ok: false,
-        stdout: this.stdoutBuf.join("\n"),
+        stdout,
         stderr:
           this.stderrBuf.join("\n") +
           (this.stderrBuf.length ? "\n" : "") +
@@ -97,6 +142,7 @@ if 'pycode' not in sys.modules:
         durationMs: performance.now() - start,
         timedOut,
         error: msg,
+        images,
       };
     } finally {
       if (timer !== undefined) self.clearTimeout(timer);
@@ -275,6 +321,26 @@ function truncateError(msg: string, maxLines = 6): string {
   const lines = msg.split("\n");
   if (lines.length <= maxLines) return msg;
   return [...lines.slice(0, 2), "...", ...lines.slice(-3)].join("\n");
+}
+
+// Extrae PNGs base64 emitidos por el hook de plt.show() en stdout.
+// El hook imprime `<<MATPLOTLIB_PNG:BASE64DATA>>`; capturamos cada match
+// y devolvemos el stdout SIN los markers para que el editor no muestre
+// la data binaria como texto.
+const MPL_PNG_REGEX = /<<MATPLOTLIB_PNG:([A-Za-z0-9+/=]+)>>/g;
+
+function extractImagesFromStdout(stdout: string): {
+  stdout: string;
+  images: string[];
+} {
+  const images: string[] = [];
+  let m: RegExpExecArray | null;
+  MPL_PNG_REGEX.lastIndex = 0;
+  while ((m = MPL_PNG_REGEX.exec(stdout)) !== null) {
+    images.push(m[1]);
+  }
+  const cleaned = stdout.replace(MPL_PNG_REGEX, "").replace(/\n{3,}/g, "\n\n");
+  return { stdout: cleaned.trim() === "" && images.length > 0 ? "" : cleaned, images };
 }
 
 Comlink.expose(new Kernel());
