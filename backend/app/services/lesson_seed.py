@@ -628,6 +628,253 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="Pandas esencial: Series, DataFrame e indexing",
+        description="Estructuras tabulares con etiquetas: Series, DataFrame, loc/iloc, filtros booleanos y exploracion rapida con head/info/describe.",
+        content=(
+            "## Por que Pandas\n"
+            "NumPy es perfecto para numeros homogeneos en arrays sin etiquetas.\n"
+            "El mundo real llega con **columnas heterogeneas** (un string, dos\n"
+            "floats, una fecha) y filas que conviene identificar por id o\n"
+            "fecha. Pandas envuelve NumPy con dos estructuras etiquetadas:\n"
+            "**Series** (1D) y **DataFrame** (2D). Toda la pila de Data\n"
+            "Science y casi todo scikit-learn aceptan DataFrames como input.\n\n"
+            "## Series — vector con etiquetas\n"
+            "```python\n"
+            "import pandas as pd\n\n"
+            "ventas = pd.Series([120, 80, 95, 200], index=['lun','mar','mie','jue'])\n"
+            "ventas['mar']        # 80\n"
+            "ventas.mean()        # 123.75\n"
+            "ventas > 100         # mascara booleana por dia\n"
+            "```\n"
+            "Por dentro, `ventas.values` es un array NumPy y `ventas.index`\n"
+            "es el indice etiquetado. Las operaciones vectorizadas que viste\n"
+            "en NumPy (`* 2`, `+ otra`, broadcasting) funcionan igual.\n\n"
+            "## DataFrame — tabla con columnas\n"
+            "```python\n"
+            "data = {\n"
+            "    'nombre': ['Ana','Beto','Carla','David'],\n"
+            "    'curso':  ['mate','mate','lengua','lengua'],\n"
+            "    'nota':   [4.5, 3.8, 5.0, 2.9],\n"
+            "}\n"
+            "df = pd.DataFrame(data)\n"
+            "```\n"
+            "`df` tiene un **indice de filas** (0..3 por defecto), columnas\n"
+            "nombradas (`nombre`, `curso`, `nota`) y dtypes por columna\n"
+            "(object/float64). Inspeccionalo con:\n\n"
+            "```python\n"
+            "df.shape       # (4, 3)\n"
+            "df.dtypes      # tipo por columna\n"
+            "df.head(2)     # primeras 2 filas\n"
+            "df.tail()      # ultimas 5 (default)\n"
+            "df.info()      # tipos + nulos + memoria\n"
+            "df.describe()  # estadisticas de columnas numericas\n"
+            "```\n\n"
+            "## Indexacion: tres formas (no las mezcles)\n"
+            "1. **Por columna** — `df['nota']` devuelve la Serie 'nota'.\n"
+            "2. **Por etiqueta** — `df.loc[2, 'nota']` (fila etiqueta 2,\n"
+            "   columna 'nota'). Slicing inclusivo: `df.loc[1:3]` trae\n"
+            "   filas 1,2,3.\n"
+            "3. **Por posicion** — `df.iloc[0, 2]` (primera fila, tercera\n"
+            "   columna). Slicing exclusivo: `df.iloc[0:2]` trae 2 filas.\n\n"
+            "Si tu indice ya es 0..N-1, `loc` e `iloc` parecen iguales pero\n"
+            "dejan de serlo apenas pones `df.set_index('nombre')`.\n\n"
+            "## Filtros booleanos\n"
+            "```python\n"
+            "aprobados = df[df['nota'] >= 4]\n"
+            "df[(df['nota'] >= 4) & (df['curso'] == 'mate')]\n"
+            "```\n"
+            "**Cuidado con `and`/`or`**: en pandas se usan los operadores\n"
+            "bit a bit `&` y `|` (con parentesis obligatorios), no las\n"
+            "palabras `and`/`or`. Confundirlos da un `ValueError`.\n\n"
+            "## Cargar desde CSV\n"
+            "Lo mas comun en la vida real es leer un archivo:\n"
+            "```python\n"
+            "df = pd.read_csv('iris.csv')\n"
+            "```\n"
+            "En PyCode tenes datasets curados accesibles via:\n"
+            "```python\n"
+            "import pycode\n"
+            "df = await pycode.load_dataset('iris')\n"
+            "```\n"
+            "(el `await` es porque corre en navegador y la red es asincronica)\n\n"
+            "## Errores comunes\n"
+            "- Mezclar `loc` e `iloc`. Si tu indice es entero pero no es 0..N-1\n"
+            "  (porque hiciste `drop` o `query`), `df.loc[0]` puede no existir\n"
+            "  aunque la primera fila si.\n"
+            "- Usar `and`/`or` en filtros: rompe con\n"
+            "  `The truth value of a Series is ambiguous`.\n"
+            "- Modificar una vista con `df[df.col > X].col = ...`: pandas avisa con\n"
+            "  `SettingWithCopyWarning`. Lo correcto: `df.loc[df.col > X, 'col'] = ...`.\n"
+            "- Olvidar que `read_csv` infiere dtypes y a veces convierte tu id\n"
+            "  numerico a float si hay un NaN. Mira `df.dtypes` primero.\n\n"
+            "## Resumen\n"
+            "- Series = vector con etiquetas. DataFrame = tabla con columnas.\n"
+            "- Tres indexadores: por columna, `loc` (etiqueta), `iloc` (posicion).\n"
+            "- Filtros con `&`/`|` y parentesis.\n"
+            "- `head`/`info`/`describe` son tu primer reflejo al recibir un\n"
+            "  dataset desconocido.\n"
+        ),
+        difficulty="intermediate",
+        category="pandas",
+        order=12,
+        track="track-2",
+        estimated_duration=50,
+        prerequisites_titles=["NumPy esencial: arrays y broadcasting"],
+        exercises=[
+            ExerciseTemplate(
+                title="Series desde diccionario",
+                description="Crea una Series de pandas a partir de un dict.",
+                instructions=(
+                    "Define `ventas` como una `pd.Series` cuyos valores sean "
+                    "[120, 80, 95, 200] con indice ['lun','mar','mie','jue']. "
+                    "No uses pd.DataFrame; la respuesta es una Series."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "# Define `ventas` aqui:\n"
+                    "ventas = None\n"
+                ),
+                hints=[
+                    "pd.Series acepta una lista de valores y un parametro `index=`.",
+                    "Tambien podes pasarle un dict directamente: pd.Series({'lun': 120, ...}).",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "es una pandas Series",
+                        "code": (
+                            "import pandas as pd\n"
+                            "assert isinstance(ventas, pd.Series), 'debe ser pd.Series'"
+                        ),
+                    },
+                    {
+                        "name": "tiene los 4 valores correctos",
+                        "code": ("assert list(ventas.values) == [120, 80, 95, 200]"),
+                    },
+                    {
+                        "name": "indice por dia de la semana",
+                        "code": (
+                            "assert list(ventas.index) == ['lun','mar','mie','jue']"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Filtrar aprobados",
+                description="Funcion que devuelve solo las filas con nota >= 4.",
+                instructions=(
+                    "Implementa `filtrar_aprobados(df)` que recibe un DataFrame "
+                    "con una columna 'nota' y devuelve un DataFrame con solo "
+                    "las filas donde nota >= 4. Usa filtro booleano, no loops."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def filtrar_aprobados(df: pd.DataFrame) -> pd.DataFrame:\n"
+                    "    # TODO: filtro booleano sobre la columna 'nota'.\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "df[df['nota'] >= 4] devuelve un DataFrame con esas filas.",
+                    "Recorda que el indice de las filas se preserva (no se reinicia).",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "devuelve un DataFrame",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'nombre': ['A','B','C'], 'nota': [4.5, 2.9, 5.0]})\n"
+                            "out = filtrar_aprobados(df)\n"
+                            "assert isinstance(out, pd.DataFrame)"
+                        ),
+                    },
+                    {
+                        "name": "no incluye notas menores a 4",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'nombre': ['A','B','C'], 'nota': [4.5, 2.9, 5.0]})\n"
+                            "out = filtrar_aprobados(df)\n"
+                            "assert (out['nota'] >= 4).all()"
+                        ),
+                    },
+                    {
+                        "name": "incluye las notas correctas",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'nombre': ['A','B','C','D'], 'nota': [4.5, 2.9, 5.0, 3.9]})\n"
+                            "out = filtrar_aprobados(df)\n"
+                            "assert sorted(out['nombre'].tolist()) == ['A','C']"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Promedio por curso (groupby)",
+                description="Agrupa por curso y calcula el promedio de notas.",
+                instructions=(
+                    "Implementa `promedio_por_curso(df)` que devuelve una Series "
+                    "donde el indice es el nombre del curso y el valor es el "
+                    "promedio de notas en ese curso. Usa groupby + mean, no loops."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def promedio_por_curso(df: pd.DataFrame) -> pd.Series:\n"
+                    "    # TODO: df.groupby('curso')['nota'].mean()\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "df.groupby('curso') agrupa por la columna 'curso'.",
+                    "['nota'].mean() selecciona la columna y aplica la agregacion.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "devuelve una Series",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'curso': ['mate','mate','lengua','lengua'],\n"
+                            "    'nota': [4.5, 3.5, 5.0, 3.0],\n"
+                            "})\n"
+                            "out = promedio_por_curso(df)\n"
+                            "assert isinstance(out, pd.Series)"
+                        ),
+                    },
+                    {
+                        "name": "promedio de mate = 4.0, lengua = 4.0",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'curso': ['mate','mate','lengua','lengua'],\n"
+                            "    'nota': [4.5, 3.5, 5.0, 3.0],\n"
+                            "})\n"
+                            "out = promedio_por_curso(df)\n"
+                            "assert abs(out['mate'] - 4.0) < 1e-9\n"
+                            "assert abs(out['lengua'] - 4.0) < 1e-9"
+                        ),
+                    },
+                    {
+                        "name": "funciona con 3 cursos",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'curso': ['a','a','b','c','c','c'],\n"
+                            "    'nota': [2.0, 4.0, 5.0, 3.0, 3.0, 3.0],\n"
+                            "})\n"
+                            "out = promedio_por_curso(df)\n"
+                            "assert sorted(out.index.tolist()) == ['a','b','c']\n"
+                            "assert abs(out['a'] - 3.0) < 1e-9\n"
+                            "assert abs(out['c'] - 3.0) < 1e-9"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 

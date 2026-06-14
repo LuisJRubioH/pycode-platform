@@ -47,10 +47,12 @@ async def test_filter_track_2_returns_only_numpy(client, auth_headers):
     body = r.json()
     titles = [item["title"] for item in body]
     assert "NumPy esencial: arrays y broadcasting" in titles
+    assert "Pandas esencial: Series, DataFrame e indexing" in titles
     # Todas las lecciones devueltas deben ser de track-2
     assert all(item["track"] == "track-2" for item in body)
-    # Por ahora solo hay 1 leccion en track-2 (el piloto)
-    assert len(body) == 1
+    # Las categorias del track-2 incluyen numpy y pandas
+    categories = {item["category"] for item in body}
+    assert {"numpy", "pandas"}.issubset(categories)
 
 
 @pytest.mark.asyncio
