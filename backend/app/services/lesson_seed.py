@@ -2323,6 +2323,311 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="EDA: exploracion sistematica de un dataset",
+        description="Pipeline reproducible para entender un dataset nuevo: shape/info/describe, distribuciones, outliers via IQR, correlaciones bivariadas.",
+        content=(
+            "## Que es EDA\n"
+            "**Exploratory Data Analysis** es la fase de investigacion previa\n"
+            "al modelado. El objetivo es responder cinco preguntas antes de\n"
+            "entrenar nada:\n"
+            "1. ¿Cuantas filas y columnas hay?\n"
+            "2. ¿Que tipo es cada columna y cuantos NaN?\n"
+            "3. ¿Como se distribuye cada variable?\n"
+            "4. ¿Hay outliers? ¿Son errores o casos reales?\n"
+            "5. ¿Que variables estan relacionadas entre si?\n\n"
+            "Cuanto mejor hagas EDA, menos sorpresas en produccion.\n\n"
+            "## Pipeline en cinco lineas\n"
+            "```python\n"
+            "df.shape       # 1. tamano\n"
+            "df.info()      # 2. dtypes + nulos por columna\n"
+            "df.head(5)     # primeras filas para sanity check\n"
+            "df.describe()  # 3. distribucion (count/mean/std/min/quartiles/max)\n"
+            "df.duplicated().sum()  # ¿hay filas repetidas?\n"
+            "```\n"
+            "Esto te da el 70% de la radiografia. Si algo te llama la atencion\n"
+            "(una columna con 80% NaN, un max absurdo), profundizas ahi.\n\n"
+            "## Distribuciones — histogramas y boxplots\n"
+            "Para variables numericas:\n"
+            "```python\n"
+            "df['edad'].hist(bins=20)        # forma de la distribucion\n"
+            "df.boxplot(column='edad')       # outliers visibles como puntos\n"
+            "```\n"
+            "El **boxplot** es perfecto para detectar outliers: la caja es Q1-Q3,\n"
+            "la linea del medio es la mediana, los 'bigotes' van hasta 1.5*IQR,\n"
+            "y los puntos fuera son candidatos a outlier.\n\n"
+            "Para variables categoricas:\n"
+            "```python\n"
+            "df['pais'].value_counts()\n"
+            "df['pais'].value_counts(normalize=True)  # porcentajes\n"
+            "```\n\n"
+            "## Detectar outliers con IQR\n"
+            "La regla **1.5 * IQR** es el clasico:\n"
+            "```python\n"
+            "q1 = df['precio'].quantile(0.25)\n"
+            "q3 = df['precio'].quantile(0.75)\n"
+            "iqr = q3 - q1\n"
+            "bajos = df['precio'] < q1 - 1.5 * iqr\n"
+            "altos = df['precio'] > q3 + 1.5 * iqr\n"
+            "outliers = df[bajos | altos]\n"
+            "```\n"
+            "Recordatorio importante: **no eliminar outliers automaticamente**.\n"
+            "Algunas veces son los casos mas interesantes (fraude, errores de\n"
+            "captura, segmentos especiales). Investigarlos primero.\n\n"
+            "## Correlaciones — variables que se mueven juntas\n"
+            "```python\n"
+            "df.corr(numeric_only=True)\n"
+            "```\n"
+            "Devuelve una matriz simetrica con coeficientes de Pearson\n"
+            "(-1 a +1):\n"
+            "- **+1**: cuando una sube, la otra sube en la misma proporcion.\n"
+            "- **0**: no hay relacion lineal.\n"
+            "- **-1**: cuando una sube, la otra baja en la misma proporcion.\n\n"
+            "Cuidado: Pearson solo captura relaciones **lineales**. Una relacion\n"
+            "cuadratica puede dar correlacion casi cero y aun ser fuerte.\n\n"
+            "Para visualizar la matriz, un heatmap:\n"
+            "```python\n"
+            "import matplotlib.pyplot as plt\n"
+            "fig, ax = plt.subplots()\n"
+            "im = ax.imshow(df.corr(numeric_only=True), cmap='coolwarm', vmin=-1, vmax=1)\n"
+            "plt.colorbar(im)\n"
+            "```\n\n"
+            "## Crosstab — relacion entre categoricas\n"
+            "```python\n"
+            "pd.crosstab(df['pais'], df['plan'])\n"
+            "pd.crosstab(df['pais'], df['plan'], normalize='index')  # % por fila\n"
+            "```\n\n"
+            "## Errores comunes\n"
+            "- Saltarse el EDA por apuro: terminas entrenando con NaN, leaks\n"
+            "  o columnas inutiles. **30 minutos de EDA ahorran horas de debug**.\n"
+            "- Tirar outliers sin investigarlos: muchas veces son el problema\n"
+            "  que queres modelar.\n"
+            "- Interpretar correlacion como causalidad. Una correlacion alta\n"
+            "  entre 'ventas de helado' y 'ahogamientos' no significa que el\n"
+            "  helado cause ahogamientos (hay una variable de confusion: verano).\n"
+            "- Olvidar `numeric_only=True` en `df.corr()`: en pandas modernos\n"
+            "  esto avisa con un FutureWarning porque las columnas string no\n"
+            "  tienen correlacion definida.\n\n"
+            "## Resumen\n"
+            "- EDA responde 5 preguntas antes de modelar.\n"
+            "- 5 lineas (shape/info/head/describe/duplicated) dan el 70% del\n"
+            "  panorama.\n"
+            "- Histogramas para forma de distribucion, boxplots para outliers,\n"
+            "  IQR como regla numerica.\n"
+            "- `.corr(numeric_only=True)` para correlaciones; crosstab para\n"
+            "  categoricas.\n"
+            "- Correlacion no implica causalidad.\n"
+        ),
+        difficulty="intermediate",
+        category="eda",
+        order=18,
+        track="track-2",
+        estimated_duration=55,
+        prerequisites_titles=["Visualizacion 2: subplots, estilos y anotaciones"],
+        exercises=[
+            ExerciseTemplate(
+                title="Resumen estadistico de columnas numericas",
+                description="Filtrar las columnas numericas y devolver describe().",
+                instructions=(
+                    "Implementa `resumen_numerico(df)` que devuelve el DataFrame "
+                    "resultado de aplicar describe() SOLO a las columnas numericas. "
+                    "Si una columna es de tipo object o categorico, excluirla. "
+                    "Usa select_dtypes."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def resumen_numerico(df: pd.DataFrame) -> pd.DataFrame:\n"
+                    "    # TODO: df.select_dtypes(include='number').describe()\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "df.select_dtypes(include='number') filtra columnas numericas.",
+                    "Sobre el resultado, .describe() devuelve el resumen estadistico.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "es un DataFrame",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'a':[1.0,2.0,3.0],\n"
+                            "    'b':[10,20,30],\n"
+                            "    'c':['x','y','z'],\n"
+                            "})\n"
+                            "out = resumen_numerico(df)\n"
+                            "assert isinstance(out, pd.DataFrame)"
+                        ),
+                    },
+                    {
+                        "name": "excluye columnas no numericas",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'a':[1.0,2.0,3.0],\n"
+                            "    'b':[10,20,30],\n"
+                            "    'c':['x','y','z'],\n"
+                            "})\n"
+                            "out = resumen_numerico(df)\n"
+                            "assert 'c' not in out.columns\n"
+                            "assert set(out.columns) == {'a','b'}"
+                        ),
+                    },
+                    {
+                        "name": "incluye las metricas tipicas de describe",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'a':[1.0,2.0,3.0]})\n"
+                            "out = resumen_numerico(df)\n"
+                            "for metric in ['mean','std','min','25%','50%','75%','max']:\n"
+                            "    assert metric in out.index"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Detectar outliers con regla IQR",
+                description="Devolver las filas con valores fuera de Q1-1.5IQR / Q3+1.5IQR.",
+                instructions=(
+                    "Implementa `outliers_iqr(df, columna)` que recibe un "
+                    "DataFrame y el nombre de una columna numerica. Calcula "
+                    "Q1, Q3 y IQR. Devuelve el subset de filas cuyo valor en "
+                    "esa columna es < Q1 - 1.5*IQR o > Q3 + 1.5*IQR."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def outliers_iqr(df: pd.DataFrame, columna: str) -> pd.DataFrame:\n"
+                    "    # TODO: q1, q3 = quantile(0.25), quantile(0.75); iqr = q3-q1\n"
+                    "    # mascara = (df[columna] < q1 - 1.5*iqr) | (df[columna] > q3 + 1.5*iqr)\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "df[columna].quantile(0.25) da el Q1 ignorando NaN.",
+                    "Combina las dos condiciones con | (or bit a bit) y parentesis.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "devuelve DataFrame",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'precio':[10,12,11,13,12,500]})\n"
+                            "out = outliers_iqr(df, 'precio')\n"
+                            "assert isinstance(out, pd.DataFrame)"
+                        ),
+                    },
+                    {
+                        "name": "detecta outlier alto evidente",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'precio':[10,12,11,13,12,500]})\n"
+                            "out = outliers_iqr(df, 'precio')\n"
+                            "assert 500 in out['precio'].tolist()"
+                        ),
+                    },
+                    {
+                        "name": "no marca filas en rango normal",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'precio':[10,12,11,13,12,500]})\n"
+                            "out = outliers_iqr(df, 'precio')\n"
+                            "# Los valores 10-13 NO deben aparecer como outliers\n"
+                            "assert 11 not in out['precio'].tolist()\n"
+                            "assert 12 not in out['precio'].tolist()"
+                        ),
+                    },
+                    {
+                        "name": "detecta outlier bajo extremo",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'precio':[100, 102, 101, 99, 100, -50]})\n"
+                            "out = outliers_iqr(df, 'precio')\n"
+                            "assert -50 in out['precio'].tolist()"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Par mas correlacionado",
+                description="Encontrar las dos columnas con mayor correlacion absoluta.",
+                instructions=(
+                    "Implementa `par_mas_correlacionado(df)` que calcula la "
+                    "matriz de correlacion entre columnas numericas y devuelve "
+                    "una tupla (col_a, col_b, correlacion) con las dos columnas "
+                    "DISTINTAS que tienen la mayor correlacion absoluta. "
+                    "(col_a, col_b) ordenadas alfabeticamente."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def par_mas_correlacionado(df: pd.DataFrame) -> tuple:\n"
+                    "    # TODO: corr = df.corr(numeric_only=True)\n"
+                    "    # Ignorar la diagonal (col consigo misma = 1).\n"
+                    "    # Encontrar el max de |corr| en off-diagonal.\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "corr.abs() te da magnitudes sin signo.",
+                    "Para evitar la diagonal: mascara `corr.values[i, i] = 0` o usar `corr.where(...)`.",
+                    "Una vez encontradas col_a y col_b, devolve `(a, b, corr.loc[a, b])` con a, b ordenados.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "devuelve una tupla de 3 elementos",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "rng = np.random.default_rng(0)\n"
+                            "x = rng.normal(size=100)\n"
+                            "df = pd.DataFrame({\n"
+                            "    'a': x,\n"
+                            "    'b': 2*x + rng.normal(scale=0.1, size=100),  # casi perfecta\n"
+                            "    'c': rng.normal(size=100),  # ruido\n"
+                            "})\n"
+                            "out = par_mas_correlacionado(df)\n"
+                            "assert isinstance(out, tuple) and len(out) == 3"
+                        ),
+                    },
+                    {
+                        "name": "identifica el par mas correlacionado correcto",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "rng = np.random.default_rng(0)\n"
+                            "x = rng.normal(size=100)\n"
+                            "df = pd.DataFrame({\n"
+                            "    'a': x,\n"
+                            "    'b': 2*x + rng.normal(scale=0.1, size=100),\n"
+                            "    'c': rng.normal(size=100),\n"
+                            "})\n"
+                            "out = par_mas_correlacionado(df)\n"
+                            "assert set(out[:2]) == {'a','b'}"
+                        ),
+                    },
+                    {
+                        "name": "ordena el par alfabeticamente",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "rng = np.random.default_rng(0)\n"
+                            "x = rng.normal(size=100)\n"
+                            "df = pd.DataFrame({\n"
+                            "    'zeta': x,\n"
+                            "    'alpha': 2*x + rng.normal(scale=0.1, size=100),\n"
+                            "    'beta': rng.normal(size=100),\n"
+                            "})\n"
+                            "out = par_mas_correlacionado(df)\n"
+                            "assert out[0] < out[1], 'columnas no estan ordenadas'\n"
+                            "assert out[0] == 'alpha' and out[1] == 'zeta'"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
