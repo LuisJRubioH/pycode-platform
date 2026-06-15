@@ -2913,6 +2913,291 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="Estadistica descriptiva: resumir un dataset",
+        description="Tendencia central y dispersion, cuando usar media vs mediana, forma de la distribucion con skewness y kurtosis.",
+        content=(
+            "## Por que estadistica descriptiva\n"
+            "Antes de cualquier modelo, necesitas **comunicar** que hay en\n"
+            "tus datos. La estadistica descriptiva resume con pocos numeros\n"
+            "lo que veria un humano mirando miles de filas:\n"
+            "- ¿Donde esta el 'centro' de la variable?\n"
+            "- ¿Que tan dispersos estan los valores?\n"
+            "- ¿La distribucion es simetrica o sesgada?\n\n"
+            "## Medidas de tendencia central\n\n"
+            "### Media (promedio)\n"
+            "```python\n"
+            "df['edad'].mean()  # suma / n\n"
+            "```\n"
+            "Sensible a outliers: un valor extremo arrastra el promedio.\n\n"
+            "### Mediana (valor central)\n"
+            "```python\n"
+            "df['edad'].median()  # el del medio cuando ordenas\n"
+            "```\n"
+            "**Resistente a outliers**. Si tu distribucion tiene cola larga\n"
+            "(salarios, vistas en YouTube), usa mediana.\n\n"
+            "### Moda (valor mas frecuente)\n"
+            "```python\n"
+            "df['plan'].mode()  # puede haber varias modas si hay empate\n"
+            "```\n"
+            "Util para categoricas. En numericas continuas rara vez tiene sentido.\n\n"
+            "**Cuando usar cual**:\n"
+            "- **Media** — distribucion simetrica sin outliers (notas, alturas).\n"
+            "- **Mediana** — distribucion sesgada o con outliers (precios, ingresos).\n"
+            "- **Moda** — categoricas, o discretas donde 'el caso mas comun' importa.\n\n"
+            "## Medidas de dispersion\n\n"
+            "### Varianza y desviacion estandar\n"
+            "```python\n"
+            "df['edad'].var()   # promedio de (x - mean)^2\n"
+            "df['edad'].std()   # raiz cuadrada de la varianza\n"
+            "```\n"
+            "La std esta en las mismas unidades que la variable (edades en\n"
+            "anios, std en anios). Por eso se prefiere para reportar.\n\n"
+            "### Rango intercuartil (IQR)\n"
+            "```python\n"
+            "iqr = df['edad'].quantile(0.75) - df['edad'].quantile(0.25)\n"
+            "```\n"
+            "**Resistente a outliers**. Si usas mediana como centro, IQR es la\n"
+            "dispersion natural a reportar (no std).\n\n"
+            "## Forma de la distribucion\n\n"
+            "### Skewness (asimetria)\n"
+            "```python\n"
+            "df['precio'].skew()\n"
+            "```\n"
+            "- **0**: simetrica.\n"
+            "- **>0**: cola a la derecha (salarios, precios).\n"
+            "- **<0**: cola a la izquierda (edad de jubilacion).\n"
+            "- **|skew| > 1**: muy sesgada — considera transformacion log.\n\n"
+            "### Kurtosis (peso de las colas)\n"
+            "```python\n"
+            "df['precio'].kurt()\n"
+            "```\n"
+            "- **0** (Fisher): igual a una normal.\n"
+            "- **>0**: leptokurtic — colas mas pesadas que normal, mas outliers.\n"
+            "- **<0**: platykurtic — distribucion mas plana.\n\n"
+            "## Regla 68-95-99.7 (solo para distribuciones casi normales)\n"
+            "Si tu variable es ~normal:\n"
+            "- 68% de los valores caen dentro de mean ± 1 std.\n"
+            "- 95% dentro de mean ± 2 std.\n"
+            "- 99.7% dentro de mean ± 3 std.\n\n"
+            "Esta regla es como detectas outliers via z-score: |z| > 3 implica\n"
+            "<0.3% de probabilidad si fuera realmente normal.\n\n"
+            "## Cuidado: estadisticas mienten con poca data\n"
+            "Calcular media y std sobre 3 puntos no te dice nada. Reglas\n"
+            "practicas:\n"
+            "- **n < 30**: usa mediana y rango, no media y std.\n"
+            "- **n < 5**: no calcules nada, mira los valores uno por uno.\n"
+            "- Siempre acompaña el resumen con n (count) para que el lector\n"
+            "  pondere la confianza.\n\n"
+            "## Errores comunes\n"
+            "- Reportar 'el promedio de salario es 80k' cuando hay un CEO de\n"
+            "  10M en la muestra: la mediana puede ser 45k. Usa mediana cuando\n"
+            "  hay outliers grandes.\n"
+            "- Confundir n (sample size) con la cantidad de valores unicos.\n"
+            "  `df['edad'].nunique()` no es lo mismo que `len(df)`.\n"
+            "- Aplicar la regla 68-95-99.7 a distribuciones que no son normales.\n"
+            "  Hace falta verificar primero (skew, qq-plot, Shapiro-Wilk).\n"
+            "- `df.mean()` ignora NaN automaticamente. Util, pero verificar\n"
+            "  `df.isna().sum()` para saber sobre cuantos valores realmente se\n"
+            "  promedio.\n\n"
+            "## Resumen\n"
+            "- Media/mediana/moda: tendencia central. Mediana resiste outliers.\n"
+            "- std/var/IQR: dispersion. IQR resiste outliers.\n"
+            "- skew indica asimetria; kurt indica colas pesadas.\n"
+            "- Si distribucion casi normal, regla 68-95-99.7 para z-score.\n"
+            "- Siempre reportar n junto con el resumen.\n"
+        ),
+        difficulty="intermediate",
+        category="estadistica",
+        order=20,
+        track="track-2",
+        estimated_duration=50,
+        prerequisites_titles=["EDA 2: feature engineering basico"],
+        exercises=[
+            ExerciseTemplate(
+                title="Resumen de una columna",
+                description="Devolver un dict con mean, median, std y count.",
+                instructions=(
+                    "Implementa `resumir(serie)` que recibe una pd.Series numerica "
+                    "y devuelve un dict con keys 'mean', 'median', 'std', 'count'. "
+                    "Los NaN deben ignorarse en mean/median/std (que es el default "
+                    "de pandas), pero count debe ser el numero de NO-NaN."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def resumir(serie: pd.Series) -> dict:\n"
+                    "    # TODO: {'mean': ..., 'median': ..., 'std': ..., 'count': ...}\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "serie.mean(), serie.median(), serie.std() ignoran NaN.",
+                    "serie.count() devuelve la cantidad de no-NaN.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "devuelve dict con las 4 keys",
+                        "code": (
+                            "import pandas as pd\n"
+                            "out = resumir(pd.Series([1.0, 2.0, 3.0, 4.0]))\n"
+                            "assert isinstance(out, dict)\n"
+                            "assert set(out.keys()) == {'mean','median','std','count'}"
+                        ),
+                    },
+                    {
+                        "name": "calcula media y mediana correctas",
+                        "code": (
+                            "import pandas as pd\n"
+                            "out = resumir(pd.Series([1.0, 2.0, 3.0, 4.0, 5.0]))\n"
+                            "assert abs(out['mean'] - 3.0) < 1e-9\n"
+                            "assert abs(out['median'] - 3.0) < 1e-9"
+                        ),
+                    },
+                    {
+                        "name": "count ignora NaN",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "out = resumir(pd.Series([1.0, 2.0, np.nan, 4.0]))\n"
+                            "assert out['count'] == 3"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Detectar distribucion sesgada",
+                description="Devolver True si |skew| > 1 (regla practica de sesgo fuerte).",
+                instructions=(
+                    "Implementa `esta_sesgada(serie)` que recibe una pd.Series "
+                    "y devuelve True si el skew absoluto es mayor a 1 (regla "
+                    "comun para sesgo 'fuerte'). En otro caso False."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def esta_sesgada(serie: pd.Series) -> bool:\n"
+                    "    # TODO: abs(serie.skew()) > 1\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "serie.skew() devuelve el coeficiente de asimetria (float).",
+                    "Usa abs() y compara con 1.",
+                    "Devolve un bool, no un numpy bool. bool(serie.skew()) si hace falta.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "distribucion simetrica devuelve False",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "rng = np.random.default_rng(0)\n"
+                            "# Normal: skew ~ 0\n"
+                            "s = pd.Series(rng.normal(0, 1, 1000))\n"
+                            "assert esta_sesgada(s) is False"
+                        ),
+                    },
+                    {
+                        "name": "distribucion muy sesgada devuelve True",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "rng = np.random.default_rng(0)\n"
+                            "# Exponencial: skew muy positivo\n"
+                            "s = pd.Series(rng.exponential(1.0, 1000))\n"
+                            "assert esta_sesgada(s) is True"
+                        ),
+                    },
+                    {
+                        "name": "negativamente sesgada tambien devuelve True",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "rng = np.random.default_rng(0)\n"
+                            "# Exp invertida: skew muy negativo\n"
+                            "s = pd.Series(-rng.exponential(1.0, 1000))\n"
+                            "assert esta_sesgada(s) is True"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Comparar dos grupos numericamente",
+                description="Resumen comparado entre dos grupos: diferencia de medias normalizada por std combinado.",
+                instructions=(
+                    "Implementa `comparar(grupo_a, grupo_b)` que recibe dos "
+                    "pd.Series numericas y devuelve un dict con: "
+                    "(1) 'mean_a' y 'mean_b' (medias), (2) 'std_pooled' "
+                    "(desviacion estandar combinada = sqrt((var_a + var_b)/2)), "
+                    "(3) 'cohen_d' (diferencia de medias / std_pooled). "
+                    "Cohen's d es una medida estandar de tamano del efecto."
+                ),
+                starter_code=(
+                    "import pandas as pd\n"
+                    "import numpy as np\n\n"
+                    "def comparar(grupo_a: pd.Series, grupo_b: pd.Series) -> dict:\n"
+                    "    # TODO: calcular mean_a, mean_b, var_a, var_b,\n"
+                    "    # std_pooled = sqrt((var_a + var_b) / 2),\n"
+                    "    # cohen_d = (mean_a - mean_b) / std_pooled.\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "grupo_a.var() y grupo_b.var() dan las varianzas.",
+                    "np.sqrt((var_a + var_b) / 2) es la formula de pooled std (version simple).",
+                    "Devolve floats convencionales, no numpy scalars (usa float(...) si necesario).",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "devuelve las 4 keys esperadas",
+                        "code": (
+                            "import pandas as pd\n"
+                            "a = pd.Series([1.0, 2.0, 3.0, 4.0])\n"
+                            "b = pd.Series([2.0, 3.0, 4.0, 5.0])\n"
+                            "out = comparar(a, b)\n"
+                            "assert set(out.keys()) == {'mean_a','mean_b','std_pooled','cohen_d'}"
+                        ),
+                    },
+                    {
+                        "name": "medias correctas",
+                        "code": (
+                            "import pandas as pd\n"
+                            "a = pd.Series([1.0, 2.0, 3.0, 4.0])\n"
+                            "b = pd.Series([2.0, 3.0, 4.0, 5.0])\n"
+                            "out = comparar(a, b)\n"
+                            "assert abs(out['mean_a'] - 2.5) < 1e-9\n"
+                            "assert abs(out['mean_b'] - 3.5) < 1e-9"
+                        ),
+                    },
+                    {
+                        "name": "grupos identicos dan cohen_d 0",
+                        "code": (
+                            "import pandas as pd\n"
+                            "a = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0])\n"
+                            "b = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0])\n"
+                            "out = comparar(a, b)\n"
+                            "assert abs(out['cohen_d']) < 1e-9"
+                        ),
+                    },
+                    {
+                        "name": "cohen_d tiene el signo correcto",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "rng = np.random.default_rng(0)\n"
+                            "a = pd.Series(rng.normal(10.0, 1.0, 200))\n"
+                            "b = pd.Series(rng.normal(5.0, 1.0, 200))\n"
+                            "out = comparar(a, b)\n"
+                            "# a > b en media -> cohen_d > 0\n"
+                            "assert out['cohen_d'] > 0"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
