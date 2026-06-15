@@ -3198,6 +3198,299 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="Correlacion, probabilidad y bootstrap",
+        description="Pearson vs Spearman, simular probabilidades con Monte Carlo y estimar intervalos de confianza con bootstrap.",
+        content=(
+            "## Tres ideas que necesitas\n"
+            "1. **Correlacion sirve para describir relaciones, pero hay dos\n"
+            "   tipos** segun la forma de esa relacion.\n"
+            "2. **Cuando no podes derivar una probabilidad analiticamente,\n"
+            "   simulala** con muestreo (Monte Carlo).\n"
+            "3. **Tus estimaciones tienen incertidumbre**; reportar un\n"
+            "   intervalo en vez de un numero solo es lo profesional.\n\n"
+            "## Correlacion Pearson vs Spearman\n\n"
+            "### Pearson — relacion lineal\n"
+            "```python\n"
+            "df['x'].corr(df['y'])              # default Pearson\n"
+            "df['x'].corr(df['y'], method='pearson')\n"
+            "```\n"
+            "Mide que tan bien una **linea recta** ajusta los datos. Va de -1\n"
+            "a +1. Si la relacion entre X e Y es cuadratica (Y = X^2), Pearson\n"
+            "puede dar casi cero — y aun asi habria una relacion fortisima.\n\n"
+            "### Spearman — relacion monotona\n"
+            "```python\n"
+            "df['x'].corr(df['y'], method='spearman')\n"
+            "```\n"
+            "Mide si, al ordenar X, Y tambien queda ordenado. **Captura\n"
+            "relaciones no lineales monotonas** (Y = X^3, Y = log(X)).\n\n"
+            "**Cuando usar cual**:\n"
+            "- Pearson: variables continuas con relacion aparentemente lineal.\n"
+            "- Spearman: ordinales, distribuciones sesgadas, o cuando sospechas\n"
+            "  relacion no lineal pero monotona.\n"
+            "- Si tenes outliers, Spearman es mas robusto (usa rankings).\n\n"
+            "## Probabilidad — vocabulario minimo\n"
+            "Para una variable aleatoria X:\n"
+            "- **P(A)**: probabilidad del evento A.\n"
+            "- **P(A ∩ B)**: probabilidad de que pasen A Y B.\n"
+            "- **P(A | B)**: probabilidad de A **dado que** ya paso B (condicional).\n"
+            "- **Bayes**: P(A | B) = P(B | A) * P(A) / P(B).\n\n"
+            "## Monte Carlo — simular probabilidades\n"
+            "Cuando no podes deducir una probabilidad analiticamente:\n"
+            "1. Simulas N experimentos.\n"
+            "2. Contas cuantas veces ocurrio el evento.\n"
+            "3. P(evento) ≈ ocurrencias / N.\n\n"
+            "Ejemplo: ¿que chance hay de que la suma de 2 dados sea 7?\n"
+            "```python\n"
+            "import numpy as np\n\n"
+            "rng = np.random.default_rng(42)\n"
+            "N = 100_000\n"
+            "d1 = rng.integers(1, 7, size=N)\n"
+            "d2 = rng.integers(1, 7, size=N)\n"
+            "p = (d1 + d2 == 7).mean()  # ~0.167 (real: 6/36 = 0.1667)\n"
+            "```\n"
+            "Cuanto mayor N, mas estable la estimacion. La regla heuristica:\n"
+            "el error escala con `1/sqrt(N)`, asi que 100x mas muestras = 10x\n"
+            "menos error.\n\n"
+            "## Bootstrap — intervalos de confianza para cualquier estadistica\n"
+            "El bootstrap responde: '¿que tan confiable es mi estimacion?'.\n"
+            "Estrategia:\n"
+            "1. Resampleas tu sample con reemplazo (mismo tamano).\n"
+            "2. Calculas la estadistica (media, mediana, etc.) sobre cada\n"
+            "   resample.\n"
+            "3. Despues de muchos resamples (1000-10000), tomas los percentiles\n"
+            "   2.5 y 97.5 — eso es el IC del 95%.\n\n"
+            "```python\n"
+            "def ic_bootstrap_media(datos, n_resamples=2000, ci=0.95, seed=0):\n"
+            "    rng = np.random.default_rng(seed)\n"
+            "    medias = np.empty(n_resamples)\n"
+            "    n = len(datos)\n"
+            "    for i in range(n_resamples):\n"
+            "        muestra = rng.choice(datos, size=n, replace=True)\n"
+            "        medias[i] = muestra.mean()\n"
+            "    alpha = 1 - ci\n"
+            "    bajo = np.percentile(medias, 100 * alpha / 2)\n"
+            "    alto = np.percentile(medias, 100 * (1 - alpha / 2))\n"
+            "    return bajo, alto\n"
+            "```\n"
+            "Salida: '(IC 95%): [4.8, 5.3]' es mas util que 'la media es 5.1'.\n\n"
+            "## Errores comunes\n"
+            "- Reportar solo Pearson sin haber visto el scatter: si la relacion\n"
+            "  es no lineal, Pearson puede esconder algo importante.\n"
+            "- Confundir P(A | B) con P(B | A). Caso clasico: test medico con\n"
+            "  positivo no significa enfermedad alta probabilidad si la\n"
+            "  enfermedad es rara (paradoja de la base).\n"
+            "- Hacer Monte Carlo con N muy chico (1000) y reportar 3 decimales:\n"
+            "  esos decimales son ruido.\n"
+            "- Bootstrap mal: resamplear SIN reemplazo (te queda el mismo sample\n"
+            "  cada vez), o no fijar la seed para reproducibilidad.\n\n"
+            "## Resumen\n"
+            "- Pearson: relacion lineal. Spearman: relacion monotona (mas\n"
+            "  robusta).\n"
+            "- Monte Carlo: simulas N veces y contas para estimar P. Error\n"
+            "  ~ 1/sqrt(N).\n"
+            "- Bootstrap: resample con reemplazo y calcula percentiles para\n"
+            "  obtener IC sin asumir distribucion.\n"
+            "- Siempre acompaña una estimacion con su incertidumbre.\n"
+        ),
+        difficulty="advanced",
+        category="estadistica",
+        order=21,
+        track="track-2",
+        estimated_duration=60,
+        prerequisites_titles=["Estadistica descriptiva: resumir un dataset"],
+        exercises=[
+            ExerciseTemplate(
+                title="Pearson vs Spearman",
+                description="Detectar cuando una relacion no es lineal pero si monotona.",
+                instructions=(
+                    "Implementa `comparar_correlaciones(x, y)` que recibe dos "
+                    "pd.Series numericas y devuelve un dict con keys 'pearson' "
+                    "y 'spearman' con cada correlacion. Ambas son floats entre "
+                    "-1 y 1."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def comparar_correlaciones(x: pd.Series, y: pd.Series) -> dict:\n"
+                    "    # TODO: {'pearson': x.corr(y), 'spearman': x.corr(y, method='spearman')}\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "x.corr(y) sin method= devuelve Pearson.",
+                    "x.corr(y, method='spearman') usa rankings.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "devuelve dict con las dos keys",
+                        "code": (
+                            "import pandas as pd\n"
+                            "x = pd.Series([1.0, 2.0, 3.0, 4.0])\n"
+                            "y = pd.Series([2.0, 4.0, 6.0, 8.0])\n"
+                            "out = comparar_correlaciones(x, y)\n"
+                            "assert set(out.keys()) == {'pearson','spearman'}"
+                        ),
+                    },
+                    {
+                        "name": "relacion lineal: pearson cercano a 1",
+                        "code": (
+                            "import pandas as pd\n"
+                            "x = pd.Series([1.0, 2.0, 3.0, 4.0, 5.0])\n"
+                            "y = pd.Series([2.0, 4.0, 6.0, 8.0, 10.0])\n"
+                            "out = comparar_correlaciones(x, y)\n"
+                            "assert abs(out['pearson'] - 1.0) < 1e-9"
+                        ),
+                    },
+                    {
+                        "name": "relacion cubica: spearman > pearson",
+                        "code": (
+                            "import pandas as pd\n"
+                            "import numpy as np\n"
+                            "x = pd.Series(np.linspace(-5, 5, 50))\n"
+                            "# y = x^3 es monotona pero no lineal\n"
+                            "y = pd.Series(x.values ** 3)\n"
+                            "out = comparar_correlaciones(x, y)\n"
+                            "# Spearman captura monotonia perfecta\n"
+                            "assert abs(out['spearman'] - 1.0) < 1e-9\n"
+                            "# Pearson es alto pero no perfecto\n"
+                            "assert out['pearson'] < 1.0"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Monte Carlo: suma de dos dados",
+                description="Simular N tiradas y estimar P(suma == valor_objetivo).",
+                instructions=(
+                    "Implementa `prob_suma_dados(valor_objetivo, n=100_000, seed=0)` "
+                    "que simula `n` tiradas de dos dados (cada uno 1..6 inclusive) "
+                    "y devuelve la probabilidad estimada (float) de que la suma "
+                    "sea igual a `valor_objetivo`. Usa np.random.default_rng(seed)."
+                ),
+                starter_code=(
+                    "import numpy as np\n\n"
+                    "def prob_suma_dados(valor_objetivo: int, n: int = 100_000, seed: int = 0) -> float:\n"
+                    "    # TODO: rng = np.random.default_rng(seed)\n"
+                    "    # d1 = rng.integers(1, 7, size=n)  # 7 exclusivo\n"
+                    "    # d2 = rng.integers(1, 7, size=n)\n"
+                    "    # return float((d1 + d2 == valor_objetivo).mean())\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "rng.integers(low, high, size=n) — high es EXCLUSIVO. Para 1..6 usar (1, 7).",
+                    "(d1 + d2 == valor).mean() te da la proporcion en un solo paso.",
+                    "Devolve un float Python (usa float(...) si pandas/numpy te devuelve scalar).",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "devuelve un float",
+                        "code": (
+                            "p = prob_suma_dados(7, n=1000, seed=0)\n"
+                            "assert isinstance(p, float)"
+                        ),
+                    },
+                    {
+                        "name": "suma 7 da probabilidad cercana a 0.167",
+                        "code": (
+                            "# 6/36 combinaciones (1+6, 2+5, ..., 6+1) → 0.1667\n"
+                            "p = prob_suma_dados(7, n=200_000, seed=0)\n"
+                            "assert abs(p - 6/36) < 0.01, f'esperaba ~0.167, obtuve {p}'"
+                        ),
+                    },
+                    {
+                        "name": "suma 2 da probabilidad cercana a 0.028",
+                        "code": (
+                            "# 1/36 combinaciones (1+1)\n"
+                            "p = prob_suma_dados(2, n=200_000, seed=0)\n"
+                            "assert abs(p - 1/36) < 0.01, f'esperaba ~0.028, obtuve {p}'"
+                        ),
+                    },
+                    {
+                        "name": "suma imposible da 0 (suma 13)",
+                        "code": (
+                            "p = prob_suma_dados(13, n=10_000, seed=0)\n"
+                            "assert p == 0.0"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="IC 95% de la media con bootstrap",
+                description="Resamplear con reemplazo y devolver percentiles 2.5/97.5 de las medias.",
+                instructions=(
+                    "Implementa `ic_media_bootstrap(datos, n_resamples=2000, "
+                    "seed=0)` que recibe un array/lista de numeros y devuelve "
+                    "una tupla (lim_inferior, lim_superior) del IC del 95% de "
+                    "la media estimado por bootstrap. Usar "
+                    "`np.random.default_rng(seed)` y `np.percentile`."
+                ),
+                starter_code=(
+                    "import numpy as np\n\n"
+                    "def ic_media_bootstrap(datos, n_resamples: int = 2000, seed: int = 0) -> tuple:\n"
+                    "    # TODO: rng = np.random.default_rng(seed)\n"
+                    "    # medias = np.empty(n_resamples)\n"
+                    "    # for i in range(n_resamples):\n"
+                    "    #     muestra = rng.choice(datos, size=len(datos), replace=True)\n"
+                    "    #     medias[i] = muestra.mean()\n"
+                    "    # bajo = np.percentile(medias, 2.5); alto = np.percentile(medias, 97.5)\n"
+                    "    # return (bajo, alto)\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "rng.choice(datos, size=n, replace=True) es el resampleo con reemplazo.",
+                    "np.percentile(medias, 2.5) y np.percentile(medias, 97.5) dan los limites.",
+                    "Devolve una tupla (float, float), no un array.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "devuelve una tupla de 2 floats",
+                        "code": (
+                            "out = ic_media_bootstrap([1.0,2.0,3.0,4.0,5.0], seed=0)\n"
+                            "assert isinstance(out, tuple) and len(out) == 2\n"
+                            "assert isinstance(float(out[0]), float)\n"
+                            "assert isinstance(float(out[1]), float)"
+                        ),
+                    },
+                    {
+                        "name": "el intervalo contiene la media muestral",
+                        "code": (
+                            "import numpy as np\n"
+                            "rng = np.random.default_rng(0)\n"
+                            "datos = rng.normal(10.0, 2.0, 200)\n"
+                            "bajo, alto = ic_media_bootstrap(datos, seed=42)\n"
+                            "media = float(datos.mean())\n"
+                            "assert bajo <= media <= alto"
+                        ),
+                    },
+                    {
+                        "name": "ancho razonable (no demasiado grande ni cero)",
+                        "code": (
+                            "import numpy as np\n"
+                            "rng = np.random.default_rng(0)\n"
+                            "datos = rng.normal(10.0, 2.0, 200)\n"
+                            "bajo, alto = ic_media_bootstrap(datos, seed=42)\n"
+                            "ancho = alto - bajo\n"
+                            "# para normal(10, 2) con n=200, IC tipico ~ +/- 0.28\n"
+                            "assert 0.0 < ancho < 1.5"
+                        ),
+                    },
+                    {
+                        "name": "reproducibilidad con misma seed",
+                        "code": (
+                            "out1 = ic_media_bootstrap([1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0], seed=7)\n"
+                            "out2 = ic_media_bootstrap([1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0], seed=7)\n"
+                            "assert out1 == out2"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
