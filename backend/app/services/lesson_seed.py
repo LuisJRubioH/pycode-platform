@@ -2021,6 +2021,308 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="Visualizacion 2: subplots, estilos y anotaciones",
+        description="Layouts con multiples axes, ejes compartidos, dual y-axis con twinx, estilos globales, y anotaciones sobre el plot.",
+        content=(
+            "## Cuando un plot no alcanza\n"
+            "Muchos analisis requieren comparar **distribuciones lado a lado**\n"
+            "o ver **dos variables con escalas distintas** en el mismo grafico.\n"
+            "matplotlib resuelve los dos con la misma idea: combinar Axes.\n\n"
+            "## subplots — grid de plots\n"
+            "```python\n"
+            "import matplotlib.pyplot as plt\n\n"
+            "fig, axes = plt.subplots(2, 2, figsize=(10, 8))\n"
+            "axes[0, 0].plot(x1, y1)\n"
+            "axes[0, 1].scatter(x2, y2)\n"
+            "axes[1, 0].hist(z1, bins=20)\n"
+            "axes[1, 1].bar(cat, vals)\n"
+            "plt.tight_layout()\n"
+            "plt.show()\n"
+            "```\n"
+            "`axes` es un array 2D — accedelo con `axes[fila, columna]`. Si\n"
+            "solo hay una fila o columna, es 1D.\n\n"
+            "## Compartir ejes — sharex / sharey\n"
+            "Cuando comparas series temporales o distribuciones con la misma\n"
+            "escala, compartir ejes evita ambiguedad visual:\n"
+            "```python\n"
+            "fig, axes = plt.subplots(2, 1, sharex=True, figsize=(8, 6))\n"
+            "axes[0].plot(fechas, ventas_a); axes[0].set_title('Sucursal A')\n"
+            "axes[1].plot(fechas, ventas_b); axes[1].set_title('Sucursal B')\n"
+            "```\n"
+            "Hacer zoom en uno ajusta el otro. El xlabel solo aparece en el de\n"
+            "abajo automaticamente.\n\n"
+            "## twinx — dos escalas en Y\n"
+            "Cuando dos variables con unidades muy distintas (ventas en pesos\n"
+            "vs unidades vendidas) viven en el mismo plot:\n"
+            "```python\n"
+            "fig, ax1 = plt.subplots()\n"
+            "ax1.plot(fechas, ingresos, color='tab:blue', label='ingresos')\n"
+            "ax1.set_ylabel('Ingresos $', color='tab:blue')\n\n"
+            "ax2 = ax1.twinx()  # eje Y derecho compartiendo X\n"
+            "ax2.plot(fechas, unidades, color='tab:orange', label='unidades')\n"
+            "ax2.set_ylabel('Unidades', color='tab:orange')\n"
+            "```\n"
+            "**Cuidado**: twinx puede engaiar visualmente porque la escala\n"
+            "doble esconde correlaciones reales. Usar con criterio y siempre\n"
+            "con ejes coloreados a juego.\n\n"
+            "## Estilos globales — plt.style.use\n"
+            "Cambia el look de todos los plots con una linea:\n"
+            "```python\n"
+            "plt.style.use('seaborn-v0_8-darkgrid')  # fondo gris con grid\n"
+            "plt.style.use('ggplot')                  # estilo R/ggplot2\n"
+            "plt.style.use('default')                 # vuelve al default\n"
+            "```\n"
+            "Lista los disponibles con `plt.style.available`. Para presentaciones,\n"
+            "`seaborn-v0_8-whitegrid` queda profesional.\n\n"
+            "## Anotaciones — ax.annotate / ax.text\n"
+            "Apuntar a un valor especifico vale mas que mil ejes:\n"
+            "```python\n"
+            "max_val = vals.max()\n"
+            "idx_max = vals.argmax()\n"
+            "ax.annotate(\n"
+            "    f'Pico: {max_val}',\n"
+            "    xy=(idx_max, max_val),       # punto donde apunta\n"
+            "    xytext=(idx_max + 1, max_val + 5),  # donde va el texto\n"
+            "    arrowprops={'arrowstyle': '->'},\n"
+            ")\n"
+            "```\n"
+            "Para textos sin flecha: `ax.text(x, y, 'mensaje', fontsize=10)`.\n\n"
+            "## Anotar valores sobre cada barra\n"
+            "Pattern util para bar charts ejecutivos:\n"
+            "```python\n"
+            "bars = ax.bar(categorias, valores)\n"
+            "for bar in bars:\n"
+            "    h = bar.get_height()\n"
+            "    ax.text(bar.get_x() + bar.get_width()/2, h + 0.5,\n"
+            "            f'{h:.0f}', ha='center', va='bottom')\n"
+            "```\n\n"
+            "## Errores comunes\n"
+            "- `subplots(1, 2)` devuelve `axes` como ARRAY 1D, no matriz 2D.\n"
+            "  Indexalo `axes[0]`, no `axes[0, 0]` — el segundo da IndexError.\n"
+            "- Olvidar `plt.tight_layout()` cuando los titulos se solapan o\n"
+            "  los labels se cortan en la imagen final.\n"
+            "- Usar twinx para variables que SI tienen la misma escala — confunde\n"
+            "  al lector. Si comparten unidad, mejor ponelas en el mismo eje.\n"
+            "- Aplicar `plt.style.use` despues de crear los axes: no afecta\n"
+            "  retroactivamente. Llamalo al inicio del script o celda.\n\n"
+            "## Resumen\n"
+            "- `subplots(filas, cols)` crea un grid de Axes. 2D si filas y cols > 1.\n"
+            "- `sharex`/`sharey` sincronizan ejes cuando compares lo mismo.\n"
+            "- `twinx` agrega un eje Y derecho — usar con cuidado.\n"
+            "- `plt.style.use` cambia look global; `ax.annotate` para anotaciones\n"
+            "  apuntadas; `ax.text` para texto libre.\n"
+        ),
+        difficulty="intermediate",
+        category="visualizacion",
+        order=17,
+        track="track-2",
+        estimated_duration=45,
+        prerequisites_titles=["Visualizacion 1: matplotlib esencial"],
+        exercises=[
+            ExerciseTemplate(
+                title="2x1 subplots con eje X compartido",
+                description="Dos plots verticales que comparten el eje X.",
+                instructions=(
+                    "Implementa `plot_dos_series(x, y1, y2)` que crea una figura "
+                    "con 2 axes apilados verticalmente (2 filas, 1 columna) "
+                    "compartiendo el eje X. En el de arriba grafica (x, y1) y en "
+                    "el de abajo (x, y2). Devuelve la tupla (fig, axes)."
+                ),
+                starter_code=(
+                    "import matplotlib.pyplot as plt\n\n"
+                    "def plot_dos_series(x, y1, y2):\n"
+                    "    # TODO: plt.subplots(2, 1, sharex=True)\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "fig, axes = plt.subplots(2, 1, sharex=True)",
+                    "axes[0].plot(x, y1) — axes es array 1D porque hay una sola columna.",
+                    "Devolve (fig, axes).",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "devuelve fig y array de 2 axes",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "fig, axes = plot_dos_series([1,2,3], [4,5,6], [10,20,30])\n"
+                            "assert fig is not None\n"
+                            "assert len(axes) == 2\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                    {
+                        "name": "ambos axes tienen una linea cada uno",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "fig, axes = plot_dos_series([1,2,3], [4,5,6], [10,20,30])\n"
+                            "assert len(axes[0].lines) == 1\n"
+                            "assert len(axes[1].lines) == 1\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                    {
+                        "name": "comparten el eje X (sharex)",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "fig, axes = plot_dos_series([1,2,3], [4,5,6], [10,20,30])\n"
+                            "# Cuando sharex=True, los Axes apuntan a la misma instancia de eje X.\n"
+                            "assert axes[0].get_shared_x_axes().joined(axes[0], axes[1])\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Bar chart con valores anotados",
+                description="Bar con texto encima de cada barra mostrando el valor.",
+                instructions=(
+                    "Implementa `plot_bar_con_valores(categorias, valores)` que "
+                    "dibuja un bar chart y agrega texto centrado encima de cada "
+                    "barra con el valor numerico (formato entero). Devuelve el "
+                    "Axes."
+                ),
+                starter_code=(
+                    "import matplotlib.pyplot as plt\n\n"
+                    "def plot_bar_con_valores(categorias, valores):\n"
+                    "    # TODO: fig, ax = plt.subplots(); bars = ax.bar(...)\n"
+                    "    # for bar in bars:\n"
+                    "    #     h = bar.get_height()\n"
+                    "    #     ax.text(bar.get_x() + bar.get_width()/2, h, f'{h:.0f}',\n"
+                    "    #             ha='center', va='bottom')\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "ax.bar devuelve un BarContainer iterable de Rectangulos.",
+                    "bar.get_x() + bar.get_width()/2 da la X central de la barra.",
+                    "ha='center' centra horizontalmente el texto.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "tiene tantas barras como categorias",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "ax = plot_bar_con_valores(['a','b','c'], [10, 20, 15])\n"
+                            "assert len(ax.patches) == 3\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                    {
+                        "name": "hay 3 textos (uno por barra)",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "ax = plot_bar_con_valores(['a','b','c'], [10, 20, 15])\n"
+                            "textos = [t.get_text() for t in ax.texts]\n"
+                            "assert len(textos) == 3\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                    {
+                        "name": "los textos muestran los valores correctos",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "ax = plot_bar_con_valores(['a','b','c'], [10, 20, 15])\n"
+                            "textos = sorted(int(t.get_text()) for t in ax.texts)\n"
+                            "assert textos == [10, 15, 20]\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Dual y-axis: ingresos vs unidades",
+                description="Mismo X (tiempo), dos escalas Y (ingresos $ y unidades).",
+                instructions=(
+                    "Implementa `plot_dual_y(fechas, ingresos, unidades)` que "
+                    "crea una figura con un Axes principal (ax1) graficando "
+                    "(fechas, ingresos) y un Axes secundario via twinx (ax2) "
+                    "graficando (fechas, unidades). Cada eje Y debe tener un "
+                    "label distinto: 'Ingresos' y 'Unidades'. Devuelve "
+                    "(fig, ax1, ax2)."
+                ),
+                starter_code=(
+                    "import matplotlib.pyplot as plt\n\n"
+                    "def plot_dual_y(fechas, ingresos, unidades):\n"
+                    "    # TODO: fig, ax1 = plt.subplots()\n"
+                    "    # ax1.plot(fechas, ingresos); ax1.set_ylabel('Ingresos')\n"
+                    "    # ax2 = ax1.twinx(); ax2.plot(...); ax2.set_ylabel('Unidades')\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "ax1.twinx() devuelve un nuevo Axes que comparte X con ax1.",
+                    "Cada axes mantiene sus propias lineas y label de Y.",
+                    "Devolve la tupla (fig, ax1, ax2) en ese orden.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "devuelve fig, ax1, ax2",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "fig, ax1, ax2 = plot_dual_y([1,2,3], [100,150,200], [10,12,15])\n"
+                            "assert fig is not None and ax1 is not None and ax2 is not None\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                    {
+                        "name": "cada axes tiene su linea",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "fig, ax1, ax2 = plot_dual_y([1,2,3], [100,150,200], [10,12,15])\n"
+                            "assert len(ax1.lines) == 1\n"
+                            "assert len(ax2.lines) == 1\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                    {
+                        "name": "ylabels son 'Ingresos' y 'Unidades'",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "fig, ax1, ax2 = plot_dual_y([1,2,3], [100,150,200], [10,12,15])\n"
+                            "assert ax1.get_ylabel() == 'Ingresos'\n"
+                            "assert ax2.get_ylabel() == 'Unidades'\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                    {
+                        "name": "ax2 comparte el eje X con ax1 (twinx)",
+                        "code": (
+                            "import matplotlib\n"
+                            "matplotlib.use('Agg')\n"
+                            "import matplotlib.pyplot as plt\n"
+                            "fig, ax1, ax2 = plot_dual_y([1,2,3], [100,150,200], [10,12,15])\n"
+                            "# twinx comparte el eje X\n"
+                            "assert ax1.get_shared_x_axes().joined(ax1, ax2)\n"
+                            "plt.close('all')"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
