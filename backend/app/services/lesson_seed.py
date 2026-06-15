@@ -2628,6 +2628,291 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="EDA 2: feature engineering basico",
+        description="Codificar categoricas con one-hot, agrupar continuas en bins, y normalizar variables para que un modelo las trate por igual.",
+        content=(
+            "## Por que feature engineering\n"
+            "Los modelos de ML no entienden 'Argentina' ni 'plan premium': solo\n"
+            "numeros. Y dentro de los numeros tampoco les es indiferente que\n"
+            "una variable este en miles y otra en decimales — los algoritmos\n"
+            "basados en distancia (kNN, SVM, redes) se van a quedar mirando\n"
+            "solo la variable de mayor escala.\n\n"
+            "Feature engineering es **transformar las columnas crudas en algo\n"
+            "que el modelo pueda usar**. En esta leccion: encoding, binning y\n"
+            "normalizacion.\n\n"
+            "## One-hot encoding — categorias a columnas binarias\n"
+            "```python\n"
+            "import pandas as pd\n\n"
+            "df = pd.DataFrame({'pais': ['AR','MX','AR','CO']})\n"
+            "dummies = pd.get_dummies(df['pais'])\n"
+            "#    AR     CO     MX\n"
+            "# 0   1      0      0\n"
+            "# 1   0      0      1\n"
+            "# 2   1      0      0\n"
+            "# 3   0      1      0\n"
+            "```\n"
+            "Cada categoria pasa a una columna binaria (0/1). Para integrar al\n"
+            "DataFrame original, `pd.get_dummies(df, columns=['pais'])` lo hace\n"
+            "directo y agrega las dummies en lugar de la columna original.\n\n"
+            "**`drop_first=True`** quita la primera categoria para evitar\n"
+            "multicolinealidad (importante para regresion lineal):\n"
+            "```python\n"
+            "pd.get_dummies(df['pais'], drop_first=True)  # 2 columnas en vez de 3\n"
+            "```\n\n"
+            "## Label encoding — orden manual\n"
+            "Cuando hay orden natural (ordinal), no uses one-hot — perdes la\n"
+            "informacion del orden. Mapea a numeros con `map`:\n"
+            "```python\n"
+            "orden_plan = {'basico': 0, 'pro': 1, 'enterprise': 2}\n"
+            "df['plan_num'] = df['plan'].map(orden_plan)\n"
+            "```\n\n"
+            "## Binning — convertir continuo en categorico\n"
+            "Para histogramas, segmentar usuarios o variables 'edad → grupo etario':\n\n"
+            "**`pd.cut`** con limites definidos:\n"
+            "```python\n"
+            "rangos = [0, 18, 30, 50, 100]\n"
+            "labels = ['menor', 'joven', 'adulto', 'mayor']\n"
+            "df['grupo'] = pd.cut(df['edad'], bins=rangos, labels=labels)\n"
+            "```\n\n"
+            "**`pd.qcut`** con cuantiles (cada bin tiene la misma cantidad de\n"
+            "puntos):\n"
+            "```python\n"
+            "df['quintil'] = pd.qcut(df['ingreso'], q=5, labels=['Q1','Q2','Q3','Q4','Q5'])\n"
+            "```\n"
+            "`qcut` es ideal cuando los datos estan sesgados (long tail): los\n"
+            "limites se adaptan a la distribucion.\n\n"
+            "## Transformaciones — comprimir/expandir escalas\n"
+            "Si una variable es muy sesgada hacia la derecha (precios, ingresos),\n"
+            "el log la simetriza:\n"
+            "```python\n"
+            "import numpy as np\n"
+            "df['log_precio'] = np.log1p(df['precio'])  # log(1 + x), maneja 0\n"
+            "```\n"
+            "`log1p` se usa en vez de `log` porque acepta 0 (log(0) = -inf).\n\n"
+            "## Normalizacion min-max — escala 0 a 1\n"
+            "```python\n"
+            "def min_max(s):\n"
+            "    return (s - s.min()) / (s.max() - s.min())\n\n"
+            "df['edad_norm'] = min_max(df['edad'])\n"
+            "```\n"
+            "Util cuando importa la **forma** de la distribucion mas que la\n"
+            "escala (kNN, redes con sigmoid).\n\n"
+            "## Estandarizacion z-score — media 0, std 1\n"
+            "```python\n"
+            "def zscore(s):\n"
+            "    return (s - s.mean()) / s.std()\n\n"
+            "df['edad_z'] = zscore(df['edad'])\n"
+            "```\n"
+            "Mas comun en regresion lineal / logistica y para detectar outliers\n"
+            "(|z| > 3 suele considerarse outlier).\n\n"
+            "## Errores comunes\n"
+            "- Hacer one-hot a una columna con miles de categorias: explosion\n"
+            "  de columnas. Mejor usar target encoding o agrupar las raras en\n"
+            "  'otros'.\n"
+            "- Normalizar TODO el dataset junto incluyendo el target: leak.\n"
+            "  Normaliza features, no el target.\n"
+            "- Calcular la normalizacion sobre el dataset COMPLETO y despues\n"
+            "  hacer split train/test: leak temporal. Lo correcto es fitear\n"
+            "  los stats en train y aplicarlos a test.\n"
+            "- Usar log sobre una columna con ceros sin log1p: -inf en la\n"
+            "  primera fila, modelo roto.\n\n"
+            "## Resumen\n"
+            "- One-hot para nominales (sin orden); label/map para ordinales.\n"
+            "- `pd.cut` con limites fijos; `pd.qcut` con cuantiles.\n"
+            "- Log para distribuciones sesgadas (`log1p` si hay ceros).\n"
+            "- Min-max para distancias (kNN); z-score para regresion lineal.\n"
+            "- Calcula los parametros de normalizacion en train, no en todo el\n"
+            "  dataset.\n"
+        ),
+        difficulty="intermediate",
+        category="eda",
+        order=19,
+        track="track-2",
+        estimated_duration=55,
+        prerequisites_titles=["EDA: exploracion sistematica de un dataset"],
+        exercises=[
+            ExerciseTemplate(
+                title="One-hot encoding de pais",
+                description="Convertir una columna categorica en columnas binarias.",
+                instructions=(
+                    "Implementa `one_hot_pais(df)` que devuelve un DataFrame "
+                    "agregando columnas one-hot por cada valor unico de la "
+                    "columna 'pais', con el prefijo 'pais_' (ej. 'pais_AR'). "
+                    "Devuelve el DataFrame con las columnas originales MAS las "
+                    "nuevas; NO drop_first."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def one_hot_pais(df: pd.DataFrame) -> pd.DataFrame:\n"
+                    "    # TODO: pd.get_dummies(df, columns=['pais'], prefix='pais')\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "pd.get_dummies(df, columns=['pais'], prefix='pais') hace todo en una linea.",
+                    "Sin drop_first quedan tantas columnas dummy como categorias distintas.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "devuelve DataFrame con las dummies",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'pais':['AR','MX','CO','AR']})\n"
+                            "out = one_hot_pais(df)\n"
+                            "assert 'pais_AR' in out.columns\n"
+                            "assert 'pais_MX' in out.columns\n"
+                            "assert 'pais_CO' in out.columns"
+                        ),
+                    },
+                    {
+                        "name": "los valores son 0/1 correctos",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'pais':['AR','MX','CO','AR']})\n"
+                            "out = one_hot_pais(df)\n"
+                            "assert int(out['pais_AR'].iloc[0]) == 1\n"
+                            "assert int(out['pais_AR'].iloc[1]) == 0\n"
+                            "assert int(out['pais_MX'].iloc[1]) == 1\n"
+                            "assert int(out['pais_AR'].iloc[3]) == 1"
+                        ),
+                    },
+                    {
+                        "name": "la columna original pais ya no esta",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'pais':['AR','MX','CO','AR']})\n"
+                            "out = one_hot_pais(df)\n"
+                            "# get_dummies con columns= drop la original.\n"
+                            "assert 'pais' not in out.columns"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Binning de edad en grupos",
+                description="Convertir edad numerica en categorias etarias con pd.cut.",
+                instructions=(
+                    "Implementa `grupos_etarios(df)` que recibe un DataFrame con "
+                    "columna 'edad'. Devuelve el mismo DataFrame con una nueva "
+                    "columna 'grupo' usando los bins [0, 18, 30, 50, 100] y "
+                    "labels ['menor', 'joven', 'adulto', 'mayor']. No mutar "
+                    "el original."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def grupos_etarios(df: pd.DataFrame) -> pd.DataFrame:\n"
+                    "    # TODO: copia, df['grupo'] = pd.cut(df['edad'], bins=..., labels=...)\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "pd.cut(serie, bins=[0,18,30,50,100], labels=['menor','joven','adulto','mayor'])",
+                    "Devolve una copia: out = df.copy(); out['grupo'] = ...",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "no muta el original",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'edad':[10, 25, 40, 60]})\n"
+                            "_ = grupos_etarios(df)\n"
+                            "assert 'grupo' not in df.columns"
+                        ),
+                    },
+                    {
+                        "name": "asigna el grupo correcto a cada edad",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'edad':[10, 25, 40, 60]})\n"
+                            "out = grupos_etarios(df)\n"
+                            "assert str(out['grupo'].iloc[0]) == 'menor'\n"
+                            "assert str(out['grupo'].iloc[1]) == 'joven'\n"
+                            "assert str(out['grupo'].iloc[2]) == 'adulto'\n"
+                            "assert str(out['grupo'].iloc[3]) == 'mayor'"
+                        ),
+                    },
+                    {
+                        "name": "preserva las columnas originales",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'edad':[10, 25, 40, 60], 'extra': [1,2,3,4]})\n"
+                            "out = grupos_etarios(df)\n"
+                            "assert 'edad' in out.columns\n"
+                            "assert 'extra' in out.columns"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Normalizar con min-max y z-score",
+                description="Devolver el DataFrame con dos columnas extra normalizadas.",
+                instructions=(
+                    "Implementa `normalizar_precio(df)` que recibe un DataFrame "
+                    "con columna 'precio'. Devuelve una copia con dos columnas "
+                    "extra: 'precio_norm' (min-max a [0, 1]) y 'precio_z' "
+                    "(z-score). No mutar el original."
+                ),
+                starter_code=(
+                    "import pandas as pd\n\n"
+                    "def normalizar_precio(df: pd.DataFrame) -> pd.DataFrame:\n"
+                    "    # TODO: copia, calcula min/max y mean/std,\n"
+                    "    # crea precio_norm y precio_z.\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "min-max: (s - s.min()) / (s.max() - s.min())",
+                    "z-score: (s - s.mean()) / s.std()",
+                    "Calcula los stats sobre la columna del DataFrame copiado, no de pasos intermedios.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "no muta el original",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'precio':[10.0, 20.0, 30.0]})\n"
+                            "_ = normalizar_precio(df)\n"
+                            "assert 'precio_norm' not in df.columns\n"
+                            "assert 'precio_z' not in df.columns"
+                        ),
+                    },
+                    {
+                        "name": "min-max queda en rango [0, 1]",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'precio':[10.0, 20.0, 30.0, 40.0]})\n"
+                            "out = normalizar_precio(df)\n"
+                            "assert abs(out['precio_norm'].min() - 0.0) < 1e-9\n"
+                            "assert abs(out['precio_norm'].max() - 1.0) < 1e-9"
+                        ),
+                    },
+                    {
+                        "name": "z-score tiene media cercana a 0",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'precio':[10.0, 20.0, 30.0, 40.0]})\n"
+                            "out = normalizar_precio(df)\n"
+                            "assert abs(out['precio_z'].mean()) < 1e-9"
+                        ),
+                    },
+                    {
+                        "name": "preserva la columna original 'precio'",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({'precio':[10.0, 20.0, 30.0]})\n"
+                            "out = normalizar_precio(df)\n"
+                            "assert 'precio' in out.columns\n"
+                            "assert out['precio'].tolist() == [10.0, 20.0, 30.0]"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
