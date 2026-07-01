@@ -3491,6 +3491,357 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="ML 1 · Tu primer clasificador con scikit-learn",
+        description=(
+            "Aprendizaje supervisado en 3 ideas: features vs target, "
+            "train/test split y el API fit/predict. Entrena un LogisticRegression "
+            "y un KNN sobre iris."
+        ),
+        content=(
+            "# ML 1: tu primer clasificador con scikit-learn\n\n"
+            "Los tracks anteriores te dieron Python solido y la caja de "
+            "herramientas de Data Science (NumPy, Pandas, matplotlib, "
+            "estadistica). En este bloque empieza el Track 3: **Machine "
+            "Learning clasico** con `scikit-learn`.\n\n"
+            "## Tres ideas para empezar\n\n"
+            "### 1. Aprendizaje supervisado = mapear X a y\n\n"
+            "Un problema de aprendizaje supervisado tiene dos piezas:\n\n"
+            "- **X** (features / caracteristicas): una matriz `n_samples x n_features` "
+            "con lo que **observas** de cada ejemplo. En iris: 4 columnas numericas "
+            "(largo y ancho del sepalo y del petalo).\n"
+            "- **y** (target / etiqueta): un vector de longitud `n_samples` con "
+            "lo que **quieres predecir**. Puede ser una categoria (clasificacion) "
+            "o un numero (regresion). En iris: la especie (setosa / versicolor / "
+            "virginica).\n\n"
+            "Un modelo de ML es una funcion `f` tal que `y_estimado = f(X)`. El "
+            "**entrenamiento** aprende los parametros de `f` a partir de datos "
+            "vistos.\n\n"
+            "> Regla mental: si no puedes describir X e y en una frase, no tienes "
+            "un problema de ML todavia — tienes un problema de definicion de "
+            "producto.\n\n"
+            "### 2. Train / test split evita autoengano\n\n"
+            "Si evaluas el modelo sobre los mismos datos con los que lo "
+            "entrenaste, el modelo puede memorizar y darte 100% de accuracy sin "
+            "haber aprendido nada generalizable. Por eso se separa el dataset:\n\n"
+            "- **train**: 70-80% del dataset. El modelo lo ve y ajusta sus "
+            "parametros.\n"
+            "- **test**: 20-30% del dataset. Se guarda escondido; solo se usa al "
+            "final para medir performance.\n\n"
+            "```python\n"
+            "from sklearn.model_selection import train_test_split\n\n"
+            "X_train, X_test, y_train, y_test = train_test_split(\n"
+            "    X, y,\n"
+            "    test_size=0.3,       # 30% para test\n"
+            "    random_state=42,     # reproducible\n"
+            "    stratify=y,          # mantiene proporcion de clases\n"
+            ")\n"
+            "```\n\n"
+            "**Notas clave:**\n\n"
+            "- `random_state=42` fija la semilla del RNG interno; sin esto cada "
+            "corrida da un split distinto y no puedes reproducir resultados.\n"
+            "- `stratify=y` es crucial en clasificacion desbalanceada: garantiza "
+            "que la proporcion de cada clase en train y test sea la misma que en "
+            "el dataset original. Sin esto, un split puede dejarte con 0 muestras "
+            "de una clase en test.\n\n"
+            "### 3. sklearn expone una API uniforme fit/predict\n\n"
+            "Cualquier modelo de sklearn (`LogisticRegression`, `KNeighborsClassifier`, "
+            "`DecisionTreeClassifier`, `RandomForestClassifier`, ...) implementa el "
+            "mismo trio de metodos:\n\n"
+            "1. `modelo.fit(X_train, y_train)` — aprende parametros.\n"
+            "2. `modelo.predict(X_test)` — genera predicciones.\n"
+            "3. `modelo.score(X_test, y_test)` — retorna la metrica por defecto "
+            "(accuracy para clasificadores).\n\n"
+            "Esta uniformidad es la que hace potente a sklearn: cambiar de modelo "
+            "es literalmente cambiar una linea.\n\n"
+            "## Tu primer clasificador: LogisticRegression\n\n"
+            "A pesar del nombre, `LogisticRegression` es un **clasificador** — "
+            "modela la probabilidad de cada clase con una funcion sigmoide sobre "
+            "una combinacion lineal de features.\n\n"
+            "```python\n"
+            "from sklearn.linear_model import LogisticRegression\n"
+            "from sklearn.metrics import accuracy_score\n\n"
+            "modelo = LogisticRegression(random_state=42, max_iter=500)\n"
+            "modelo.fit(X_train, y_train)\n"
+            "predicciones = modelo.predict(X_test)\n"
+            "acc = accuracy_score(y_test, predicciones)\n"
+            "print(f'accuracy = {acc:.3f}')\n"
+            "```\n\n"
+            "**Por que `max_iter=500`?** El default es 100; para datasets pequenos "
+            "o mal escalados el optimizador puede no converger en 100 iteraciones "
+            "y te sale un `ConvergenceWarning`. Subirlo es mas simple que "
+            "estandarizar features en este primer contacto.\n\n"
+            "## Otro modelo con la misma API: KNN\n\n"
+            "`KNeighborsClassifier` no aprende parametros — memoriza el train y "
+            "para cada punto de test busca los `k` vecinos mas cercanos, votando "
+            "la clase mayoritaria.\n\n"
+            "```python\n"
+            "from sklearn.neighbors import KNeighborsClassifier\n\n"
+            "knn = KNeighborsClassifier(n_neighbors=3)\n"
+            "knn.fit(X_train, y_train)\n"
+            "acc_knn = knn.score(X_test, y_test)\n"
+            "```\n\n"
+            "**Elegir `k`:**\n\n"
+            "- `k=1`: sensible al ruido (memoriza un solo vecino).\n"
+            "- `k` grande: promedia mucho, puede perder patrones locales.\n"
+            "- Regla intuitiva: `k` impar y pequeno (3, 5, 7). En produccion se "
+            "elige con cross-validation.\n\n"
+            "## Metrica: accuracy\n\n"
+            "`accuracy = predicciones correctas / total`. Es la metrica default "
+            "de `score()` en clasificadores. Es simple e intuitiva pero **enganosa "
+            "en desbalance**: si el 95% de los datos son de una clase, predecir "
+            "siempre esa clase te da 95% de accuracy sin haber aprendido nada. "
+            "Para esos casos existen precision, recall y f1 — los veras en la "
+            "proxima leccion.\n\n"
+            "## Errores comunes de la primera semana en ML\n\n"
+            "1. **Entrenar y evaluar sobre el mismo split** — el clasico "
+            '"tengo 100% de accuracy". Casi siempre significa que estas '
+            "midiendo sobre train, o que la variable objetivo se filtro en X "
+            "(data leakage).\n"
+            "2. **Olvidar `random_state`** — sin semilla, cada corrida da un "
+            "resultado distinto y no puedes comparar experimentos.\n"
+            "3. **No estratificar** — con clases desbalanceadas o datasets "
+            "pequenos, `stratify=y` puede ser la diferencia entre un split "
+            "aprovechable y uno inutil.\n"
+            "4. **Confundir `predict` con `predict_proba`** — el primero devuelve "
+            "la clase (0/1/2 en iris), el segundo la probabilidad de cada clase "
+            "(matriz n x n_clases).\n"
+            "5. **Comparar accuracies sin test comun** — LogReg 0.90 y KNN 0.88 "
+            "no significa nada si se corrieron sobre splits distintos. Fija "
+            "`X_train, X_test, y_train, y_test` una vez y reusalos.\n\n"
+            "## Resumen\n\n"
+            "- ML supervisado = `f(X) -> y`, entrenada sobre datos historicos.\n"
+            "- `train_test_split(random_state=42, stratify=y)` es tu punto de "
+            "partida siempre. Sin split limpio no hay conclusion valida.\n"
+            "- sklearn expone `fit`, `predict` y `score` en todos sus modelos. "
+            "Cambiar de LogReg a KNN son 2 imports y una linea.\n"
+            "- accuracy es el primer contacto con metricas de clasificacion; en "
+            "la proxima leccion apareceran precision, recall y confusion matrix "
+            "para escenarios reales.\n"
+        ),
+        difficulty="intermediate",
+        category="ml-fundamentos",
+        order=22,
+        track="track-3",
+        estimated_duration=55,
+        prerequisites_titles=[
+            "Estadistica descriptiva",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Split de iris estratificado",
+                description=(
+                    "Divide el dataset iris en train/test manteniendo la "
+                    "proporcion de clases."
+                ),
+                instructions=(
+                    "Implementa `preparar_iris_split(df)` que recibe el DataFrame "
+                    "de iris (columnas `sepal_length, sepal_width, petal_length, "
+                    "petal_width, species`) y devuelve la tupla `(X_train, X_test, "
+                    "y_train, y_test)` con `test_size=0.3`, `random_state=42` y "
+                    "`stratify=y`. X debe ser un DataFrame con las 4 features; y "
+                    "una Series con la columna `species`."
+                ),
+                starter_code=(
+                    "from sklearn.model_selection import train_test_split\n"
+                    "\n"
+                    "\n"
+                    "def preparar_iris_split(df):\n"
+                    "    # TODO: separa features (X) del target (y)\n"
+                    "    # TODO: llama a train_test_split con test_size=0.3,\n"
+                    "    #       random_state=42 y stratify=y\n"
+                    "    # TODO: retorna (X_train, X_test, y_train, y_test)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "X = df[['sepal_length','sepal_width','petal_length','petal_width']]; y = df['species'].",
+                    "train_test_split retorna 4 objetos: X_train, X_test, y_train, y_test en ese orden.",
+                    "stratify=y garantiza 3 muestras de cada clase en test (dataset 30 filas, 30% => 9).",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "tamanos correctos 21 train / 9 test",
+                        "code": (
+                            "import io\n"
+                            "import pandas as pd\n"
+                            "csv = 'sepal_length,sepal_width,petal_length,petal_width,species\\n'\n"
+                            "for i, sp in enumerate(['setosa']*10 + ['versicolor']*10 + ['virginica']*10):\n"
+                            "    csv += f'{5.0+0.1*i},{3.0+0.05*i},{1.5+0.2*i},{0.3+0.1*i},{sp}\\n'\n"
+                            "df = pd.read_csv(io.StringIO(csv))\n"
+                            "X_train, X_test, y_train, y_test = preparar_iris_split(df)\n"
+                            "assert len(X_train) == 21, len(X_train)\n"
+                            "assert len(X_test) == 9, len(X_test)\n"
+                            "assert len(y_train) == 21\n"
+                            "assert len(y_test) == 9"
+                        ),
+                    },
+                    {
+                        "name": "X mantiene las 4 columnas de features",
+                        "code": (
+                            "import io\n"
+                            "import pandas as pd\n"
+                            "csv = 'sepal_length,sepal_width,petal_length,petal_width,species\\n'\n"
+                            "for i, sp in enumerate(['setosa']*10 + ['versicolor']*10 + ['virginica']*10):\n"
+                            "    csv += f'{5.0+0.1*i},{3.0+0.05*i},{1.5+0.2*i},{0.3+0.1*i},{sp}\\n'\n"
+                            "df = pd.read_csv(io.StringIO(csv))\n"
+                            "X_train, X_test, _, _ = preparar_iris_split(df)\n"
+                            "esperado = ['sepal_length','sepal_width','petal_length','petal_width']\n"
+                            "assert list(X_train.columns) == esperado, list(X_train.columns)\n"
+                            "assert list(X_test.columns) == esperado"
+                        ),
+                    },
+                    {
+                        "name": "stratify preserva 3 por clase en test",
+                        "code": (
+                            "import io\n"
+                            "import pandas as pd\n"
+                            "csv = 'sepal_length,sepal_width,petal_length,petal_width,species\\n'\n"
+                            "for i, sp in enumerate(['setosa']*10 + ['versicolor']*10 + ['virginica']*10):\n"
+                            "    csv += f'{5.0+0.1*i},{3.0+0.05*i},{1.5+0.2*i},{0.3+0.1*i},{sp}\\n'\n"
+                            "df = pd.read_csv(io.StringIO(csv))\n"
+                            "_, _, _, y_test = preparar_iris_split(df)\n"
+                            "conteo = y_test.value_counts().to_dict()\n"
+                            "assert conteo == {'setosa': 3, 'versicolor': 3, 'virginica': 3}, conteo"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Primer LogisticRegression sobre iris",
+                description=(
+                    "Entrena un modelo LogisticRegression y devuelve accuracy en test."
+                ),
+                instructions=(
+                    "Implementa `entrenar_logreg(X_train, y_train, X_test, y_test)` "
+                    "que crea un `LogisticRegression(random_state=42, max_iter=500)`, "
+                    "lo entrena con `fit`, predice sobre `X_test` y devuelve la "
+                    "accuracy como `float` (usa `accuracy_score` o `.score`)."
+                ),
+                starter_code=(
+                    "from sklearn.linear_model import LogisticRegression\n"
+                    "from sklearn.metrics import accuracy_score\n"
+                    "\n"
+                    "\n"
+                    "def entrenar_logreg(X_train, y_train, X_test, y_test):\n"
+                    "    # TODO: crea LogisticRegression(random_state=42, max_iter=500)\n"
+                    "    # TODO: fit sobre X_train, y_train\n"
+                    "    # TODO: retorna float(accuracy_score(y_test, modelo.predict(X_test)))\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "El API es tres pasos: instanciar, fit, predict.",
+                    "random_state=42 es lo que garantiza que tu resultado sea reproducible.",
+                    "En iris con solo 30 filas y clases muy separables, LogReg puede llegar a 1.0.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "retorna un float en [0, 1]",
+                        "code": (
+                            "import io\n"
+                            "import pandas as pd\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "csv = 'sepal_length,sepal_width,petal_length,petal_width,species\\n5.1,3.5,1.4,0.2,setosa\\n4.9,3.0,1.4,0.2,setosa\\n4.7,3.2,1.3,0.2,setosa\\n4.6,3.1,1.5,0.2,setosa\\n5.0,3.6,1.4,0.2,setosa\\n5.4,3.9,1.7,0.4,setosa\\n4.6,3.4,1.4,0.3,setosa\\n5.0,3.4,1.5,0.2,setosa\\n4.4,2.9,1.4,0.2,setosa\\n4.9,3.1,1.5,0.1,setosa\\n7.0,3.2,4.7,1.4,versicolor\\n6.4,3.2,4.5,1.5,versicolor\\n6.9,3.1,4.9,1.5,versicolor\\n5.5,2.3,4.0,1.3,versicolor\\n6.5,2.8,4.6,1.5,versicolor\\n5.7,2.8,4.5,1.3,versicolor\\n6.3,3.3,4.7,1.6,versicolor\\n4.9,2.4,3.3,1.0,versicolor\\n6.6,2.9,4.6,1.3,versicolor\\n5.2,2.7,3.9,1.4,versicolor\\n6.3,3.3,6.0,2.5,virginica\\n5.8,2.7,5.1,1.9,virginica\\n7.1,3.0,5.9,2.1,virginica\\n6.3,2.9,5.6,1.8,virginica\\n6.5,3.0,5.8,2.2,virginica\\n7.6,3.0,6.6,2.1,virginica\\n4.9,2.5,4.5,1.7,virginica\\n7.3,2.9,6.3,1.8,virginica\\n6.7,2.5,5.8,1.8,virginica\\n7.2,3.6,6.1,2.5,virginica\\n'\n"
+                            "df = pd.read_csv(io.StringIO(csv))\n"
+                            "X = df[['sepal_length','sepal_width','petal_length','petal_width']]\n"
+                            "y = df['species']\n"
+                            "X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "acc = entrenar_logreg(X_train, y_train, X_test, y_test)\n"
+                            "assert isinstance(acc, float), type(acc)\n"
+                            "assert 0.0 <= acc <= 1.0, acc"
+                        ),
+                    },
+                    {
+                        "name": "accuracy = 1.0 sobre iris con seed 42",
+                        "code": (
+                            "import io\n"
+                            "import pandas as pd\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "csv = 'sepal_length,sepal_width,petal_length,petal_width,species\\n5.1,3.5,1.4,0.2,setosa\\n4.9,3.0,1.4,0.2,setosa\\n4.7,3.2,1.3,0.2,setosa\\n4.6,3.1,1.5,0.2,setosa\\n5.0,3.6,1.4,0.2,setosa\\n5.4,3.9,1.7,0.4,setosa\\n4.6,3.4,1.4,0.3,setosa\\n5.0,3.4,1.5,0.2,setosa\\n4.4,2.9,1.4,0.2,setosa\\n4.9,3.1,1.5,0.1,setosa\\n7.0,3.2,4.7,1.4,versicolor\\n6.4,3.2,4.5,1.5,versicolor\\n6.9,3.1,4.9,1.5,versicolor\\n5.5,2.3,4.0,1.3,versicolor\\n6.5,2.8,4.6,1.5,versicolor\\n5.7,2.8,4.5,1.3,versicolor\\n6.3,3.3,4.7,1.6,versicolor\\n4.9,2.4,3.3,1.0,versicolor\\n6.6,2.9,4.6,1.3,versicolor\\n5.2,2.7,3.9,1.4,versicolor\\n6.3,3.3,6.0,2.5,virginica\\n5.8,2.7,5.1,1.9,virginica\\n7.1,3.0,5.9,2.1,virginica\\n6.3,2.9,5.6,1.8,virginica\\n6.5,3.0,5.8,2.2,virginica\\n7.6,3.0,6.6,2.1,virginica\\n4.9,2.5,4.5,1.7,virginica\\n7.3,2.9,6.3,1.8,virginica\\n6.7,2.5,5.8,1.8,virginica\\n7.2,3.6,6.1,2.5,virginica\\n'\n"
+                            "df = pd.read_csv(io.StringIO(csv))\n"
+                            "X = df[['sepal_length','sepal_width','petal_length','petal_width']]\n"
+                            "y = df['species']\n"
+                            "X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "acc = entrenar_logreg(X_train, y_train, X_test, y_test)\n"
+                            "assert acc == 1.0, acc"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Comparar KNN con distintos k",
+                description=(
+                    "Escribe una funcion que entrene KNN para varios valores de k "
+                    "y devuelva el mapa k -> accuracy."
+                ),
+                instructions=(
+                    "Implementa `comparar_knn(X_train, y_train, X_test, y_test, ks)` "
+                    "que recibe una lista `ks` de enteros (p.ej. [3, 5, 7]) y "
+                    "devuelve un `dict` `{k: accuracy_float}` entrenando un "
+                    "`KNeighborsClassifier(n_neighbors=k)` distinto para cada k. "
+                    "Usa la accuracy sobre `X_test`."
+                ),
+                starter_code=(
+                    "from sklearn.neighbors import KNeighborsClassifier\n"
+                    "from sklearn.metrics import accuracy_score\n"
+                    "\n"
+                    "\n"
+                    "def comparar_knn(X_train, y_train, X_test, y_test, ks):\n"
+                    "    # TODO: recorre ks, entrena un KNeighborsClassifier(n_neighbors=k),\n"
+                    "    #       calcula accuracy en X_test y guarda en un dict\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Cada k necesita su propio modelo entrenado — no reuses el mismo objeto entre iteraciones.",
+                    "float(accuracy_score(y_test, modelo.predict(X_test))) o modelo.score(X_test, y_test).",
+                    "En iris con 30 filas, k=3 y k=5 dan accuracies parecidos porque las clases estan muy separadas.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "devuelve dict con las k pedidas",
+                        "code": (
+                            "import io\n"
+                            "import pandas as pd\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "csv = 'sepal_length,sepal_width,petal_length,petal_width,species\\n5.1,3.5,1.4,0.2,setosa\\n4.9,3.0,1.4,0.2,setosa\\n4.7,3.2,1.3,0.2,setosa\\n4.6,3.1,1.5,0.2,setosa\\n5.0,3.6,1.4,0.2,setosa\\n5.4,3.9,1.7,0.4,setosa\\n4.6,3.4,1.4,0.3,setosa\\n5.0,3.4,1.5,0.2,setosa\\n4.4,2.9,1.4,0.2,setosa\\n4.9,3.1,1.5,0.1,setosa\\n7.0,3.2,4.7,1.4,versicolor\\n6.4,3.2,4.5,1.5,versicolor\\n6.9,3.1,4.9,1.5,versicolor\\n5.5,2.3,4.0,1.3,versicolor\\n6.5,2.8,4.6,1.5,versicolor\\n5.7,2.8,4.5,1.3,versicolor\\n6.3,3.3,4.7,1.6,versicolor\\n4.9,2.4,3.3,1.0,versicolor\\n6.6,2.9,4.6,1.3,versicolor\\n5.2,2.7,3.9,1.4,versicolor\\n6.3,3.3,6.0,2.5,virginica\\n5.8,2.7,5.1,1.9,virginica\\n7.1,3.0,5.9,2.1,virginica\\n6.3,2.9,5.6,1.8,virginica\\n6.5,3.0,5.8,2.2,virginica\\n7.6,3.0,6.6,2.1,virginica\\n4.9,2.5,4.5,1.7,virginica\\n7.3,2.9,6.3,1.8,virginica\\n6.7,2.5,5.8,1.8,virginica\\n7.2,3.6,6.1,2.5,virginica\\n'\n"
+                            "df = pd.read_csv(io.StringIO(csv))\n"
+                            "X = df[['sepal_length','sepal_width','petal_length','petal_width']]\n"
+                            "y = df['species']\n"
+                            "X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "res = comparar_knn(X_train, y_train, X_test, y_test, [3, 5])\n"
+                            "assert isinstance(res, dict), type(res)\n"
+                            "assert set(res.keys()) == {3, 5}, res.keys()\n"
+                            "for v in res.values():\n"
+                            "    assert isinstance(v, float), type(v)\n"
+                            "    assert 0.0 <= v <= 1.0, v"
+                        ),
+                    },
+                    {
+                        "name": "accuracies iguales a 0.8889 para k=3 y k=5",
+                        "code": (
+                            "import io\n"
+                            "import math\n"
+                            "import pandas as pd\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "csv = 'sepal_length,sepal_width,petal_length,petal_width,species\\n5.1,3.5,1.4,0.2,setosa\\n4.9,3.0,1.4,0.2,setosa\\n4.7,3.2,1.3,0.2,setosa\\n4.6,3.1,1.5,0.2,setosa\\n5.0,3.6,1.4,0.2,setosa\\n5.4,3.9,1.7,0.4,setosa\\n4.6,3.4,1.4,0.3,setosa\\n5.0,3.4,1.5,0.2,setosa\\n4.4,2.9,1.4,0.2,setosa\\n4.9,3.1,1.5,0.1,setosa\\n7.0,3.2,4.7,1.4,versicolor\\n6.4,3.2,4.5,1.5,versicolor\\n6.9,3.1,4.9,1.5,versicolor\\n5.5,2.3,4.0,1.3,versicolor\\n6.5,2.8,4.6,1.5,versicolor\\n5.7,2.8,4.5,1.3,versicolor\\n6.3,3.3,4.7,1.6,versicolor\\n4.9,2.4,3.3,1.0,versicolor\\n6.6,2.9,4.6,1.3,versicolor\\n5.2,2.7,3.9,1.4,versicolor\\n6.3,3.3,6.0,2.5,virginica\\n5.8,2.7,5.1,1.9,virginica\\n7.1,3.0,5.9,2.1,virginica\\n6.3,2.9,5.6,1.8,virginica\\n6.5,3.0,5.8,2.2,virginica\\n7.6,3.0,6.6,2.1,virginica\\n4.9,2.5,4.5,1.7,virginica\\n7.3,2.9,6.3,1.8,virginica\\n6.7,2.5,5.8,1.8,virginica\\n7.2,3.6,6.1,2.5,virginica\\n'\n"
+                            "df = pd.read_csv(io.StringIO(csv))\n"
+                            "X = df[['sepal_length','sepal_width','petal_length','petal_width']]\n"
+                            "y = df['species']\n"
+                            "X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "res = comparar_knn(X_train, y_train, X_test, y_test, [3, 5])\n"
+                            "assert math.isclose(res[3], 8/9, abs_tol=1e-4), res[3]\n"
+                            "assert math.isclose(res[5], 8/9, abs_tol=1e-4), res[5]"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
