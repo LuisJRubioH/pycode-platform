@@ -5640,6 +5640,326 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="ML 7 · Clustering con KMeans y metodo del codo",
+        description=(
+            "Primer modelo no supervisado: KMeans para agrupar sin "
+            "labels. Metodo del codo y silhouette para elegir k."
+        ),
+        content=(
+            "# ML 7: clustering con KMeans\n\n"
+            "Hasta ahora todo fue **supervisado**: dabas `X` y `y`, el "
+            "modelo aprendia el mapeo. En **clustering** solo tienes "
+            "`X` — el modelo debe encontrar grupos naturales sin que "
+            "nadie le diga cuales son las clases. Aplicaciones clasicas: "
+            "segmentacion de clientes, deteccion de anomalias, "
+            "compresion de datos, exploracion de datasets nuevos.\n\n"
+            "## Tres ideas para entender KMeans\n\n"
+            "### 1. KMeans busca K centroides que minimizan la inercia\n\n"
+            "**Inercia** = suma de distancias al cuadrado de cada punto "
+            "a su centroide asignado. KMeans reparte los puntos en K "
+            "grupos y ajusta los centros iterativamente para que la "
+            "inercia sea la menor posible.\n\n"
+            "```\n"
+            "algoritmo:\n"
+            "  1. Elige K centros iniciales (KMeans++ los pone bien).\n"
+            "  2. Repite hasta convergencia:\n"
+            "     a. Asigna cada punto al centro mas cercano.\n"
+            "     b. Recalcula cada centro como la media de sus puntos.\n"
+            "```\n\n"
+            "```python\n"
+            "from sklearn.cluster import KMeans\n\n"
+            "km = KMeans(n_clusters=3, random_state=42, n_init=10)\n"
+            "km.fit(X)                # aprende centroides\n"
+            "labels = km.labels_      # cluster de cada fila (0..K-1)\n"
+            "centers = km.cluster_centers_  # shape (K, n_features)\n"
+            "print(km.inertia_)       # suma de dist^2 al centro asignado\n"
+            "```\n\n"
+            "**Cuidados clave:**\n\n"
+            "- **`random_state`** — KMeans depende de la inicializacion. "
+            "Fijarlo hace el resultado reproducible.\n"
+            "- **`n_init=10`** — corre KMeans 10 veces con diferentes "
+            "inicializaciones y se queda con la mejor. Sin esto, un "
+            "arranque malo te da clusters horribles.\n"
+            "- **Escalado obligatorio** — KMeans usa distancia "
+            "euclideana; una feature en dolares (0-1000000) dominara a "
+            "una en anios (20-80). Aplica `StandardScaler` antes.\n\n"
+            "### 2. Metodo del codo: como elegir K\n\n"
+            "A diferencia del supervisado, no hay accuracy que "
+            "maximizar. La inercia siempre baja al subir K (con K=N "
+            "cada punto es su propio cluster e inercia=0). Necesitas un "
+            "criterio externo. El **metodo del codo** grafica inercia "
+            "vs K y busca el punto donde deja de bajar rapido.\n\n"
+            "```python\n"
+            "inertias = []\n"
+            "for k in range(1, 8):\n"
+            "    km = KMeans(n_clusters=k, random_state=42, n_init=10).fit(X)\n"
+            "    inertias.append(km.inertia_)\n"
+            "# grafico inertias vs k, buscar el 'codo'\n"
+            "```\n\n"
+            "```\n"
+            "iris:\n"
+            "  k=1: inertia=681.37\n"
+            "  k=2: inertia=152.35  <- brutal caida\n"
+            "  k=3: inertia= 78.85\n"
+            "  k=4: inertia= 57.23  <- caidas cada vez mas chicas\n"
+            "  k=5: inertia= 46.46\n"
+            "```\n\n"
+            "El codo esta entre k=2 y k=3: despues de k=3 los "
+            "beneficios marginales caen. Es una decision **visual** — "
+            "no hay formula matematica que devuelva 'el K correcto'. "
+            "Complementalo con conocimiento del dominio.\n\n"
+            "### 3. Silhouette: metrica cuantitativa para K\n\n"
+            "El **silhouette score** mide, para cada punto, que tan "
+            "cerca esta de su cluster vs que tan lejos del cluster mas "
+            "cercano ajeno. Rango [-1, +1]:\n\n"
+            "- **+1**: punto muy dentro de su cluster.\n"
+            "- **0**: en la frontera entre dos clusters.\n"
+            "- **-1**: probablemente asignado al cluster equivocado.\n\n"
+            "```python\n"
+            "from sklearn.metrics import silhouette_score\n\n"
+            "score = silhouette_score(X, km.labels_)\n"
+            "```\n\n"
+            "El K con mejor silhouette suele ser un buen punto de "
+            "partida objetivo:\n\n"
+            "```\n"
+            "iris escalado:\n"
+            "  k=2: silhouette=0.582  <- gana!\n"
+            "  k=3: silhouette=0.460\n"
+            "  k=4: silhouette=0.387\n"
+            "```\n\n"
+            "**Sorpresa pedagogica:** iris tiene 3 especies "
+            "conocidas, pero silhouette dice k=2 es mejor. La razon: "
+            "setosa es muy distinta, pero versicolor y virginica se "
+            "**solapan** en el espacio de features. Clustering "
+            "encuentra la estructura geometrica, no las etiquetas — "
+            "si no coinciden, el problema puede ser que las features "
+            "no discriminan las clases reales.\n\n"
+            "## Cuando NO usar KMeans\n\n"
+            "KMeans asume que los clusters son **esferas de tamano "
+            "similar** en el espacio de features. Falla feo cuando:\n\n"
+            "- Los clusters tienen **densidades muy distintas** — usa "
+            "`DBSCAN`.\n"
+            "- Los clusters tienen **formas raras** (medialunas, "
+            "espirales) — usa clustering jerarquico o DBSCAN.\n"
+            "- **No sabes cuantos clusters** hay y no quieres asumir "
+            "un K — DBSCAN los descubre solo (usa densidad, no "
+            "cantidad fija).\n"
+            "- Tienes **outliers extremos** — mueven los centroides y "
+            "estropean el resultado. Limpialos antes o usa "
+            "clustering robusto.\n\n"
+            "## Errores comunes\n\n"
+            "1. **No escalar** — feature con rango 0-1M domina a otras "
+            "con rango 0-1. Siempre `StandardScaler` antes de KMeans.\n"
+            "2. **`n_init=1`** — un arranque malo da clusters malos. "
+            "El default nuevo de sklearn ya es `n_init='auto'`, pero "
+            "en versiones viejas es 1. Ponlo explicito en 10.\n"
+            "3. **Elegir K por inercia sola** — inercia siempre baja "
+            "con K. Usa codo + silhouette + dominio.\n"
+            "4. **Interpretar labels como etiquetas reales** — el "
+            "cluster 0 no es 'setosa'; es solo un ID interno. Si "
+            "quieres etiquetar los clusters, hazlo despues mirando "
+            "sus centroides o promedios.\n"
+            "5. **KMeans en categoricas one-hot** — la distancia "
+            "euclideana en one-hot no tiene sentido pleno; usa "
+            "KModes o algoritmos especificos para categoricas.\n\n"
+            "## Resumen\n\n"
+            "- `KMeans(n_clusters=K, random_state=42, n_init=10)` "
+            "agrupa `X` en K clusters minimizando la inercia.\n"
+            "- **Escala** siempre las features antes con "
+            "`StandardScaler`.\n"
+            "- Para elegir K: **codo** (visual, inercia vs K) + "
+            "**silhouette** (cuantitativo, [-1, +1]) + dominio.\n"
+            "- KMeans es tu default no-supervisado; para densidades "
+            "raras o clusters no esfericos, mira DBSCAN o clustering "
+            "jerarquico.\n"
+        ),
+        difficulty="intermediate",
+        category="ml-clustering",
+        order=28,
+        track="track-3",
+        estimated_duration=55,
+        prerequisites_titles=[
+            "ML 6 · Cross-validation y GridSearchCV",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Entrenar KMeans y devolver inertia",
+                description=(
+                    "Entrena un modelo KMeans y devuelve la inertia "
+                    "final y las labels."
+                ),
+                instructions=(
+                    "Implementa `entrenar_kmeans(X, k)` que crea "
+                    "`KMeans(n_clusters=k, random_state=42, n_init=10)`, "
+                    "lo entrena con `fit(X)` y devuelve una tupla "
+                    "`(inertia: float, labels: np.ndarray)` con "
+                    "`km.inertia_` (envuelto en `float`) y `km.labels_`."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "from sklearn.cluster import KMeans\n"
+                    "\n"
+                    "\n"
+                    "def entrenar_kmeans(X, k):\n"
+                    "    # TODO: km = KMeans(n_clusters=k, random_state=42, n_init=10)\n"
+                    "    # TODO: km.fit(X)\n"
+                    "    # TODO: return (float(km.inertia_), km.labels_)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "n_init=10 evita quedarte con una inicializacion mala.",
+                    "km.labels_ tiene shape (n_samples,) con valores en 0..k-1.",
+                    "float(km.inertia_) evita numpy.float64 en la salida.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "iris k=3 -> inertia ~78.85, labels con 3 valores unicos",
+                        "code": (
+                            "import numpy as np\n"
+                            "from sklearn.datasets import load_iris\n"
+                            "X, _ = load_iris(return_X_y=True)\n"
+                            "inertia, labels = entrenar_kmeans(X, 3)\n"
+                            "assert isinstance(inertia, float), type(inertia)\n"
+                            "assert isinstance(labels, np.ndarray), type(labels)\n"
+                            "assert labels.shape == (150,), labels.shape\n"
+                            "assert set(labels.tolist()) == {0, 1, 2}, set(labels.tolist())\n"
+                            "assert abs(inertia - 78.85) < 0.5, inertia"
+                        ),
+                    },
+                    {
+                        "name": "k=1 da inertia = suma total de dist^2 al centro global",
+                        "code": (
+                            "import numpy as np\n"
+                            "from sklearn.datasets import load_iris\n"
+                            "X, _ = load_iris(return_X_y=True)\n"
+                            "inertia, labels = entrenar_kmeans(X, 1)\n"
+                            "# con k=1 todas las labels son 0 y la inertia es la varianza total\n"
+                            "assert set(labels.tolist()) == {0}, set(labels.tolist())\n"
+                            "centro = X.mean(axis=0)\n"
+                            "esperado = float(((X - centro) ** 2).sum())\n"
+                            "assert abs(inertia - esperado) < 1e-3, (inertia, esperado)"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Metodo del codo: inertias para varios K",
+                description=(
+                    "Corre KMeans para distintos valores de K y "
+                    "devuelve la lista de inertias."
+                ),
+                instructions=(
+                    "Implementa `metodo_del_codo(X, ks)` que, para cada "
+                    "`k` en `ks`, entrena "
+                    "`KMeans(n_clusters=k, random_state=42, n_init=10)` "
+                    "y devuelve una `list[float]` con las inercias en el "
+                    "mismo orden que `ks`."
+                ),
+                starter_code=(
+                    "from sklearn.cluster import KMeans\n"
+                    "\n"
+                    "\n"
+                    "def metodo_del_codo(X, ks):\n"
+                    "    # TODO: para cada k en ks, entrenar KMeans y appendear km.inertia_\n"
+                    "    # TODO: retornar la lista de inercias\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "La inertia baja monotonicamente al subir k.",
+                    "float(km.inertia_) para evitar numpy.float64 en la lista.",
+                    "El 'codo' se busca visualmente en un plot inertia vs k.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "iris ks=[1,2,3,4,5] -> inertias decrecientes",
+                        "code": (
+                            "from sklearn.datasets import load_iris\n"
+                            "X, _ = load_iris(return_X_y=True)\n"
+                            "inertias = metodo_del_codo(X, [1, 2, 3, 4, 5])\n"
+                            "assert isinstance(inertias, list), type(inertias)\n"
+                            "assert len(inertias) == 5, len(inertias)\n"
+                            "# monotonicamente decreciente\n"
+                            "for i in range(len(inertias) - 1):\n"
+                            "    assert inertias[i] >= inertias[i + 1], inertias\n"
+                            "# k=1 muy alta, k=3 baja\n"
+                            "assert inertias[0] > 600, inertias[0]\n"
+                            "assert 70 < inertias[2] < 90, inertias[2]"
+                        ),
+                    },
+                    {
+                        "name": "respeta el orden de ks (aunque este desordenado)",
+                        "code": (
+                            "from sklearn.datasets import load_iris\n"
+                            "X, _ = load_iris(return_X_y=True)\n"
+                            "inertias = metodo_del_codo(X, [3, 1, 2])\n"
+                            "assert len(inertias) == 3, len(inertias)\n"
+                            "# ks=[3,1,2] -> inertias en ese orden\n"
+                            "assert inertias[1] > inertias[2] > inertias[0], inertias"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Mejor K por silhouette score",
+                description=("Elige el mejor K comparando silhouette scores."),
+                instructions=(
+                    "Implementa `mejor_k_silhouette(X, ks)` que, para "
+                    "cada `k` en `ks` (asumir `k >= 2`), entrena "
+                    "`KMeans(n_clusters=k, random_state=42, n_init=10)`, "
+                    "calcula `silhouette_score(X, labels)` y devuelve "
+                    "el `k` con el score mas alto como `int`. En empate, "
+                    "prefiere el `k` mas chico."
+                ),
+                starter_code=(
+                    "from sklearn.cluster import KMeans\n"
+                    "from sklearn.metrics import silhouette_score\n"
+                    "\n"
+                    "\n"
+                    "def mejor_k_silhouette(X, ks):\n"
+                    "    # TODO: para cada k en ks, fit_predict con KMeans y calcular silhouette\n"
+                    "    # TODO: retornar k con mayor silhouette (empate -> primero)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "silhouette_score requiere >=2 clusters distintos.",
+                    "KMeans.fit_predict(X) devuelve labels en un paso.",
+                    "En blobs sinteticos con 4 centros bien separados, gana k=4.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "make_blobs 4 centros -> mejor k=4",
+                        "code": (
+                            "from sklearn.datasets import make_blobs\n"
+                            "X, _ = make_blobs(\n"
+                            "    n_samples=200, centers=4, cluster_std=0.5, random_state=42\n"
+                            ")\n"
+                            "k = mejor_k_silhouette(X, [2, 3, 4, 5])\n"
+                            "assert isinstance(k, int), type(k)\n"
+                            "assert k == 4, k"
+                        ),
+                    },
+                    {
+                        "name": "iris escalado -> silhouette prefiere k=2 (versicolor+virginica se solapan)",
+                        "code": (
+                            "from sklearn.datasets import load_iris\n"
+                            "from sklearn.preprocessing import StandardScaler\n"
+                            "X, _ = load_iris(return_X_y=True)\n"
+                            "Xs = StandardScaler().fit_transform(X)\n"
+                            "k = mejor_k_silhouette(Xs, [2, 3, 4])\n"
+                            "assert k == 2, k"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
