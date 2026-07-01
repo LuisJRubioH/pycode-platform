@@ -4939,6 +4939,370 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="ML 5 · Arboles y Random Forest",
+        description=(
+            "Primer modelo no-lineal: DecisionTree y RandomForest. "
+            "Interpretabilidad via feature_importances_ y por que "
+            "RF suele ser el mejor baseline en tabular."
+        ),
+        content=(
+            "# ML 5: arboles de decision y Random Forest\n\n"
+            "Todos los modelos que has visto (LogReg, LinReg, Ridge) son "
+            "**lineales**: buscan una combinacion lineal de features + "
+            "un umbral. Con relaciones no-lineales o interacciones "
+            "entre features, no dan la talla. Este bloque presenta los "
+            "**arboles de decision** y su ensamble estrella: **Random "
+            "Forest** — el default no-lineal que casi siempre te da un "
+            "baseline competitivo en datos tabulares.\n\n"
+            "## Tres ideas para entender arboles\n\n"
+            "### 1. Un arbol es una serie de if-then sobre features\n\n"
+            "Un DecisionTree divide el espacio en rectangulos. En cada "
+            "nodo elige una feature y un umbral que **maximiza la "
+            "pureza** de los grupos resultantes (usa Gini o entropia "
+            "para clasificacion, MSE para regresion).\n\n"
+            "```\n"
+            "raiz:  petal_width <= 0.8 ?\n"
+            "  si  -> setosa                        # nodo hoja puro\n"
+            "  no  -> petal_length <= 4.75 ?\n"
+            "        si -> versicolor                # nodo hoja\n"
+            "        no -> virginica                 # nodo hoja\n"
+            "```\n\n"
+            "Ventajas frente a modelos lineales:\n\n"
+            "- **No-linealidad**: aprende umbrales, no combinaciones "
+            "lineales.\n"
+            "- **Sin escalado**: cada split usa una feature aislada; "
+            "escalar no cambia nada.\n"
+            "- **Sin one-hot obligatorio** para ordinales: puede "
+            "particionar por umbral en enteros (0/1/2/3).\n"
+            "- **Interpretabilidad**: puedes imprimir el arbol y ver "
+            "cada regla.\n\n"
+            "Desventaja: **overfittean facil**. Sin restriccion, un "
+            "arbol memoriza el train con hojas de una sola muestra. Por "
+            "eso siempre se usa con `max_depth` o `min_samples_leaf`.\n\n"
+            "```python\n"
+            "from sklearn.tree import DecisionTreeClassifier\n\n"
+            "arbol = DecisionTreeClassifier(max_depth=3, random_state=42)\n"
+            "arbol.fit(X_train, y_train)\n"
+            "acc = arbol.score(X_test, y_test)\n"
+            "```\n\n"
+            "**Parametros que casi siempre tocas:**\n"
+            "- `max_depth`: limite duro de profundidad. 3-10 es lo "
+            "tipico.\n"
+            "- `min_samples_leaf`: minimo de muestras por hoja. "
+            "Valores 5-20 evitan hojas ruidosas.\n"
+            "- `random_state`: reproducibilidad — sklearn desempata "
+            "features iguales al azar.\n\n"
+            "### 2. Random Forest promedia muchos arboles\n\n"
+            "Un arbol solo es de alta varianza (cambias 3 filas y sale "
+            "otro arbol distinto). La idea de **Random Forest** es "
+            "entrenar N arboles independientes con dos tipos de "
+            "aleatoriedad y promediar sus predicciones:\n\n"
+            "1. **Bootstrap sampling**: cada arbol ve un subset "
+            "aleatorio de las filas (con reemplazo).\n"
+            "2. **Feature subsampling**: en cada split, solo puede "
+            "elegir entre `sqrt(n_features)` features (para "
+            "clasificacion; `n_features/3` para regresion).\n\n"
+            "El promedio reduce varianza sin subir el sesgo. Resultado: "
+            "**mismo bias que un arbol solo, mucho menos varianza**.\n\n"
+            "```python\n"
+            "from sklearn.ensemble import RandomForestClassifier\n\n"
+            "rf = RandomForestClassifier(n_estimators=100, random_state=42)\n"
+            "rf.fit(X_train, y_train)\n"
+            "acc = rf.score(X_test, y_test)\n"
+            "```\n\n"
+            "**Parametros clave:**\n"
+            "- `n_estimators`: cuantos arboles. 100 es el default; "
+            "500 rara vez es peor pero tarda mas. Nunca es "
+            '"demasiados".\n'
+            "- `max_depth`, `min_samples_leaf`: se aplican por arbol.\n"
+            "- `n_jobs=-1`: paraleliza el entrenamiento en todos los "
+            "cores.\n\n"
+            "### 3. feature_importances_: que features usa el modelo\n\n"
+            "Tanto DecisionTree como RandomForest exponen "
+            "`feature_importances_`: un array de floats en [0, 1] que "
+            "suman 1, indicando cuanto contribuye cada feature a las "
+            "decisiones del modelo (medido por la reduccion de "
+            "impureza que trae al agregarla).\n\n"
+            "```python\n"
+            "importances = dict(zip(feature_names, rf.feature_importances_))\n"
+            "# {'sepal_length': 0.12, 'sepal_width': 0.04,\n"
+            "#  'petal_length': 0.40, 'petal_width': 0.44}\n"
+            "```\n\n"
+            "Interpretacion sobre iris: `petal_width` y `petal_length` "
+            "son las que discriminan las especies; `sepal_width` casi "
+            "no aporta. Esto **matchea** lo que sabemos del dataset — "
+            "un buen indicador de que el modelo aprendio patrones "
+            "reales.\n\n"
+            "**Uso en la practica:**\n"
+            "- Debugging: si una feature que crees importante aparece "
+            "con importancia 0, algo esta raro (bug en pipeline, "
+            "leakage, feature constante).\n"
+            "- Feature selection: entrenas un RF con todas, tiras las "
+            "importances=0, reentrenas con menos features (mismo "
+            "score, mas rapido).\n"
+            "- Storytelling: reportar al stakeholder que features "
+            "guian las predicciones (interpretabilidad de alto nivel).\n\n"
+            "**Cuidado:** `feature_importances_` esta **sesgada hacia "
+            "features de alta cardinalidad** (numericas continuas o "
+            "categoricas con muchos niveles) y hacia features "
+            "correlacionadas (comparten importancia). Para "
+            "interpretabilidad seria, usa `permutation_importance` o "
+            "SHAP.\n\n"
+            "## Cuando usar cada uno\n\n"
+            "| Escenario                              | Modelo         |\n"
+            "|----------------------------------------|----------------|\n"
+            "| Necesitas explicar cada decision       | DecisionTree   |\n"
+            "| Datos tabulares, primer baseline       | RandomForest   |\n"
+            "| Muchas features numericas correladas   | RF > LinReg    |\n"
+            "| Interacciones no-lineales entre features | RF, no LinReg  |\n"
+            "| Fronteras suaves (imagenes, senales)   | Redes neuronales|\n"
+            "| Dataset gigante (>10M filas)           | GradientBoosting/LightGBM |\n\n"
+            "## Errores comunes\n\n"
+            "1. **Arbol sin `max_depth`** — memoriza el train, R2 en "
+            "test bajo. Empieza siempre con `max_depth=3-10`.\n"
+            "2. **Escalar antes de un arbol** — no rompe nada pero es "
+            "trabajo inutil. RF es invariante a la escala.\n"
+            "3. **`n_estimators=10`** — ahorra segundos y sacrifica "
+            "estabilidad. 100 es el minimo razonable en produccion.\n"
+            "4. **Interpretar `feature_importances_` como causalidad** "
+            '— importancia no es causa; solo dice "el modelo se '
+            'apoyo en esta feature".\n'
+            "5. **Olvidar `random_state`** — dos RF con distinta "
+            "semilla pueden dar accuracies ligeramente distintas por "
+            "el bootstrap. Fijala para experimentos comparables.\n\n"
+            "## Resumen\n\n"
+            "- `DecisionTree` particiona el espacio con if-then; es "
+            "no-lineal, interpretable, no necesita escalado. "
+            "Regularizalo con `max_depth`.\n"
+            "- `RandomForest` = promedio de muchos arboles con "
+            "bootstrap + feature subsampling. Reduce varianza. Baseline "
+            "por defecto en tabular.\n"
+            "- `feature_importances_` te dice que features usa el "
+            "modelo (utilidad grande para debug + storytelling; ojo con "
+            "sesgos hacia alta cardinalidad).\n"
+            "- Cuando quieras un modelo lineal-interpretable, usa "
+            "LogReg/LinReg + coefs; cuando quieras potencia sin tunear, "
+            "usa RandomForest con `n_estimators=100`.\n"
+        ),
+        difficulty="intermediate",
+        category="ml-arboles",
+        order=26,
+        track="track-3",
+        estimated_duration=55,
+        prerequisites_titles=[
+            "ML 4 · Regresion: LinearRegression, MSE, RMSE y R2",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="DecisionTree con max_depth sobre iris",
+                description=(
+                    "Entrena un arbol de decision con profundidad "
+                    "limitada y devuelve accuracy."
+                ),
+                instructions=(
+                    "Implementa `entrenar_arbol(X_train, y_train, "
+                    "X_test, y_test, max_depth)` que crea un "
+                    "`DecisionTreeClassifier(max_depth=max_depth, "
+                    "random_state=42)`, lo entrena con `fit` y devuelve "
+                    "la accuracy sobre `X_test` como `float`."
+                ),
+                starter_code=(
+                    "from sklearn.tree import DecisionTreeClassifier\n"
+                    "\n"
+                    "\n"
+                    "def entrenar_arbol(X_train, y_train, X_test, y_test, max_depth):\n"
+                    "    # TODO: dt = DecisionTreeClassifier(max_depth=max_depth, random_state=42)\n"
+                    "    # TODO: dt.fit(X_train, y_train)\n"
+                    "    # TODO: return float(dt.score(X_test, y_test))\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "random_state=42 es imprescindible para reproducibilidad en split-ties.",
+                    "score() en clasificadores devuelve accuracy por default.",
+                    "Sobre iris con seed 42 + stratify, max_depth=3 llega a 1.0.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "acc = 1.0 en iris con max_depth=3",
+                        "code": (
+                            "import io\n"
+                            "import pandas as pd\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "csv = 'sepal_length,sepal_width,petal_length,petal_width,species\\n5.1,3.5,1.4,0.2,setosa\\n4.9,3.0,1.4,0.2,setosa\\n4.7,3.2,1.3,0.2,setosa\\n4.6,3.1,1.5,0.2,setosa\\n5.0,3.6,1.4,0.2,setosa\\n5.4,3.9,1.7,0.4,setosa\\n4.6,3.4,1.4,0.3,setosa\\n5.0,3.4,1.5,0.2,setosa\\n4.4,2.9,1.4,0.2,setosa\\n4.9,3.1,1.5,0.1,setosa\\n7.0,3.2,4.7,1.4,versicolor\\n6.4,3.2,4.5,1.5,versicolor\\n6.9,3.1,4.9,1.5,versicolor\\n5.5,2.3,4.0,1.3,versicolor\\n6.5,2.8,4.6,1.5,versicolor\\n5.7,2.8,4.5,1.3,versicolor\\n6.3,3.3,4.7,1.6,versicolor\\n4.9,2.4,3.3,1.0,versicolor\\n6.6,2.9,4.6,1.3,versicolor\\n5.2,2.7,3.9,1.4,versicolor\\n6.3,3.3,6.0,2.5,virginica\\n5.8,2.7,5.1,1.9,virginica\\n7.1,3.0,5.9,2.1,virginica\\n6.3,2.9,5.6,1.8,virginica\\n6.5,3.0,5.8,2.2,virginica\\n7.6,3.0,6.6,2.1,virginica\\n4.9,2.5,4.5,1.7,virginica\\n7.3,2.9,6.3,1.8,virginica\\n6.7,2.5,5.8,1.8,virginica\\n7.2,3.6,6.1,2.5,virginica\\n'\n"
+                            "df = pd.read_csv(io.StringIO(csv))\n"
+                            "X = df[['sepal_length','sepal_width','petal_length','petal_width']]\n"
+                            "y = df['species']\n"
+                            "X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "acc = entrenar_arbol(X_tr, y_tr, X_te, y_te, max_depth=3)\n"
+                            "assert isinstance(acc, float), type(acc)\n"
+                            "assert acc == 1.0, acc"
+                        ),
+                    },
+                    {
+                        "name": "max_depth=1 da accuracy menor (arbol subajustado)",
+                        "code": (
+                            "import io\n"
+                            "import pandas as pd\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "csv = 'sepal_length,sepal_width,petal_length,petal_width,species\\n5.1,3.5,1.4,0.2,setosa\\n4.9,3.0,1.4,0.2,setosa\\n4.7,3.2,1.3,0.2,setosa\\n4.6,3.1,1.5,0.2,setosa\\n5.0,3.6,1.4,0.2,setosa\\n5.4,3.9,1.7,0.4,setosa\\n4.6,3.4,1.4,0.3,setosa\\n5.0,3.4,1.5,0.2,setosa\\n4.4,2.9,1.4,0.2,setosa\\n4.9,3.1,1.5,0.1,setosa\\n7.0,3.2,4.7,1.4,versicolor\\n6.4,3.2,4.5,1.5,versicolor\\n6.9,3.1,4.9,1.5,versicolor\\n5.5,2.3,4.0,1.3,versicolor\\n6.5,2.8,4.6,1.5,versicolor\\n5.7,2.8,4.5,1.3,versicolor\\n6.3,3.3,4.7,1.6,versicolor\\n4.9,2.4,3.3,1.0,versicolor\\n6.6,2.9,4.6,1.3,versicolor\\n5.2,2.7,3.9,1.4,versicolor\\n6.3,3.3,6.0,2.5,virginica\\n5.8,2.7,5.1,1.9,virginica\\n7.1,3.0,5.9,2.1,virginica\\n6.3,2.9,5.6,1.8,virginica\\n6.5,3.0,5.8,2.2,virginica\\n7.6,3.0,6.6,2.1,virginica\\n4.9,2.5,4.5,1.7,virginica\\n7.3,2.9,6.3,1.8,virginica\\n6.7,2.5,5.8,1.8,virginica\\n7.2,3.6,6.1,2.5,virginica\\n'\n"
+                            "df = pd.read_csv(io.StringIO(csv))\n"
+                            "X = df[['sepal_length','sepal_width','petal_length','petal_width']]\n"
+                            "y = df['species']\n"
+                            "X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "acc_1 = entrenar_arbol(X_tr, y_tr, X_te, y_te, max_depth=1)\n"
+                            "# depth=1 solo separa una clase => acc <= 0.75\n"
+                            "assert acc_1 <= 0.75, acc_1"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="RandomForest con n_estimators",
+                description=(
+                    "Entrena un Random Forest y compara accuracy con " "un arbol solo."
+                ),
+                instructions=(
+                    "Implementa `entrenar_rf(X_train, y_train, X_test, "
+                    "y_test, n_estimators)` que crea un "
+                    "`RandomForestClassifier(n_estimators=n_estimators, "
+                    "random_state=42)`, lo entrena y devuelve la "
+                    "accuracy sobre `X_test` como `float`."
+                ),
+                starter_code=(
+                    "from sklearn.ensemble import RandomForestClassifier\n"
+                    "\n"
+                    "\n"
+                    "def entrenar_rf(X_train, y_train, X_test, y_test, n_estimators):\n"
+                    "    # TODO: rf = RandomForestClassifier(n_estimators=n_estimators, random_state=42)\n"
+                    "    # TODO: rf.fit(X_train, y_train)\n"
+                    "    # TODO: return float(rf.score(X_test, y_test))\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "n_estimators es el numero de arboles del bosque.",
+                    "random_state=42 fija el bootstrap y feature subsampling para reproducibilidad.",
+                    "Sobre iris seed 42, RF con 100 arboles llega a 1.0.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "RF con 100 arboles = 1.0 sobre iris seed 42",
+                        "code": (
+                            "import io\n"
+                            "import pandas as pd\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "csv = 'sepal_length,sepal_width,petal_length,petal_width,species\\n5.1,3.5,1.4,0.2,setosa\\n4.9,3.0,1.4,0.2,setosa\\n4.7,3.2,1.3,0.2,setosa\\n4.6,3.1,1.5,0.2,setosa\\n5.0,3.6,1.4,0.2,setosa\\n5.4,3.9,1.7,0.4,setosa\\n4.6,3.4,1.4,0.3,setosa\\n5.0,3.4,1.5,0.2,setosa\\n4.4,2.9,1.4,0.2,setosa\\n4.9,3.1,1.5,0.1,setosa\\n7.0,3.2,4.7,1.4,versicolor\\n6.4,3.2,4.5,1.5,versicolor\\n6.9,3.1,4.9,1.5,versicolor\\n5.5,2.3,4.0,1.3,versicolor\\n6.5,2.8,4.6,1.5,versicolor\\n5.7,2.8,4.5,1.3,versicolor\\n6.3,3.3,4.7,1.6,versicolor\\n4.9,2.4,3.3,1.0,versicolor\\n6.6,2.9,4.6,1.3,versicolor\\n5.2,2.7,3.9,1.4,versicolor\\n6.3,3.3,6.0,2.5,virginica\\n5.8,2.7,5.1,1.9,virginica\\n7.1,3.0,5.9,2.1,virginica\\n6.3,2.9,5.6,1.8,virginica\\n6.5,3.0,5.8,2.2,virginica\\n7.6,3.0,6.6,2.1,virginica\\n4.9,2.5,4.5,1.7,virginica\\n7.3,2.9,6.3,1.8,virginica\\n6.7,2.5,5.8,1.8,virginica\\n7.2,3.6,6.1,2.5,virginica\\n'\n"
+                            "df = pd.read_csv(io.StringIO(csv))\n"
+                            "X = df[['sepal_length','sepal_width','petal_length','petal_width']]\n"
+                            "y = df['species']\n"
+                            "X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "acc = entrenar_rf(X_tr, y_tr, X_te, y_te, n_estimators=100)\n"
+                            "assert isinstance(acc, float), type(acc)\n"
+                            "assert acc == 1.0, acc"
+                        ),
+                    },
+                    {
+                        "name": "RF con n_estimators=1 (basicamente un arbol) da acc menor con datos ruidosos",
+                        "code": (
+                            "import numpy as np\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "# datos con ruido para que RF-100 supere a RF-1\n"
+                            "rng = np.random.default_rng(42)\n"
+                            "X = rng.uniform(0, 10, size=(200, 4))\n"
+                            "y = (X[:, 0] + X[:, 1] > 10).astype(int)\n"
+                            "# meter ruido en 20 filas\n"
+                            "flip = rng.choice(200, size=20, replace=False)\n"
+                            "y[flip] = 1 - y[flip]\n"
+                            "X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "acc_1 = entrenar_rf(X_tr, y_tr, X_te, y_te, n_estimators=1)\n"
+                            "acc_100 = entrenar_rf(X_tr, y_tr, X_te, y_te, n_estimators=100)\n"
+                            "# El promedio de 100 arboles reduce varianza -> acc_100 >= acc_1\n"
+                            "assert acc_100 >= acc_1, (acc_1, acc_100)"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="feature_importances_ ordenadas",
+                description=(
+                    "Extrae las importancias de features de un "
+                    "RandomForest y ordenalas descendentemente."
+                ),
+                instructions=(
+                    "Implementa `importancias_ordenadas(X_train, "
+                    "y_train, feature_names)` que entrena un "
+                    "`RandomForestClassifier(n_estimators=100, "
+                    "random_state=42)` sobre train, extrae "
+                    "`feature_importances_` y devuelve una `list` de "
+                    "tuplas `(nombre, importancia_float)` ordenada "
+                    "**descendentemente** por importancia."
+                ),
+                starter_code=(
+                    "from sklearn.ensemble import RandomForestClassifier\n"
+                    "\n"
+                    "\n"
+                    "def importancias_ordenadas(X_train, y_train, feature_names):\n"
+                    "    # TODO: entrena RF con n_estimators=100 y random_state=42\n"
+                    "    # TODO: pares = list(zip(feature_names, rf.feature_importances_))\n"
+                    "    # TODO: retorna sorted(pares, key=..., reverse=True)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "sorted(pares, key=lambda t: t[1], reverse=True) ordena por importancia desc.",
+                    "float(imp) en la tupla para evitar numpy.float64.",
+                    "feature_importances_ suman ~1.0 en RF (con tolerancia de flotante).",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "importancias suman ~1.0 y estan ordenadas desc",
+                        "code": (
+                            "import io\n"
+                            "import pandas as pd\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "csv = 'sepal_length,sepal_width,petal_length,petal_width,species\\n5.1,3.5,1.4,0.2,setosa\\n4.9,3.0,1.4,0.2,setosa\\n4.7,3.2,1.3,0.2,setosa\\n4.6,3.1,1.5,0.2,setosa\\n5.0,3.6,1.4,0.2,setosa\\n5.4,3.9,1.7,0.4,setosa\\n4.6,3.4,1.4,0.3,setosa\\n5.0,3.4,1.5,0.2,setosa\\n4.4,2.9,1.4,0.2,setosa\\n4.9,3.1,1.5,0.1,setosa\\n7.0,3.2,4.7,1.4,versicolor\\n6.4,3.2,4.5,1.5,versicolor\\n6.9,3.1,4.9,1.5,versicolor\\n5.5,2.3,4.0,1.3,versicolor\\n6.5,2.8,4.6,1.5,versicolor\\n5.7,2.8,4.5,1.3,versicolor\\n6.3,3.3,4.7,1.6,versicolor\\n4.9,2.4,3.3,1.0,versicolor\\n6.6,2.9,4.6,1.3,versicolor\\n5.2,2.7,3.9,1.4,versicolor\\n6.3,3.3,6.0,2.5,virginica\\n5.8,2.7,5.1,1.9,virginica\\n7.1,3.0,5.9,2.1,virginica\\n6.3,2.9,5.6,1.8,virginica\\n6.5,3.0,5.8,2.2,virginica\\n7.6,3.0,6.6,2.1,virginica\\n4.9,2.5,4.5,1.7,virginica\\n7.3,2.9,6.3,1.8,virginica\\n6.7,2.5,5.8,1.8,virginica\\n7.2,3.6,6.1,2.5,virginica\\n'\n"
+                            "df = pd.read_csv(io.StringIO(csv))\n"
+                            "X = df[['sepal_length','sepal_width','petal_length','petal_width']]\n"
+                            "y = df['species']\n"
+                            "X_tr, _, y_tr, _ = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "res = importancias_ordenadas(X_tr, y_tr, list(X.columns))\n"
+                            "assert isinstance(res, list), type(res)\n"
+                            "assert len(res) == 4, len(res)\n"
+                            "# ordenadas desc\n"
+                            "vals = [imp for _, imp in res]\n"
+                            "assert vals == sorted(vals, reverse=True), vals\n"
+                            "# suman aprox 1.0\n"
+                            "assert abs(sum(vals) - 1.0) < 1e-6, sum(vals)"
+                        ),
+                    },
+                    {
+                        "name": "top feature es petal_width o petal_length en iris seed 42",
+                        "code": (
+                            "import io\n"
+                            "import pandas as pd\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "csv = 'sepal_length,sepal_width,petal_length,petal_width,species\\n5.1,3.5,1.4,0.2,setosa\\n4.9,3.0,1.4,0.2,setosa\\n4.7,3.2,1.3,0.2,setosa\\n4.6,3.1,1.5,0.2,setosa\\n5.0,3.6,1.4,0.2,setosa\\n5.4,3.9,1.7,0.4,setosa\\n4.6,3.4,1.4,0.3,setosa\\n5.0,3.4,1.5,0.2,setosa\\n4.4,2.9,1.4,0.2,setosa\\n4.9,3.1,1.5,0.1,setosa\\n7.0,3.2,4.7,1.4,versicolor\\n6.4,3.2,4.5,1.5,versicolor\\n6.9,3.1,4.9,1.5,versicolor\\n5.5,2.3,4.0,1.3,versicolor\\n6.5,2.8,4.6,1.5,versicolor\\n5.7,2.8,4.5,1.3,versicolor\\n6.3,3.3,4.7,1.6,versicolor\\n4.9,2.4,3.3,1.0,versicolor\\n6.6,2.9,4.6,1.3,versicolor\\n5.2,2.7,3.9,1.4,versicolor\\n6.3,3.3,6.0,2.5,virginica\\n5.8,2.7,5.1,1.9,virginica\\n7.1,3.0,5.9,2.1,virginica\\n6.3,2.9,5.6,1.8,virginica\\n6.5,3.0,5.8,2.2,virginica\\n7.6,3.0,6.6,2.1,virginica\\n4.9,2.5,4.5,1.7,virginica\\n7.3,2.9,6.3,1.8,virginica\\n6.7,2.5,5.8,1.8,virginica\\n7.2,3.6,6.1,2.5,virginica\\n'\n"
+                            "df = pd.read_csv(io.StringIO(csv))\n"
+                            "X = df[['sepal_length','sepal_width','petal_length','petal_width']]\n"
+                            "y = df['species']\n"
+                            "X_tr, _, y_tr, _ = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "res = importancias_ordenadas(X_tr, y_tr, list(X.columns))\n"
+                            "top_name, top_imp = res[0]\n"
+                            "assert top_name in {'petal_width', 'petal_length'}, top_name\n"
+                            "# sepal_width debe ser el ultimo con importancia muy chica\n"
+                            "last_name, last_imp = res[-1]\n"
+                            "assert last_imp < 0.1, res"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
