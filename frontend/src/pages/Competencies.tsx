@@ -41,6 +41,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   estadistica: 'Estadística',
   'ml-fundamentos': 'ML Fundamentos',
   'ml-evaluacion': 'ML Evaluación',
+  'ml-features': 'ML Features',
   otros: 'Otros',
 }
 
@@ -52,6 +53,7 @@ const CATEGORY_TO_TRACK: Record<string, string> = {
   estadistica: 'track-2',
   'ml-fundamentos': 'track-3',
   'ml-evaluacion': 'track-3',
+  'ml-features': 'track-3',
 }
 
 const TRACK_INFO: Record<string, { title: string; subtitle: string }> = {

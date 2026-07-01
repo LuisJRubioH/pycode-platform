@@ -4187,6 +4187,379 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="ML 3 · Features escaladas y Pipelines",
+        description=(
+            "StandardScaler, OneHotEncoder y Pipeline. Como preparar "
+            "features numericas y categoricas sin data leakage."
+        ),
+        content=(
+            "# ML 3: features escaladas y pipelines\n\n"
+            "Ya tienes el flujo `split -> fit -> predict -> metricas`. En "
+            "un dataset real, entre `split` y `fit` hay un paso crucial "
+            "que decide si tu modelo funciona: **preprocesar las features** "
+            "(escalar numericas, codificar categoricas). Hacerlo mal es la "
+            "causa mas comun de resultados enganosamente buenos en "
+            "notebooks que se desmoronan en produccion.\n\n"
+            "## Tres ideas para preprocesar bien\n\n"
+            "### 1. La mayoria de modelos asumen features 'razonables'\n\n"
+            '"Razonables" significa: en escalas comparables y sin '
+            "categorias como strings crudas. Si dejas los defaults del "
+            "dataset:\n\n"
+            "- **LogisticRegression** con features de escalas muy "
+            "distintas (ej: edad 0-100 y ingreso 0-100000) puede no "
+            "converger en `max_iter` iteraciones o quedar dominada por "
+            "la feature de mayor magnitud.\n"
+            "- **KNN** calcula distancias euclideas — una feature 1000x "
+            "mas grande que otra la vuelve invisible.\n"
+            "- **SVM con kernel RBF** es extremadamente sensible a la "
+            "escala; sin escalar es casi inutil.\n"
+            "- **Arboles de decision y Random Forest** son la excepcion: "
+            "no les afecta la escala (particionan por umbral en cada "
+            "feature individual). Pero siguen necesitando categoricas "
+            "codificadas numericamente.\n\n"
+            "**Regla de dedo:** casi siempre `StandardScaler` (media 0, "
+            "desviacion 1) para numericas y `OneHotEncoder` para "
+            "categoricas. Ahi arrancas.\n\n"
+            "### 2. Pipeline evita el data leakage clasico\n\n"
+            "El error mas comun del primer mes en ML es escalar antes de "
+            "hacer split:\n\n"
+            "```python\n"
+            "# ANTI-PATTERN: data leakage\n"
+            "scaler = StandardScaler()\n"
+            "X_all = scaler.fit_transform(X)      # usa mean/std de TODO\n"
+            "X_train, X_test = train_test_split(X_all, ...)\n"
+            "```\n\n"
+            "Por que es un problema: `mean` y `std` de `X_all` incluyen "
+            "las filas de test. El modelo, al entrenarse, esta viendo "
+            "indirectamente la distribucion de test — informacion que "
+            "**en produccion no vas a tener**.\n\n"
+            "La solucion correcta es aprender los parametros del "
+            "preprocesador **solo con train** y aplicarlos igual sobre "
+            "test:\n\n"
+            "```python\n"
+            "X_train, X_test = train_test_split(X, ...)\n"
+            "scaler = StandardScaler()\n"
+            "X_train_s = scaler.fit_transform(X_train)  # calcula + aplica\n"
+            "X_test_s  = scaler.transform(X_test)       # SOLO aplica\n"
+            "```\n\n"
+            "Escribirlo asi cada vez es tedioso y facil de romper. "
+            "`Pipeline` de sklearn lo automatiza:\n\n"
+            "```python\n"
+            "from sklearn.pipeline import Pipeline\n"
+            "from sklearn.preprocessing import StandardScaler\n"
+            "from sklearn.linear_model import LogisticRegression\n\n"
+            "pipe = Pipeline([\n"
+            "    ('sc', StandardScaler()),\n"
+            "    ('lr', LogisticRegression(random_state=42, max_iter=500)),\n"
+            "])\n"
+            "pipe.fit(X_train, y_train)         # escala + entrena\n"
+            "acc = pipe.score(X_test, y_test)   # escala test con params de train + evalua\n"
+            "```\n\n"
+            "El pipeline garantiza que `StandardScaler.fit` solo ve "
+            "`X_train`. Es lo que usan los equipos serios.\n\n"
+            "### 3. ColumnTransformer maneja columnas heterogeneas\n\n"
+            "Los datasets reales tienen una mezcla: `edad` (numerica), "
+            "`plan` (categorica), `pais` (categorica), `ingreso` "
+            "(numerica). No puedes aplicar `StandardScaler` a un string. "
+            "`ColumnTransformer` es el switch:\n\n"
+            "```python\n"
+            "from sklearn.compose import ColumnTransformer\n"
+            "from sklearn.preprocessing import StandardScaler, OneHotEncoder\n\n"
+            "preproc = ColumnTransformer([\n"
+            "    ('num', StandardScaler(),                 ['edad', 'ingreso']),\n"
+            "    ('cat', OneHotEncoder(sparse_output=False), ['plan']),\n"
+            "])\n"
+            "```\n\n"
+            "El resultado es una matriz numerica lista para el modelo. "
+            "Cada categoria se vuelve una columna 0/1: `plan` con valores "
+            "`{basico, pro, enterprise}` da 3 columnas.\n\n"
+            "**Flags utiles de OneHotEncoder:**\n"
+            "- `sparse_output=False`: devuelve `np.ndarray` denso en vez "
+            "de matriz sparse (mas facil de inspeccionar con pandas).\n"
+            "- `handle_unknown='ignore'`: si en produccion aparece una "
+            "categoria nueva, no crashea (la ignora en vez de lanzar).\n"
+            "- `drop='first'`: elimina la primera categoria para evitar "
+            "colinealidad (necesario en regresion lineal, opcional en "
+            "arboles/redes).\n\n"
+            "Se combina con Pipeline igual de facil:\n\n"
+            "```python\n"
+            "pipe = Pipeline([\n"
+            "    ('prep', preproc),\n"
+            "    ('lr', LogisticRegression(max_iter=500)),\n"
+            "])\n"
+            "pipe.fit(X_train, y_train)\n"
+            "```\n\n"
+            "## Debug: entender los nombres de features generadas\n\n"
+            "Despues del preprocesador es dificil saber que columna es "
+            "que. Usa `get_feature_names_out()` para verlo:\n\n"
+            "```python\n"
+            "preproc.fit(X_train)\n"
+            "print(preproc.get_feature_names_out())\n"
+            "# ['num__edad', 'num__ingreso', 'cat__plan_basico',\n"
+            "#  'cat__plan_enterprise', 'cat__plan_pro']\n"
+            "```\n\n"
+            "El prefijo `num__` / `cat__` viene del nombre del "
+            "transformador; despues del `__` va el nombre original y, "
+            "para OHE, la categoria.\n\n"
+            "## Errores comunes\n\n"
+            "1. **`fit_transform` sobre el dataset completo** — data "
+            "leakage. Escala/PCA/imputer siempre despues del split o "
+            "dentro de un Pipeline.\n"
+            "2. **`.fit` sobre test** — nunca. Test solo recibe "
+            "`.transform` con los parametros aprendidos de train.\n"
+            "3. **Escalar arboles/random forest** — no hace dano pero es "
+            "trabajo inutil.\n"
+            "4. **One-hot encodear una feature con miles de categorias** "
+            "— genera miles de columnas. Para alta cardinalidad usa "
+            "target encoding o embeddings; OHE es para 3-30 categorias.\n"
+            "5. **Olvidar `handle_unknown='ignore'`** — en produccion un "
+            "usuario con plan `enterprise-plus` que no vio train hara "
+            "crashear la API entera.\n\n"
+            "## Resumen\n\n"
+            "- Escala numericas con `StandardScaler`; codifica "
+            "categoricas con `OneHotEncoder(sparse_output=False, "
+            "handle_unknown='ignore')`.\n"
+            "- Envuelve todo en un `Pipeline` para que el preprocesador "
+            "aprenda solo de train — sin leakage por defecto.\n"
+            "- `ColumnTransformer` combina scalers y encoders segun el "
+            "tipo de columna.\n"
+            "- `.get_feature_names_out()` para inspeccionar la salida.\n"
+            "- Arboles no necesitan escalado, pero si necesitan que las "
+            "categoricas ya sean numericas.\n"
+        ),
+        difficulty="intermediate",
+        category="ml-features",
+        order=24,
+        track="track-3",
+        estimated_duration=50,
+        prerequisites_titles=[
+            "ML 2 · Metricas mas alla de accuracy",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Escalar train/test con StandardScaler",
+                description=(
+                    "Aprende los parametros del scaler SOLO con train y "
+                    "aplicalos igual sobre test."
+                ),
+                instructions=(
+                    "Implementa `escalar_train_test(X_train, X_test)` "
+                    "que crea un `StandardScaler`, hace `fit_transform` "
+                    "sobre `X_train`, hace `transform` sobre `X_test` "
+                    "(NO fit) y devuelve la tupla `(X_train_s, X_test_s)` "
+                    "como `np.ndarray`."
+                ),
+                starter_code=(
+                    "from sklearn.preprocessing import StandardScaler\n"
+                    "\n"
+                    "\n"
+                    "def escalar_train_test(X_train, X_test):\n"
+                    "    # TODO: sc = StandardScaler()\n"
+                    "    # TODO: X_train_s = sc.fit_transform(X_train)\n"
+                    "    # TODO: X_test_s  = sc.transform(X_test)  # NO fit\n"
+                    "    # TODO: retorna (X_train_s, X_test_s)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "fit_transform SOLO sobre X_train — es la esencia de no leakage.",
+                    "transform (sin fit) sobre X_test aplica media/std aprendidas.",
+                    "El resultado es np.ndarray; los tests no asumen DataFrame.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "X_train_s tiene media 0 y std 1 por columna",
+                        "code": (
+                            "import numpy as np\n"
+                            "X_train = np.array([[1.0, 100.0], [2.0, 200.0], [3.0, 300.0], [4.0, 400.0]])\n"
+                            "X_test = np.array([[2.5, 250.0]])\n"
+                            "X_train_s, X_test_s = escalar_train_test(X_train, X_test)\n"
+                            "assert np.allclose(X_train_s.mean(axis=0), [0.0, 0.0], atol=1e-9), X_train_s.mean(axis=0)\n"
+                            "assert np.allclose(X_train_s.std(axis=0), [1.0, 1.0], atol=1e-9), X_train_s.std(axis=0)"
+                        ),
+                    },
+                    {
+                        "name": "X_test se transforma con params de train (2.5,250 -> 0,0)",
+                        "code": (
+                            "import numpy as np\n"
+                            "X_train = np.array([[1.0, 100.0], [2.0, 200.0], [3.0, 300.0], [4.0, 400.0]])\n"
+                            "X_test = np.array([[2.5, 250.0]])\n"
+                            "_, X_test_s = escalar_train_test(X_train, X_test)\n"
+                            "assert np.allclose(X_test_s, [[0.0, 0.0]], atol=1e-9), X_test_s"
+                        ),
+                    },
+                    {
+                        "name": "no filtra info de test al scaler (leakage guard)",
+                        "code": (
+                            "import numpy as np\n"
+                            "X_train = np.array([[1.0], [2.0], [3.0], [4.0]])\n"
+                            "X_test  = np.array([[1000.0]])  # outlier extremo\n"
+                            "X_train_s, _ = escalar_train_test(X_train, X_test)\n"
+                            "# si el scaler se hubiera fitteado con test, el std seria enorme\n"
+                            "# y X_train_s tendria valores minusculos. Aqui debe seguir teniendo std=1.\n"
+                            "assert np.allclose(X_train_s.std(axis=0), [1.0], atol=1e-9), X_train_s.std(axis=0)"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Pipeline con StandardScaler + LogisticRegression",
+                description=(
+                    "Envuelve el preprocesador y el modelo en un Pipeline "
+                    "para evitar leakage por default."
+                ),
+                instructions=(
+                    "Implementa `pipeline_logreg(X_train, y_train, "
+                    "X_test, y_test)` que crea un `Pipeline` con dos "
+                    "pasos: `('sc', StandardScaler())` y "
+                    "`('lr', LogisticRegression(random_state=42, "
+                    "max_iter=500))`. Entrena con `fit`, retorna la "
+                    "accuracy sobre `X_test` como `float`."
+                ),
+                starter_code=(
+                    "from sklearn.pipeline import Pipeline\n"
+                    "from sklearn.preprocessing import StandardScaler\n"
+                    "from sklearn.linear_model import LogisticRegression\n"
+                    "\n"
+                    "\n"
+                    "def pipeline_logreg(X_train, y_train, X_test, y_test):\n"
+                    "    # TODO: pipe = Pipeline([('sc', StandardScaler()),\n"
+                    "    #                        ('lr', LogisticRegression(random_state=42, max_iter=500))])\n"
+                    "    # TODO: pipe.fit(X_train, y_train)\n"
+                    "    # TODO: return float(pipe.score(X_test, y_test))\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Pipeline([(nombre, estimador), ...]) — orden importa: primero preproc, ultimo modelo.",
+                    "pipe.fit escala con train y entrena; pipe.score escala test con params de train y evalua.",
+                    "Sobre iris con random_state=42 y stratify=y, el pipeline llega a 1.0.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "pipeline retorna float 1.0 sobre iris seed 42",
+                        "code": (
+                            "import io\n"
+                            "import pandas as pd\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "csv = 'sepal_length,sepal_width,petal_length,petal_width,species\\n5.1,3.5,1.4,0.2,setosa\\n4.9,3.0,1.4,0.2,setosa\\n4.7,3.2,1.3,0.2,setosa\\n4.6,3.1,1.5,0.2,setosa\\n5.0,3.6,1.4,0.2,setosa\\n5.4,3.9,1.7,0.4,setosa\\n4.6,3.4,1.4,0.3,setosa\\n5.0,3.4,1.5,0.2,setosa\\n4.4,2.9,1.4,0.2,setosa\\n4.9,3.1,1.5,0.1,setosa\\n7.0,3.2,4.7,1.4,versicolor\\n6.4,3.2,4.5,1.5,versicolor\\n6.9,3.1,4.9,1.5,versicolor\\n5.5,2.3,4.0,1.3,versicolor\\n6.5,2.8,4.6,1.5,versicolor\\n5.7,2.8,4.5,1.3,versicolor\\n6.3,3.3,4.7,1.6,versicolor\\n4.9,2.4,3.3,1.0,versicolor\\n6.6,2.9,4.6,1.3,versicolor\\n5.2,2.7,3.9,1.4,versicolor\\n6.3,3.3,6.0,2.5,virginica\\n5.8,2.7,5.1,1.9,virginica\\n7.1,3.0,5.9,2.1,virginica\\n6.3,2.9,5.6,1.8,virginica\\n6.5,3.0,5.8,2.2,virginica\\n7.6,3.0,6.6,2.1,virginica\\n4.9,2.5,4.5,1.7,virginica\\n7.3,2.9,6.3,1.8,virginica\\n6.7,2.5,5.8,1.8,virginica\\n7.2,3.6,6.1,2.5,virginica\\n'\n"
+                            "df = pd.read_csv(io.StringIO(csv))\n"
+                            "X = df[['sepal_length','sepal_width','petal_length','petal_width']]\n"
+                            "y = df['species']\n"
+                            "X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "acc = pipeline_logreg(X_train, y_train, X_test, y_test)\n"
+                            "assert isinstance(acc, float), type(acc)\n"
+                            "assert acc == 1.0, acc"
+                        ),
+                    },
+                    {
+                        "name": "el pipeline corre y retorna accuracy valida",
+                        "code": (
+                            "import io\n"
+                            "import pandas as pd\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "csv = 'sepal_length,sepal_width,petal_length,petal_width,species\\n5.1,3.5,1.4,0.2,setosa\\n4.9,3.0,1.4,0.2,setosa\\n4.7,3.2,1.3,0.2,setosa\\n4.6,3.1,1.5,0.2,setosa\\n5.0,3.6,1.4,0.2,setosa\\n5.4,3.9,1.7,0.4,setosa\\n4.6,3.4,1.4,0.3,setosa\\n5.0,3.4,1.5,0.2,setosa\\n4.4,2.9,1.4,0.2,setosa\\n4.9,3.1,1.5,0.1,setosa\\n7.0,3.2,4.7,1.4,versicolor\\n6.4,3.2,4.5,1.5,versicolor\\n6.9,3.1,4.9,1.5,versicolor\\n5.5,2.3,4.0,1.3,versicolor\\n6.5,2.8,4.6,1.5,versicolor\\n5.7,2.8,4.5,1.3,versicolor\\n6.3,3.3,4.7,1.6,versicolor\\n4.9,2.4,3.3,1.0,versicolor\\n6.6,2.9,4.6,1.3,versicolor\\n5.2,2.7,3.9,1.4,versicolor\\n6.3,3.3,6.0,2.5,virginica\\n5.8,2.7,5.1,1.9,virginica\\n7.1,3.0,5.9,2.1,virginica\\n6.3,2.9,5.6,1.8,virginica\\n6.5,3.0,5.8,2.2,virginica\\n7.6,3.0,6.6,2.1,virginica\\n4.9,2.5,4.5,1.7,virginica\\n7.3,2.9,6.3,1.8,virginica\\n6.7,2.5,5.8,1.8,virginica\\n7.2,3.6,6.1,2.5,virginica\\n'\n"
+                            "df = pd.read_csv(io.StringIO(csv))\n"
+                            "X = df[['sepal_length','sepal_width','petal_length','petal_width']]\n"
+                            "y = df['species']\n"
+                            "X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "acc = pipeline_logreg(X_train, y_train, X_test, y_test)\n"
+                            "assert 0.0 <= acc <= 1.0"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="ColumnTransformer con numericas + categoricas",
+                description=(
+                    "Preprocesa un DataFrame heterogeneo mezclando "
+                    "StandardScaler para numericas y OneHotEncoder para "
+                    "categoricas en un solo objeto."
+                ),
+                instructions=(
+                    "Implementa `preprocess_mixto(df, num_cols, cat_cols)` "
+                    "que crea un `ColumnTransformer` con dos "
+                    "transformadores: `('num', StandardScaler(), "
+                    "num_cols)` y `('cat', OneHotEncoder(sparse_output="
+                    "False, handle_unknown='ignore'), cat_cols)`. Hace "
+                    "`fit_transform` sobre `df` y devuelve la matriz "
+                    "resultante como `np.ndarray`."
+                ),
+                starter_code=(
+                    "from sklearn.compose import ColumnTransformer\n"
+                    "from sklearn.preprocessing import StandardScaler, OneHotEncoder\n"
+                    "\n"
+                    "\n"
+                    "def preprocess_mixto(df, num_cols, cat_cols):\n"
+                    "    # TODO: ct = ColumnTransformer([\n"
+                    "    #     ('num', StandardScaler(), num_cols),\n"
+                    "    #     ('cat', OneHotEncoder(sparse_output=False, handle_unknown='ignore'), cat_cols),\n"
+                    "    # ])\n"
+                    "    # TODO: retorna ct.fit_transform(df)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "El orden en la lista define el orden de columnas de salida: primero numericas.",
+                    "sparse_output=False evita tener que llamar .toarray() para inspeccionar el resultado.",
+                    "handle_unknown='ignore' es la variante que no crashea con categorias nuevas.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "shape correcto (5, 5) = 2 num + 3 cat",
+                        "code": (
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'edad': [25, 40, 30, 55, 22],\n"
+                            "    'ingreso': [30000, 60000, 45000, 90000, 25000],\n"
+                            "    'plan': ['basico', 'pro', 'basico', 'enterprise', 'basico'],\n"
+                            "})\n"
+                            "out = preprocess_mixto(df, ['edad', 'ingreso'], ['plan'])\n"
+                            "assert out.shape == (5, 5), out.shape"
+                        ),
+                    },
+                    {
+                        "name": "columnas numericas escaladas a media 0 std 1",
+                        "code": (
+                            "import numpy as np\n"
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'edad': [25, 40, 30, 55, 22],\n"
+                            "    'ingreso': [30000, 60000, 45000, 90000, 25000],\n"
+                            "    'plan': ['basico', 'pro', 'basico', 'enterprise', 'basico'],\n"
+                            "})\n"
+                            "out = preprocess_mixto(df, ['edad', 'ingreso'], ['plan'])\n"
+                            "assert abs(out[:, 0].mean()) < 1e-9, out[:, 0].mean()\n"
+                            "assert abs(out[:, 0].std() - 1.0) < 1e-9, out[:, 0].std()\n"
+                            "assert abs(out[:, 1].mean()) < 1e-9\n"
+                            "assert abs(out[:, 1].std() - 1.0) < 1e-9"
+                        ),
+                    },
+                    {
+                        "name": "one-hot: cada fila tiene exactamente un 1 en las cols categoricas",
+                        "code": (
+                            "import numpy as np\n"
+                            "import pandas as pd\n"
+                            "df = pd.DataFrame({\n"
+                            "    'edad': [25, 40, 30, 55, 22],\n"
+                            "    'ingreso': [30000, 60000, 45000, 90000, 25000],\n"
+                            "    'plan': ['basico', 'pro', 'basico', 'enterprise', 'basico'],\n"
+                            "})\n"
+                            "out = preprocess_mixto(df, ['edad', 'ingreso'], ['plan'])\n"
+                            "one_hot = out[:, 2:5]\n"
+                            "assert np.array_equal(one_hot.sum(axis=1), [1, 1, 1, 1, 1]), one_hot.sum(axis=1)\n"
+                            "# alfabetico: 3 basico + 1 enterprise + 1 pro\n"
+                            "assert one_hot.sum(axis=0).tolist() == [3.0, 1.0, 1.0], one_hot.sum(axis=0)"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
