@@ -5303,6 +5303,343 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="ML 6 · Cross-validation y GridSearchCV",
+        description=(
+            "Evaluar modelos de forma honesta con K-Fold y encontrar "
+            "hiperparametros con GridSearchCV. Fin de la ilusion de "
+            "una sola accuracy."
+        ),
+        content=(
+            "# ML 6: cross-validation y GridSearchCV\n\n"
+            "Un solo `train_test_split` te da **una** accuracy. Suena "
+            "razonable, pero esa accuracy depende de que muestras "
+            "cayeron en el test — cambia el `random_state` y sale otra. "
+            "Peor: si eliges hiperparametros mirando ese test, te "
+            "**enganas a ti mismo** (data leakage sutil). Este bloque "
+            "resuelve ambos problemas con **cross-validation** y "
+            "**GridSearchCV**.\n\n"
+            "## Tres ideas para entender CV\n\n"
+            "### 1. K-Fold: promediar sobre varios splits\n\n"
+            "En vez de un split unico, divide el dataset en **K partes** "
+            "(folds). Entrena K veces: cada fold es el test una vez, y "
+            "los otros K-1 folds son el train. Al final tienes K "
+            "accuracies — su **media** es una estimacion mucho mas "
+            "estable que un solo split.\n\n"
+            "```\n"
+            "K=5:\n"
+            "  fold 1: [test][train][train][train][train]\n"
+            "  fold 2: [train][test][train][train][train]\n"
+            "  fold 3: [train][train][test][train][train]\n"
+            "  fold 4: [train][train][train][test][train]\n"
+            "  fold 5: [train][train][train][train][test]\n"
+            "  scores = [0.96, 1.00, 0.93, 0.96, 1.00]\n"
+            "  mean = 0.97, std = 0.025\n"
+            "```\n\n"
+            "```python\n"
+            "from sklearn.model_selection import cross_val_score\n"
+            "from sklearn.linear_model import LogisticRegression\n\n"
+            "lr = LogisticRegression(max_iter=1000, random_state=42)\n"
+            "scores = cross_val_score(lr, X, y, cv=5)\n"
+            "print(scores.mean(), scores.std())\n"
+            "```\n\n"
+            "**Que te da CV que un split no te da:**\n\n"
+            "- **Estimacion estable**: promedio de K medidas independientes.\n"
+            "- **Desviacion**: `scores.std()` te dice cuanto varia el "
+            "modelo entre folds. Std alta = modelo inestable.\n"
+            "- **Usa todo el dataset**: cada fila aparece en train Y en "
+            "test (en folds distintos). Sin desperdicio.\n\n"
+            "**Reglas practicas para K:**\n\n"
+            "- `cv=5` o `cv=10` son los estandares. 5 mas rapido; 10 "
+            "mas robusto.\n"
+            "- Con datasets pequenos, sube K (K=10, incluso "
+            "leave-one-out K=N).\n"
+            "- Con datasets grandes, baja K (K=3 o incluso 2) — cada "
+            "fold ya es grande.\n\n"
+            "### 2. StratifiedKFold: preserva la proporcion de clases\n\n"
+            "Por default, `cross_val_score` con un clasificador usa "
+            "`StratifiedKFold`: cada fold mantiene la misma proporcion "
+            "de clases que el dataset completo. Esto es **imprescindible** "
+            "en clasificacion desbalanceada — sin stratify, un fold "
+            "podria quedar con 0% de la clase minoritaria y las metricas "
+            "explotan.\n\n"
+            "```python\n"
+            "from sklearn.model_selection import StratifiedKFold\n\n"
+            "skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)\n"
+            "scores = cross_val_score(lr, X, y, cv=skf)\n"
+            "```\n\n"
+            "Para regresion no hay clases que estratificar; se usa "
+            "`KFold` normal.\n\n"
+            "### 3. GridSearchCV: probar combinaciones de hiperparametros\n\n"
+            "Elegir `max_depth=3` a ojo es adivinar. `GridSearchCV` "
+            "prueba **todas las combinaciones** de un `param_grid` con "
+            "CV interno y te devuelve la mejor:\n\n"
+            "```python\n"
+            "from sklearn.model_selection import GridSearchCV\n"
+            "from sklearn.tree import DecisionTreeClassifier\n\n"
+            "param_grid = {'max_depth': [1, 2, 3, 5, 10]}\n"
+            "gs = GridSearchCV(\n"
+            "    DecisionTreeClassifier(random_state=42),\n"
+            "    param_grid,\n"
+            "    cv=5,\n"
+            ")\n"
+            "gs.fit(X, y)\n"
+            "print(gs.best_params_)   # {'max_depth': 3}\n"
+            "print(gs.best_score_)    # 0.9733 (media CV del mejor)\n"
+            "print(gs.best_estimator_)  # DecisionTreeClassifier(max_depth=3, ...)\n"
+            "```\n\n"
+            "**Que hace GridSearchCV por dentro:**\n\n"
+            "1. Genera todas las combinaciones del `param_grid` "
+            "(producto cartesiano).\n"
+            "2. Para cada combinacion, corre `cross_val_score(cv=5)`.\n"
+            "3. Selecciona la combinacion con la media mas alta.\n"
+            "4. **Reentrena** el mejor modelo con **todo** el dataset "
+            "de entrada (por eso `best_estimator_` esta listo para "
+            "predecir).\n\n"
+            "**Multiples hiperparametros = producto cartesiano:**\n\n"
+            "```python\n"
+            "param_grid = {\n"
+            "    'max_depth': [3, 5, 10],\n"
+            "    'min_samples_leaf': [1, 5, 10],\n"
+            "}\n"
+            "# GridSearchCV probara 3 * 3 = 9 combinaciones\n"
+            "```\n\n"
+            "Cuando el grid se pone grande (>50 combinaciones) usa "
+            "`RandomizedSearchCV` — muestrea N combinaciones al azar en "
+            "vez de exhaustivo. Casi tan bueno, mucho mas rapido.\n\n"
+            "## Nested CV: el estandar de oro\n\n"
+            "Si usas GridSearchCV para elegir hiperparametros **y** "
+            "reportas `best_score_` como tu accuracy final, estas "
+            "**contaminando** — elegiste el hiperparametro mirando el "
+            "mismo CV que ahora reportas. El estandar riguroso es "
+            "**nested CV**: un CV externo para estimar performance y "
+            "un CV interno (dentro de GridSearchCV) para tunear.\n\n"
+            "```python\n"
+            "from sklearn.model_selection import cross_val_score, GridSearchCV\n\n"
+            "gs = GridSearchCV(DecisionTreeClassifier(random_state=42),\n"
+            "                  {'max_depth': [3, 5, 10]}, cv=5)\n"
+            "final = cross_val_score(gs, X, y, cv=5)  # nested\n"
+            "print(final.mean())  # accuracy honesta\n"
+            "```\n\n"
+            "En la practica esto es 25x mas costoso. Muchos proyectos "
+            "se conforman con un `train / val / test` clasico: tunean "
+            "con GridSearchCV sobre train+val, y reportan sobre el test "
+            "intocado.\n\n"
+            "## Errores comunes\n\n"
+            "1. **Reportar `best_score_` como accuracy de produccion** "
+            "— es optimista; usa un test set separado o nested CV.\n"
+            "2. **CV sin stratify en desbalanceado** — folds sin la "
+            "clase minoritaria = metricas rotas. `cross_val_score` "
+            "con clasificador ya lo hace por default; con "
+            "regresion/pipeline custom, verificalo.\n"
+            "3. **Escalar antes de CV** — data leakage: el scaler ve "
+            "medias del test. Solucion: envolver el modelo en un "
+            "`Pipeline` y pasar el pipeline a `cross_val_score`.\n"
+            "4. **Grid gigante sin sentido** — probar 500 combinaciones "
+            "cuando 20 dan la misma respuesta. Empieza pequeno, "
+            "expande solo si el mejor esta en el borde del grid.\n"
+            "5. **K muy alto con datasets grandes** — leave-one-out en "
+            "1M filas = 1M entrenamientos. Con datasets grandes, K=3 "
+            "sobra.\n\n"
+            "## Resumen\n\n"
+            "- `cross_val_score(modelo, X, y, cv=5)` devuelve un array "
+            "de K accuracies. Reporta `mean` y `std`.\n"
+            "- Para clasificadores, `cv=5` ya estratifica; para "
+            "regresion o pipelines custom, pasa un `KFold`/`StratifiedKFold`.\n"
+            "- `GridSearchCV(estimator, param_grid, cv=5)` prueba "
+            "todas las combinaciones y expone `best_params_`, "
+            "`best_score_`, `best_estimator_`.\n"
+            "- El mejor `best_score_` **no es** la accuracy que veras "
+            "en produccion — usa un test set aparte o nested CV para "
+            "reportar honestamente.\n"
+        ),
+        difficulty="intermediate",
+        category="ml-tuning",
+        order=27,
+        track="track-3",
+        estimated_duration=55,
+        prerequisites_titles=[
+            "ML 5 · Arboles y Random Forest",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="cross_val_score sobre LogisticRegression",
+                description=(
+                    "Corre 5-fold cross-validation sobre un modelo "
+                    "LogReg y devuelve el array de scores."
+                ),
+                instructions=(
+                    "Implementa `cv_score_logreg(X, y, cv=5)` que crea "
+                    "`LogisticRegression(max_iter=1000, random_state=42)`, "
+                    "corre `cross_val_score` con `cv=cv` y devuelve el "
+                    "array de scores (`np.ndarray`) tal cual."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "from sklearn.linear_model import LogisticRegression\n"
+                    "from sklearn.model_selection import cross_val_score\n"
+                    "\n"
+                    "\n"
+                    "def cv_score_logreg(X, y, cv=5):\n"
+                    "    # TODO: lr = LogisticRegression(max_iter=1000, random_state=42)\n"
+                    "    # TODO: return cross_val_score(lr, X, y, cv=cv)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "cross_val_score devuelve np.ndarray de shape (cv,).",
+                    "Con cv=5 sobre iris (150 filas) tienes 30 filas por fold.",
+                    "No hagas .mean() aqui — devuelve el array completo.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "cv=5 sobre iris devuelve array de 5 scores con mean > 0.95",
+                        "code": (
+                            "import numpy as np\n"
+                            "from sklearn.datasets import load_iris\n"
+                            "X, y = load_iris(return_X_y=True)\n"
+                            "scores = cv_score_logreg(X, y, cv=5)\n"
+                            "assert isinstance(scores, np.ndarray), type(scores)\n"
+                            "assert scores.shape == (5,), scores.shape\n"
+                            "assert (scores >= 0).all() and (scores <= 1).all(), scores\n"
+                            "assert scores.mean() > 0.95, scores.mean()"
+                        ),
+                    },
+                    {
+                        "name": "cv=3 devuelve array de 3 scores",
+                        "code": (
+                            "import numpy as np\n"
+                            "from sklearn.datasets import load_iris\n"
+                            "X, y = load_iris(return_X_y=True)\n"
+                            "scores = cv_score_logreg(X, y, cv=3)\n"
+                            "assert scores.shape == (3,), scores.shape\n"
+                            "assert scores.mean() > 0.9, scores.mean()"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Elegir el mejor k para KNN via CV",
+                description=(
+                    "Compara varios valores de k con cross-validation "
+                    "y devuelve el que da mejor media."
+                ),
+                instructions=(
+                    "Implementa `mejor_k_knn(X, y, ks)` que, para cada "
+                    "`k` en la lista `ks`, entrena "
+                    "`KNeighborsClassifier(n_neighbors=k)`, calcula la "
+                    "media de `cross_val_score(cv=5)` y devuelve el `k` "
+                    "con la media mas alta como `int`. En caso de empate, "
+                    "prefiere el `k` mas chico (el primero en aparecer "
+                    "con el maximo)."
+                ),
+                starter_code=(
+                    "from sklearn.neighbors import KNeighborsClassifier\n"
+                    "from sklearn.model_selection import cross_val_score\n"
+                    "\n"
+                    "\n"
+                    "def mejor_k_knn(X, y, ks):\n"
+                    "    # TODO: para cada k en ks, calcular mean = cross_val_score(...).mean()\n"
+                    "    # TODO: retornar el k con la media mas alta (empate -> primero)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "max con key=lambda k: score_de(k) devuelve el primer maximo.",
+                    "cross_val_score(...).mean() te da la accuracy promedio.",
+                    "Sobre iris con ks=[1,3,5,7,9], gana k=7 con score 0.98.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "iris con ks=[1,3,5,7,9] -> k=7 gana",
+                        "code": (
+                            "from sklearn.datasets import load_iris\n"
+                            "X, y = load_iris(return_X_y=True)\n"
+                            "k = mejor_k_knn(X, y, [1, 3, 5, 7, 9])\n"
+                            "assert isinstance(k, int), type(k)\n"
+                            "assert k == 7, k"
+                        ),
+                    },
+                    {
+                        "name": "k devuelto pertenece a ks y no rompe con lista de 1 elemento",
+                        "code": (
+                            "from sklearn.datasets import load_iris\n"
+                            "X, y = load_iris(return_X_y=True)\n"
+                            "k = mejor_k_knn(X, y, [5])\n"
+                            "assert k == 5, k\n"
+                            "k2 = mejor_k_knn(X, y, [3, 11])\n"
+                            "assert k2 in {3, 11}, k2"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="GridSearchCV sobre DecisionTree",
+                description=(
+                    "Encuentra el mejor max_depth para un DecisionTree "
+                    "con GridSearchCV."
+                ),
+                instructions=(
+                    "Implementa `grid_search_dt(X, y, depths)` que corre "
+                    "`GridSearchCV` con "
+                    "`DecisionTreeClassifier(random_state=42)`, "
+                    "`param_grid={'max_depth': depths}` y `cv=5`. "
+                    "Devuelve una tupla `(best_depth: int, best_score: float)` "
+                    "con `best_params_['max_depth']` y "
+                    "`best_score_`."
+                ),
+                starter_code=(
+                    "from sklearn.tree import DecisionTreeClassifier\n"
+                    "from sklearn.model_selection import GridSearchCV\n"
+                    "\n"
+                    "\n"
+                    "def grid_search_dt(X, y, depths):\n"
+                    "    # TODO: gs = GridSearchCV(DT(random_state=42), {'max_depth': depths}, cv=5)\n"
+                    "    # TODO: gs.fit(X, y)\n"
+                    "    # TODO: return (int(gs.best_params_['max_depth']), float(gs.best_score_))\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "gs.best_params_ es un dict; gs.best_score_ es la media CV del mejor.",
+                    "Envuelve en int() y float() para evitar numpy types.",
+                    "Sobre iris con depths=[1,2,3,5] gana max_depth=3 con ~0.9733.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "iris depths=[1,2,3,5] -> best_depth=3, best_score ~0.9733",
+                        "code": (
+                            "from sklearn.datasets import load_iris\n"
+                            "X, y = load_iris(return_X_y=True)\n"
+                            "best_depth, best_score = grid_search_dt(X, y, [1, 2, 3, 5])\n"
+                            "assert isinstance(best_depth, int), type(best_depth)\n"
+                            "assert isinstance(best_score, float), type(best_score)\n"
+                            "assert best_depth == 3, best_depth\n"
+                            "assert abs(best_score - 0.9733) < 0.01, best_score"
+                        ),
+                    },
+                    {
+                        "name": "depths=[1] fuerza best_depth=1 y best_score coincide con cross_val_score",
+                        "code": (
+                            "from sklearn.datasets import load_iris\n"
+                            "from sklearn.tree import DecisionTreeClassifier\n"
+                            "from sklearn.model_selection import cross_val_score\n"
+                            "X, y = load_iris(return_X_y=True)\n"
+                            "best_depth, best_score = grid_search_dt(X, y, [1])\n"
+                            "assert best_depth == 1, best_depth\n"
+                            "esperado = cross_val_score(\n"
+                            "    DecisionTreeClassifier(max_depth=1, random_state=42), X, y, cv=5\n"
+                            ").mean()\n"
+                            "assert abs(best_score - esperado) < 1e-6, (best_score, esperado)"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
