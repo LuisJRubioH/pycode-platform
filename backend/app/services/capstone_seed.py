@@ -344,6 +344,393 @@ CAPSTONES: list[dict] = [
         "difficulty": "intermediate",
         "order_index": 1,
     },
+    {
+        "slug": "track-2-eda-cafecito",
+        "track": "track-2",
+        "title": "EDA del cafecito: ventas, sucursales y productos",
+        "short_description": (
+            "Analiza el dataset ventas-pyme con pandas. Construye un modulo "
+            "de funciones puras que calcule KPIs, ranking de sucursales, "
+            "serie temporal de unidades y correlacion. Cierra el Track 2 "
+            "de Data Science."
+        ),
+        "description": (
+            "## Contexto\n\n"
+            "La cafeteria del Track 1 (la que registraba ventas con la CLI) "
+            "ya tiene 60 dias de datos consolidados en un CSV. La duena te "
+            "pide un analisis exploratorio: que sucursal vende mas, cual es "
+            "el producto estrella, si hay tendencia diaria y si las unidades "
+            "vendidas explican el ingreso.\n\n"
+            "## Que aprendes con este capstone\n\n"
+            "- Cargar y parsear un CSV real con `pd.read_csv` + `parse_dates`.\n"
+            "- Componer `groupby + sum + sort_values + idxmax` como bloques.\n"
+            "- Trabajar con `DatetimeIndex` para series temporales.\n"
+            "- Calcular correlacion de Pearson con `.corr()`.\n"
+            "- Mantener funciones **puras** (sin efectos, sin prints) faciles "
+            "de testear.\n\n"
+            "## Estructura sugerida\n\n"
+            "```\n"
+            "eda_cafecito/\n"
+            "  analisis.py    # Funciones puras: parsear, KPIs, agrupaciones\n"
+            "  notebook.py    # Script de exploracion (opcional, no testeado)\n"
+            "```\n\n"
+            "El dataset esta disponible via la helper de la plataforma:\n\n"
+            "```python\n"
+            "import pycode\n"
+            "csv_text = await pycode.fetch_dataset_csv('ventas-pyme')\n"
+            "df = parsear_ventas(csv_text)\n"
+            "```\n\n"
+            "Pero **los tests** te van a pasar su propio CSV pequeno (6 filas) "
+            "para que las funciones sean reproducibles; no asumas el dataset "
+            "real en tu logica.\n\n"
+            "## Como se evalua\n\n"
+            "Cuando pulses **Enviar capstone**, la plataforma corre 8 tests "
+            "ocultos que invocan cada funcion con datos sinteticos y comparan "
+            "el resultado contra valores fijos. Necesitas pasar al menos 7 de "
+            "8 para que el capstone cuente como completado y desbloquee el "
+            "certificado del Track 2."
+        ),
+        "requirements": [
+            {
+                "id": "R1",
+                "text": (
+                    "`parsear_ventas(csv_text: str) -> pd.DataFrame` lee el CSV "
+                    "(via `pd.read_csv` + `StringIO`) y devuelve un DataFrame "
+                    "con columnas `fecha, sucursal, producto, categoria, "
+                    "unidades, precio_unit, ingreso`. La columna `fecha` debe "
+                    "quedar como `datetime64` (usa `parse_dates`)."
+                ),
+            },
+            {
+                "id": "R2",
+                "text": (
+                    "`ingreso_total(df) -> float` retorna la suma de la columna "
+                    "`ingreso`. Para un DataFrame vacio retorna `0.0` (no "
+                    "lanza excepcion)."
+                ),
+            },
+            {
+                "id": "R3",
+                "text": (
+                    "`ranking_sucursales(df) -> pd.DataFrame` agrupa por "
+                    "`sucursal`, suma `ingreso` y devuelve un DataFrame con "
+                    "indice `sucursal` y columna `ingreso`, ordenado "
+                    "descendente."
+                ),
+            },
+            {
+                "id": "R4",
+                "text": (
+                    "`top_producto(df) -> str` agrupa por `producto`, suma "
+                    "`ingreso` y devuelve el nombre del producto que mas "
+                    "ingreso genero (idxmax)."
+                ),
+            },
+            {
+                "id": "R5",
+                "text": (
+                    "`ingreso_por_categoria(df) -> dict` agrupa por `categoria`, "
+                    "suma `ingreso` y devuelve un `dict` `categoria -> total`."
+                ),
+            },
+            {
+                "id": "R6",
+                "text": (
+                    "`unidades_por_dia(df) -> pd.Series` agrupa por `fecha`, "
+                    "suma `unidades` y devuelve una Serie con `DatetimeIndex` "
+                    "ordenado ascendente."
+                ),
+            },
+            {
+                "id": "R7",
+                "text": (
+                    "`dia_pico_unidades(df) -> pd.Timestamp` retorna la fecha "
+                    "(Timestamp) con mas unidades vendidas (idxmax sobre "
+                    "`unidades_por_dia`)."
+                ),
+            },
+            {
+                "id": "R8",
+                "text": (
+                    "`correlacion_unidades_ingreso(df) -> float` calcula la "
+                    "correlacion de Pearson entre `unidades` e `ingreso`. "
+                    "Devuelve un float en el rango [-1, 1]."
+                ),
+            },
+        ],
+        "starter_files": [
+            {
+                "path": "analisis.py",
+                "editable": True,
+                "content": (
+                    '"""Funciones puras de analisis EDA sobre ventas-pyme."""\n'
+                    "\n"
+                    "import io\n"
+                    "\n"
+                    "import pandas as pd\n"
+                    "\n"
+                    "\n"
+                    "def parsear_ventas(csv_text: str) -> pd.DataFrame:\n"
+                    '    """Lee el CSV de ventas y devuelve un DataFrame.\n'
+                    "\n"
+                    "    La columna `fecha` debe quedar como datetime64.\n"
+                    '    """\n'
+                    "    # TODO: usa pd.read_csv con io.StringIO(csv_text) y\n"
+                    "    # parse_dates=['fecha'] para obtener fechas tipadas.\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def ingreso_total(df: pd.DataFrame) -> float:\n"
+                    '    """Suma de la columna ingreso. 0.0 si esta vacio."""\n'
+                    "    # TODO: devolver float(df['ingreso'].sum()).\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def ranking_sucursales(df: pd.DataFrame) -> pd.DataFrame:\n"
+                    '    """DataFrame con indice sucursal y col ingreso, desc."""\n'
+                    "    # TODO: groupby('sucursal')['ingreso'].sum().sort_values\n"
+                    "    # (ascending=False).to_frame()\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def top_producto(df: pd.DataFrame) -> str:\n"
+                    '    """Producto con mayor ingreso total."""\n'
+                    "    # TODO: groupby('producto')['ingreso'].sum().idxmax()\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def ingreso_por_categoria(df: pd.DataFrame) -> dict:\n"
+                    '    """dict {categoria: total_ingreso}."""\n'
+                    "    # TODO: groupby('categoria')['ingreso'].sum().to_dict()\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def unidades_por_dia(df: pd.DataFrame) -> pd.Series:\n"
+                    '    """Serie con DatetimeIndex (asc) sumando unidades por fecha."""\n'
+                    "    # TODO: groupby('fecha')['unidades'].sum().sort_index()\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def dia_pico_unidades(df: pd.DataFrame) -> pd.Timestamp:\n"
+                    '    """Fecha (Timestamp) con mas unidades vendidas."""\n'
+                    "    # TODO: unidades_por_dia(df).idxmax()\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def correlacion_unidades_ingreso(df: pd.DataFrame) -> float:\n"
+                    '    """Pearson entre columnas unidades e ingreso."""\n'
+                    "    # TODO: float(df['unidades'].corr(df['ingreso']))\n"
+                    "    raise NotImplementedError\n"
+                ),
+            },
+            {
+                "path": "notebook.py",
+                "editable": True,
+                "content": (
+                    '"""Script de exploracion libre (no se evalua).\n'
+                    "\n"
+                    "Usa este archivo para cargar el dataset real y probar las\n"
+                    "funciones de analisis.py contra los 60 dias de ventas.\n"
+                    '"""\n'
+                    "\n"
+                    "import asyncio\n"
+                    "\n"
+                    "import pycode\n"
+                    "\n"
+                    "from analisis import (\n"
+                    "    parsear_ventas,\n"
+                    "    ingreso_total,\n"
+                    "    ranking_sucursales,\n"
+                    "    top_producto,\n"
+                    "    ingreso_por_categoria,\n"
+                    "    unidades_por_dia,\n"
+                    "    dia_pico_unidades,\n"
+                    "    correlacion_unidades_ingreso,\n"
+                    ")\n"
+                    "\n"
+                    "\n"
+                    "async def main() -> None:\n"
+                    '    csv_text = await pycode.fetch_dataset_csv("ventas-pyme")\n'
+                    "    df = parsear_ventas(csv_text)\n"
+                    '    print("ingreso total =", ingreso_total(df))\n'
+                    '    print("top producto =", top_producto(df))\n'
+                    '    print("dia pico =", dia_pico_unidades(df))\n'
+                    '    print("correlacion =", correlacion_unidades_ingreso(df))\n'
+                    "\n"
+                    "\n"
+                    'if __name__ == "__main__":\n'
+                    "    asyncio.run(main())\n"
+                ),
+            },
+        ],
+        "hidden_tests": [
+            {
+                "name": "parsear_ventas retorna DataFrame con fecha datetime64",
+                "code": (
+                    "from analisis import parsear_ventas\n"
+                    "import pandas as pd\n"
+                    "csv = (\n"
+                    '    "fecha,sucursal,producto,categoria,unidades,precio_unit,ingreso\\n"\n'
+                    '    "2026-01-01,centro,cafe,bebida,5,3.5,17.5\\n"\n'
+                    '    "2026-01-02,norte,torta,comida,2,4.5,9.0\\n"\n'
+                    ")\n"
+                    "df = parsear_ventas(csv)\n"
+                    "assert isinstance(df, pd.DataFrame)\n"
+                    "assert list(df.columns) == ['fecha','sucursal','producto','categoria','unidades','precio_unit','ingreso']\n"
+                    "assert str(df['fecha'].dtype).startswith('datetime64'), df.dtypes\n"
+                    "assert len(df) == 2"
+                ),
+            },
+            {
+                "name": "ingreso_total suma columna ingreso (y 0 si esta vacio)",
+                "code": (
+                    "from analisis import parsear_ventas, ingreso_total\n"
+                    "import math\n"
+                    "csv = (\n"
+                    '    "fecha,sucursal,producto,categoria,unidades,precio_unit,ingreso\\n"\n'
+                    '    "2026-01-01,centro,cafe,bebida,5,3.5,17.5\\n"\n'
+                    '    "2026-01-01,norte,torta,comida,2,4.5,9.0\\n"\n'
+                    '    "2026-01-02,centro,cafe,bebida,3,3.5,10.5\\n"\n'
+                    '    "2026-01-02,sur,sandwich,comida,4,6.0,24.0\\n"\n'
+                    '    "2026-01-03,centro,te,bebida,2,2.5,5.0\\n"\n'
+                    '    "2026-01-03,norte,galletas,comida,6,1.8,10.8\\n"\n'
+                    ")\n"
+                    "df = parsear_ventas(csv)\n"
+                    "assert math.isclose(ingreso_total(df), 76.8, abs_tol=1e-6)\n"
+                    'vacio = parsear_ventas("fecha,sucursal,producto,categoria,unidades,precio_unit,ingreso\\n")\n'
+                    "assert math.isclose(ingreso_total(vacio), 0.0, abs_tol=1e-6)"
+                ),
+            },
+            {
+                "name": "ranking_sucursales ordena descendente por ingreso",
+                "code": (
+                    "from analisis import parsear_ventas, ranking_sucursales\n"
+                    "import math\n"
+                    "csv = (\n"
+                    '    "fecha,sucursal,producto,categoria,unidades,precio_unit,ingreso\\n"\n'
+                    '    "2026-01-01,centro,cafe,bebida,5,3.5,17.5\\n"\n'
+                    '    "2026-01-01,norte,torta,comida,2,4.5,9.0\\n"\n'
+                    '    "2026-01-02,centro,cafe,bebida,3,3.5,10.5\\n"\n'
+                    '    "2026-01-02,sur,sandwich,comida,4,6.0,24.0\\n"\n'
+                    '    "2026-01-03,centro,te,bebida,2,2.5,5.0\\n"\n'
+                    '    "2026-01-03,norte,galletas,comida,6,1.8,10.8\\n"\n'
+                    ")\n"
+                    "df = parsear_ventas(csv)\n"
+                    "rs = ranking_sucursales(df)\n"
+                    "assert list(rs.index) == ['centro','sur','norte'], rs.index.tolist()\n"
+                    "assert math.isclose(rs.loc['centro','ingreso'], 33.0)\n"
+                    "assert math.isclose(rs.loc['sur','ingreso'], 24.0)\n"
+                    "assert math.isclose(rs.loc['norte','ingreso'], 19.8)"
+                ),
+            },
+            {
+                "name": "top_producto devuelve cafe (mayor ingreso acumulado)",
+                "code": (
+                    "from analisis import parsear_ventas, top_producto\n"
+                    "csv = (\n"
+                    '    "fecha,sucursal,producto,categoria,unidades,precio_unit,ingreso\\n"\n'
+                    '    "2026-01-01,centro,cafe,bebida,5,3.5,17.5\\n"\n'
+                    '    "2026-01-01,norte,torta,comida,2,4.5,9.0\\n"\n'
+                    '    "2026-01-02,centro,cafe,bebida,3,3.5,10.5\\n"\n'
+                    '    "2026-01-02,sur,sandwich,comida,4,6.0,24.0\\n"\n'
+                    '    "2026-01-03,centro,te,bebida,2,2.5,5.0\\n"\n'
+                    '    "2026-01-03,norte,galletas,comida,6,1.8,10.8\\n"\n'
+                    ")\n"
+                    "df = parsear_ventas(csv)\n"
+                    "tp = top_producto(df)\n"
+                    "assert tp == 'cafe', tp"
+                ),
+            },
+            {
+                "name": "ingreso_por_categoria agrupa bebida y comida",
+                "code": (
+                    "from analisis import parsear_ventas, ingreso_por_categoria\n"
+                    "import math\n"
+                    "csv = (\n"
+                    '    "fecha,sucursal,producto,categoria,unidades,precio_unit,ingreso\\n"\n'
+                    '    "2026-01-01,centro,cafe,bebida,5,3.5,17.5\\n"\n'
+                    '    "2026-01-01,norte,torta,comida,2,4.5,9.0\\n"\n'
+                    '    "2026-01-02,centro,cafe,bebida,3,3.5,10.5\\n"\n'
+                    '    "2026-01-02,sur,sandwich,comida,4,6.0,24.0\\n"\n'
+                    '    "2026-01-03,centro,te,bebida,2,2.5,5.0\\n"\n'
+                    '    "2026-01-03,norte,galletas,comida,6,1.8,10.8\\n"\n'
+                    ")\n"
+                    "df = parsear_ventas(csv)\n"
+                    "ipc = ingreso_por_categoria(df)\n"
+                    "assert isinstance(ipc, dict)\n"
+                    "assert set(ipc.keys()) == {'bebida','comida'}, ipc\n"
+                    "assert math.isclose(ipc['bebida'], 33.0)\n"
+                    "assert math.isclose(ipc['comida'], 43.8)"
+                ),
+            },
+            {
+                "name": "unidades_por_dia tiene DatetimeIndex y suma por fecha",
+                "code": (
+                    "from analisis import parsear_ventas, unidades_por_dia\n"
+                    "import pandas as pd\n"
+                    "csv = (\n"
+                    '    "fecha,sucursal,producto,categoria,unidades,precio_unit,ingreso\\n"\n'
+                    '    "2026-01-01,centro,cafe,bebida,5,3.5,17.5\\n"\n'
+                    '    "2026-01-01,norte,torta,comida,2,4.5,9.0\\n"\n'
+                    '    "2026-01-02,centro,cafe,bebida,3,3.5,10.5\\n"\n'
+                    '    "2026-01-02,sur,sandwich,comida,4,6.0,24.0\\n"\n'
+                    '    "2026-01-03,centro,te,bebida,2,2.5,5.0\\n"\n'
+                    '    "2026-01-03,norte,galletas,comida,6,1.8,10.8\\n"\n'
+                    ")\n"
+                    "df = parsear_ventas(csv)\n"
+                    "upd = unidades_por_dia(df)\n"
+                    "assert isinstance(upd, pd.Series), type(upd)\n"
+                    "esperado_idx = list(pd.to_datetime(['2026-01-01','2026-01-02','2026-01-03']))\n"
+                    "assert list(upd.index) == esperado_idx, upd.index.tolist()\n"
+                    "assert int(upd.iloc[0]) == 7\n"
+                    "assert int(upd.iloc[1]) == 7\n"
+                    "assert int(upd.iloc[2]) == 8"
+                ),
+            },
+            {
+                "name": "dia_pico_unidades es 2026-01-03",
+                "code": (
+                    "from analisis import parsear_ventas, dia_pico_unidades\n"
+                    "import pandas as pd\n"
+                    "csv = (\n"
+                    '    "fecha,sucursal,producto,categoria,unidades,precio_unit,ingreso\\n"\n'
+                    '    "2026-01-01,centro,cafe,bebida,5,3.5,17.5\\n"\n'
+                    '    "2026-01-01,norte,torta,comida,2,4.5,9.0\\n"\n'
+                    '    "2026-01-02,centro,cafe,bebida,3,3.5,10.5\\n"\n'
+                    '    "2026-01-02,sur,sandwich,comida,4,6.0,24.0\\n"\n'
+                    '    "2026-01-03,centro,te,bebida,2,2.5,5.0\\n"\n'
+                    '    "2026-01-03,norte,galletas,comida,6,1.8,10.8\\n"\n'
+                    ")\n"
+                    "df = parsear_ventas(csv)\n"
+                    "dp = dia_pico_unidades(df)\n"
+                    "assert dp == pd.Timestamp('2026-01-03'), dp"
+                ),
+            },
+            {
+                "name": "correlacion_unidades_ingreso es positiva en rango",
+                "code": (
+                    "from analisis import parsear_ventas, correlacion_unidades_ingreso\n"
+                    "csv = (\n"
+                    '    "fecha,sucursal,producto,categoria,unidades,precio_unit,ingreso\\n"\n'
+                    '    "2026-01-01,centro,cafe,bebida,5,3.5,17.5\\n"\n'
+                    '    "2026-01-01,norte,torta,comida,2,4.5,9.0\\n"\n'
+                    '    "2026-01-02,centro,cafe,bebida,3,3.5,10.5\\n"\n'
+                    '    "2026-01-02,sur,sandwich,comida,4,6.0,24.0\\n"\n'
+                    '    "2026-01-03,centro,te,bebida,2,2.5,5.0\\n"\n'
+                    '    "2026-01-03,norte,galletas,comida,6,1.8,10.8\\n"\n'
+                    ")\n"
+                    "df = parsear_ventas(csv)\n"
+                    "c = correlacion_unidades_ingreso(df)\n"
+                    "assert isinstance(c, float), type(c)\n"
+                    "assert -1.0 <= c <= 1.0, c\n"
+                    "assert 0.3 < c < 0.7, c"
+                ),
+            },
+        ],
+        "estimated_hours": 10,
+        "difficulty": "intermediate",
+        "order_index": 2,
+    },
 ]
 
 

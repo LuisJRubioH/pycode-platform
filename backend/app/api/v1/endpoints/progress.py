@@ -225,113 +225,132 @@ async def get_track_status(
 ):
     """Estado agregado por Track para el usuario actual.
 
-    Por ahora todas las lecciones del Track 1 son "Python" (las actuales no
-    estan etiquetadas por track explicito). Cuando lleguen Tracks 2-6 se
-    extiende la logica para filtrar por `Lesson.track` o equivalente.
+    Itera los tracks conocidos (TRACK_TITLES) filtrando lecciones por
+    `Lesson.track` y eligiendo el capstone canonico del track por
+    `Capstone.track == track` con `order_index` ascendente.
+
+    Devuelve solo los tracks que tengan al menos una leccion activa o un
+    capstone activo, para no exponer placeholders vacios de tracks futuros.
 
     El gate del certificado (`certificate_unlocked`) se computa server-side:
     queda True solo cuando existe una `CapstoneSubmission` del usuario
-    actual con `status="passed"` para el capstone del Track.
+    actual con `status="passed"` para el capstone del track.
     """
-    # Por ahora hardcodeamos Track 1 ya que todas las lecciones existentes
-    # forman parte del mismo track. La estructura ya admite extender.
-    lessons = (
+    lessons_all = (
         (await db.execute(select(Lesson).where(Lesson.is_active.is_(True))))
         .scalars()
         .all()
     )
-    lessons_total = len(lessons)
-    lesson_ids = [lesson.id for lesson in lessons]
+    lessons_by_track: dict[str, list[Lesson]] = {}
+    for lesson in lessons_all:
+        lessons_by_track.setdefault(lesson.track or "track-1", []).append(lesson)
 
-    completed_lessons = 0
-    if lesson_ids:
-        result = await db.execute(
-            select(func.count(UserProgress.id)).where(
-                UserProgress.user_id == current_user.id,
-                UserProgress.lesson_id.in_(lesson_ids),
-                UserProgress.status == "completed",
-            )
-        )
-        completed_lessons = result.scalar() or 0
-
-    ex_rows = (
-        await db.execute(
-            select(Exercise.id).where(Exercise.lesson_id.in_(lesson_ids))
-            if lesson_ids
-            else select(Exercise.id).where(Exercise.id == -1)
-        )
-    ).all()
-    exercise_ids = [row[0] for row in ex_rows]
-    exercises_total = len(exercise_ids)
-
-    completed_exercises = 0
-    if exercise_ids:
-        sub_rows = (
+    cap_rows = (
+        (
             await db.execute(
-                select(CodeSubmission.exercise_id)
-                .where(
-                    CodeSubmission.user_id == current_user.id,
-                    CodeSubmission.exercise_id.in_(exercise_ids),
-                    CodeSubmission.result == "success",
-                )
-                .distinct()
+                select(Capstone)
+                .where(Capstone.is_active.is_(True))
+                .order_by(Capstone.order_index.asc())
             )
-        ).all()
-        completed_exercises = len({row[0] for row in sub_rows})
-
-    # Capstone canonico del Track 1 (por slug — track puede tener mas
-    # de un capstone en el futuro pero por ahora el "oficial" es este).
-    cap_row = await db.execute(
-        select(Capstone).where(
-            Capstone.slug == "track-1-cli-ventas",
-            Capstone.is_active.is_(True),
         )
+        .scalars()
+        .all()
     )
-    capstone = cap_row.scalar_one_or_none()
+    capstones_by_track: dict[str, Capstone] = {}
+    for cap in cap_rows:
+        # order_index asc + dict.setdefault => primer capstone por track
+        capstones_by_track.setdefault(cap.track, cap)
 
-    capstone_slug = None
-    capstone_title = None
-    capstone_status = None
-    capstone_tests_passed = None
-    capstone_tests_total = None
-    certificate_unlocked = False
+    items: list[TrackStatusItem] = []
+    for track_key, track_title_value in TRACK_TITLES.items():
+        lessons = lessons_by_track.get(track_key, [])
+        capstone = capstones_by_track.get(track_key)
+        if not lessons and capstone is None:
+            continue  # no exponer tracks vacios (3-6 hoy)
 
-    if capstone is not None:
-        capstone_slug = capstone.slug
-        capstone_title = capstone.title
-        # Ultima submission del usuario para este capstone
-        sub_row = await db.execute(
-            select(CapstoneSubmission)
-            .where(
-                CapstoneSubmission.user_id == current_user.id,
-                CapstoneSubmission.capstone_id == capstone.id,
+        lesson_ids = [lesson.id for lesson in lessons]
+        lessons_total = len(lesson_ids)
+
+        completed_lessons = 0
+        if lesson_ids:
+            result = await db.execute(
+                select(func.count(UserProgress.id)).where(
+                    UserProgress.user_id == current_user.id,
+                    UserProgress.lesson_id.in_(lesson_ids),
+                    UserProgress.status == "completed",
+                )
             )
-            .order_by(CapstoneSubmission.created_at.desc())
-            .limit(1)
-        )
-        submission = sub_row.scalar_one_or_none()
-        if submission is not None:
-            capstone_status = submission.status
-            capstone_tests_passed = submission.tests_passed
-            capstone_tests_total = submission.tests_total
-            certificate_unlocked = submission.status == "passed"
+            completed_lessons = result.scalar() or 0
 
-    return [
-        TrackStatusItem(
-            track="track-1",
-            title=TRACK_TITLES["track-1"],
-            lessons_total=lessons_total,
-            lessons_completed=completed_lessons,
-            exercises_total=exercises_total,
-            exercises_completed=completed_exercises,
-            capstone_slug=capstone_slug,
-            capstone_title=capstone_title,
-            capstone_status=capstone_status,
-            capstone_tests_passed=capstone_tests_passed,
-            capstone_tests_total=capstone_tests_total,
-            certificate_unlocked=certificate_unlocked,
+        exercise_ids: list[int] = []
+        if lesson_ids:
+            ex_rows = (
+                await db.execute(
+                    select(Exercise.id).where(Exercise.lesson_id.in_(lesson_ids))
+                )
+            ).all()
+            exercise_ids = [row[0] for row in ex_rows]
+        exercises_total = len(exercise_ids)
+
+        completed_exercises = 0
+        if exercise_ids:
+            sub_rows = (
+                await db.execute(
+                    select(CodeSubmission.exercise_id)
+                    .where(
+                        CodeSubmission.user_id == current_user.id,
+                        CodeSubmission.exercise_id.in_(exercise_ids),
+                        CodeSubmission.result == "success",
+                    )
+                    .distinct()
+                )
+            ).all()
+            completed_exercises = len({row[0] for row in sub_rows})
+
+        capstone_slug = None
+        capstone_title = None
+        capstone_status = None
+        capstone_tests_passed = None
+        capstone_tests_total = None
+        certificate_unlocked = False
+
+        if capstone is not None:
+            capstone_slug = capstone.slug
+            capstone_title = capstone.title
+            sub_row = await db.execute(
+                select(CapstoneSubmission)
+                .where(
+                    CapstoneSubmission.user_id == current_user.id,
+                    CapstoneSubmission.capstone_id == capstone.id,
+                )
+                .order_by(CapstoneSubmission.created_at.desc())
+                .limit(1)
+            )
+            submission = sub_row.scalar_one_or_none()
+            if submission is not None:
+                capstone_status = submission.status
+                capstone_tests_passed = submission.tests_passed
+                capstone_tests_total = submission.tests_total
+                certificate_unlocked = submission.status == "passed"
+
+        items.append(
+            TrackStatusItem(
+                track=track_key,
+                title=track_title_value,
+                lessons_total=lessons_total,
+                lessons_completed=completed_lessons,
+                exercises_total=exercises_total,
+                exercises_completed=completed_exercises,
+                capstone_slug=capstone_slug,
+                capstone_title=capstone_title,
+                capstone_status=capstone_status,
+                capstone_tests_passed=capstone_tests_passed,
+                capstone_tests_total=capstone_tests_total,
+                certificate_unlocked=certificate_unlocked,
+            )
         )
-    ]
+
+    return items
 
 
 @router.get("/code-quality", response_model=CodeQualityProgressOut)
