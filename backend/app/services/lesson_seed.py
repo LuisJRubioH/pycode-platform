@@ -5960,6 +5960,351 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="ML 8 · PCA para reducir dimensionalidad",
+        description=(
+            "Principal Component Analysis: comprimir features "
+            "preservando varianza. Visualizacion 2D y aceleracion de "
+            "modelos."
+        ),
+        content=(
+            "# ML 8: reduccion de dimensionalidad con PCA\n\n"
+            "Cuando tienes 64 features (o 10.000), pasan tres cosas "
+            "molestas: es dificil visualizar los datos, los modelos "
+            "tardan mas en entrenar, y muchas features estan "
+            "**correlacionadas** entre si (informacion redundante). "
+            "**PCA (Principal Component Analysis)** ataca las tres: "
+            "encuentra un espacio nuevo de menor dimension que "
+            "**preserva la mayor varianza posible** de los datos "
+            "originales.\n\n"
+            "## Tres ideas para entender PCA\n\n"
+            "### 1. PCA encuentra los ejes con mayor varianza\n\n"
+            "Imagina una nube de puntos alargada en el plano (X, Y). "
+            "PCA rota los ejes para que **el primer eje nuevo (PC1) "
+            "vaya a lo largo de la nube** (direccion de maxima "
+            "varianza), y el segundo (PC2) sea perpendicular a PC1 y "
+            "capture la varianza restante. Cada componente principal es "
+            "una **combinacion lineal** de las features originales.\n\n"
+            "```\n"
+            "features originales -> ejes rotados por PCA\n"
+            "  X (sepal_length)         PC1 (0.52*sl + 0.27*sw + 0.58*pl + 0.56*pw)\n"
+            "  Y (sepal_width)     ->   PC2 (-0.38*sl + 0.92*sw - 0.02*pl - 0.07*pw)\n"
+            "  Z (petal_length)         PC3 (...)\n"
+            "  W (petal_width)          PC4 (...)\n"
+            "```\n\n"
+            "Las componentes estan **ordenadas por varianza explicada** "
+            "de mayor a menor. Si te quedas con las primeras K, "
+            "conservas la mayor parte de la informacion en menos "
+            "dimensiones.\n\n"
+            "```python\n"
+            "from sklearn.decomposition import PCA\n\n"
+            "pca = PCA(n_components=2, random_state=42)\n"
+            "X2 = pca.fit_transform(X)   # shape (n_samples, 2)\n"
+            "print(pca.explained_variance_ratio_)\n"
+            "# [0.7296, 0.2285]  -> las 2 primeras PC explican 95.8% de la varianza\n"
+            "```\n\n"
+            "### 2. Cuantas componentes usar\n\n"
+            "Dos estrategias tipicas:\n\n"
+            "**A. Fijar un umbral de varianza explicada** (ej. 95%):\n"
+            "```python\n"
+            "pca = PCA(n_components=0.95, random_state=42).fit(X)\n"
+            "print(pca.n_components_)  # cuantas necesito para llegar a 95%\n"
+            "```\n\n"
+            "**B. Scree plot**: grafica varianza explicada acumulada vs "
+            "K y buscas el codo (igual que en KMeans):\n\n"
+            "```\n"
+            "iris:\n"
+            "  1 PC:  72.96%\n"
+            "  2 PC:  95.81%  <- ya cerca del 100%\n"
+            "  3 PC:  99.48%\n"
+            "  4 PC: 100.00%\n"
+            "```\n\n"
+            "Con 4 features originales, la ganancia de dimensionalidad "
+            "es minima. PCA brilla cuando tienes **muchas** features:\n\n"
+            "```\n"
+            "digits (64 features):\n"
+            "  para conservar 90% de varianza -> 31 componentes\n"
+            "  reduces ~50% las columnas sin perder informacion util\n"
+            "```\n\n"
+            "### 3. Escalado obligatorio (otra vez)\n\n"
+            "PCA usa **varianza**, y la varianza depende de la escala. "
+            "Una feature en dolares (0-1M) tendra varianza millones de "
+            "veces mayor que una en 0-1: dominara PC1 aunque sea "
+            "irrelevante. Aplica siempre `StandardScaler` antes de PCA "
+            "(salvo que todas tus features ya esten en la misma "
+            "escala fisica).\n\n"
+            "```python\n"
+            "from sklearn.pipeline import Pipeline\n"
+            "from sklearn.preprocessing import StandardScaler\n\n"
+            "pipe = Pipeline([\n"
+            "    ('sc', StandardScaler()),\n"
+            "    ('pca', PCA(n_components=2, random_state=42)),\n"
+            "    ('lr', LogisticRegression(max_iter=1000)),\n"
+            "])\n"
+            "```\n\n"
+            "## Cuando usar PCA\n\n"
+            "**Casos donde PCA es la herramienta correcta:**\n\n"
+            "- **Visualizacion**: reducir a 2 o 3 componentes para "
+            "plotear datos de alta dimension.\n"
+            "- **Compresion**: cientos/miles de features ->\n"
+            "  decenas conservando 95% de la varianza.\n"
+            "- **Denoising**: al descartar componentes de baja varianza "
+            "eliminas ruido idiosincratico.\n"
+            "- **Multicolinealidad**: features muy correlacionadas "
+            "confunden a la regresion lineal; PCA las combina en "
+            "componentes ortogonales.\n\n"
+            "**Casos donde PCA es mala idea:**\n\n"
+            "- **Necesitas interpretabilidad por feature** — los PCs "
+            "son combinaciones lineales, no features originales. "
+            'Explicar "el modelo depende de 0.5*X1 - 0.3*X2 + '
+            '0.8*X3" no vende.\n'
+            "- **Features categoricas o binarias** — PCA es lineal y "
+            "asume continuidad; en categoricas usa MCA o embeddings.\n"
+            "- **Relaciones no lineales** en los datos — PCA solo "
+            "captura estructura lineal. Para manifolds curvos usa "
+            "t-SNE o UMAP (solo para visualizacion) o autoencoders.\n"
+            "- **Dataset gigante** — PCA calcula la matriz de "
+            "covarianza (O(n * d^2)); con d>10.000 se pone lento. Usa "
+            "`TruncatedSVD` o `IncrementalPCA`.\n\n"
+            "## Precio a pagar: casi siempre pierdes algo de accuracy\n\n"
+            "Reducir dimensionalidad tiene un costo. Sobre iris "
+            "escalado con LogReg:\n\n"
+            "```\n"
+            "  features originales (4):  CV accuracy = 0.96\n"
+            "  PCA a 2 componentes:      CV accuracy = 0.91\n"
+            "```\n\n"
+            "Perder 0.05 puede o no valer la pena — depende del "
+            "problema. Si eres mucho mas rapido, visualizas datos, "
+            "y el modelo sigue siendo aceptable, PCA gana. Si cada "
+            "punto de accuracy vale plata, PCA no es tu amigo.\n\n"
+            "## Errores comunes\n\n"
+            "1. **No escalar antes** — features con rangos muy "
+            "distintos dominan PCs. `StandardScaler` primero.\n"
+            "2. **Aplicar PCA a train + test juntos** — data leakage. "
+            "`fit` solo en train; `transform` en test.\n"
+            "3. **Usar todos los PCs pensando que 'ayuda'** — PCA con "
+            "n_components = n_features solo rota; no reduce ni "
+            "acelera nada.\n"
+            "4. **Interpretar PC1 como una feature real** — es una "
+            "combinacion; puedes mirar `pca.components_` para ver los "
+            "coeficientes, pero rara vez tiene un nombre claro.\n"
+            "5. **Aplicar PCA a arboles/RF** — no ayuda: los arboles "
+            "no sufren de multicolinealidad ni les molesta la escala. "
+            "PCA solo agrega complejidad y tira interpretabilidad.\n\n"
+            "## Resumen\n\n"
+            "- `PCA(n_components=K)` proyecta X a un espacio de K "
+            "dimensiones que **preserva la mayor varianza posible**.\n"
+            "- Elige K por umbral (`n_components=0.95`) o scree plot.\n"
+            "- `pca.explained_variance_ratio_` te dice que fraccion de "
+            "varianza captura cada componente.\n"
+            "- **Escala siempre** antes con `StandardScaler`, y "
+            "envuelve todo en un `Pipeline` para evitar leakage.\n"
+            "- Usa PCA para visualizar, comprimir, denoisar; NO para "
+            "categoricas, arboles, o cuando necesites interpretabilidad "
+            "por feature.\n"
+        ),
+        difficulty="intermediate",
+        category="ml-dim-reduction",
+        order=29,
+        track="track-3",
+        estimated_duration=55,
+        prerequisites_titles=[
+            "ML 7 · Clustering con KMeans y metodo del codo",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="PCA a n componentes",
+                description=(
+                    "Aplica PCA para reducir features y devuelve la "
+                    "transformacion + varianza explicada."
+                ),
+                instructions=(
+                    "Implementa `pca_reducir(X_scaled, n)` que crea "
+                    "`PCA(n_components=n, random_state=42)`, lo entrena "
+                    "con `fit_transform(X_scaled)` y devuelve una tupla "
+                    "`(X_reducido: np.ndarray, ratios: np.ndarray)` con "
+                    "el X transformado (shape `(n_samples, n)`) y el "
+                    "atributo `explained_variance_ratio_`."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "from sklearn.decomposition import PCA\n"
+                    "\n"
+                    "\n"
+                    "def pca_reducir(X_scaled, n):\n"
+                    "    # TODO: pca = PCA(n_components=n, random_state=42)\n"
+                    "    # TODO: X_red = pca.fit_transform(X_scaled)\n"
+                    "    # TODO: return (X_red, pca.explained_variance_ratio_)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "fit_transform hace fit + transform en un paso.",
+                    "explained_variance_ratio_ suma <=1 (=1 solo si n = n_features).",
+                    "Escala X antes con StandardScaler para que PCA sea significativo.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "iris escalado n=2 -> shape (150,2) y ~95.8% varianza",
+                        "code": (
+                            "import numpy as np\n"
+                            "from sklearn.datasets import load_iris\n"
+                            "from sklearn.preprocessing import StandardScaler\n"
+                            "X, _ = load_iris(return_X_y=True)\n"
+                            "Xs = StandardScaler().fit_transform(X)\n"
+                            "X2, ratios = pca_reducir(Xs, 2)\n"
+                            "assert isinstance(X2, np.ndarray), type(X2)\n"
+                            "assert X2.shape == (150, 2), X2.shape\n"
+                            "assert ratios.shape == (2,), ratios.shape\n"
+                            "# PC1 ~0.73, PC2 ~0.23\n"
+                            "assert abs(ratios[0] - 0.7296) < 0.01, ratios\n"
+                            "assert abs(ratios.sum() - 0.9581) < 0.01, ratios.sum()"
+                        ),
+                    },
+                    {
+                        "name": "n=4 = n_features -> ratios suman 1.0",
+                        "code": (
+                            "from sklearn.datasets import load_iris\n"
+                            "from sklearn.preprocessing import StandardScaler\n"
+                            "X, _ = load_iris(return_X_y=True)\n"
+                            "Xs = StandardScaler().fit_transform(X)\n"
+                            "X4, ratios = pca_reducir(Xs, 4)\n"
+                            "assert X4.shape == (150, 4), X4.shape\n"
+                            "assert abs(ratios.sum() - 1.0) < 1e-6, ratios.sum()"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Componentes necesarias para X% de varianza",
+                description=(
+                    "Cuenta cuantas componentes necesitas para llegar "
+                    "a un umbral de varianza explicada."
+                ),
+                instructions=(
+                    "Implementa `n_componentes_para(X_scaled, "
+                    "var_explicada)` que entrena "
+                    "`PCA(n_components=var_explicada, random_state=42)` "
+                    "sobre `X_scaled` y devuelve `pca.n_components_` "
+                    "como `int` (numero minimo de componentes que "
+                    "alcanzan al menos ese umbral). `var_explicada` "
+                    "debe estar entre 0 y 1 (fraccion, no porcentaje)."
+                ),
+                starter_code=(
+                    "from sklearn.decomposition import PCA\n"
+                    "\n"
+                    "\n"
+                    "def n_componentes_para(X_scaled, var_explicada):\n"
+                    "    # TODO: pca = PCA(n_components=var_explicada, random_state=42)\n"
+                    "    # TODO: pca.fit(X_scaled)\n"
+                    "    # TODO: return int(pca.n_components_)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "PCA acepta n_components como float en (0,1) = umbral de varianza.",
+                    "pca.n_components_ es el numero final elegido (int).",
+                    "digits (64 features) escalado con umbral 0.9 -> 31 componentes.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "iris escalado 0.95 -> 2 componentes",
+                        "code": (
+                            "from sklearn.datasets import load_iris\n"
+                            "from sklearn.preprocessing import StandardScaler\n"
+                            "X, _ = load_iris(return_X_y=True)\n"
+                            "Xs = StandardScaler().fit_transform(X)\n"
+                            "n = n_componentes_para(Xs, 0.95)\n"
+                            "assert isinstance(n, int), type(n)\n"
+                            "assert n == 2, n"
+                        ),
+                    },
+                    {
+                        "name": "digits escalado 0.9 -> 31 componentes",
+                        "code": (
+                            "from sklearn.datasets import load_digits\n"
+                            "from sklearn.preprocessing import StandardScaler\n"
+                            "X, _ = load_digits(return_X_y=True)\n"
+                            "Xs = StandardScaler().fit_transform(X)\n"
+                            "n = n_componentes_para(Xs, 0.9)\n"
+                            "assert n == 31, n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Pipeline PCA + LogReg: costo en accuracy",
+                description=(
+                    "Compara accuracy de LogReg con features originales "
+                    "vs con PCA aplicado antes."
+                ),
+                instructions=(
+                    "Implementa `pca_conserva_accuracy(X, y, "
+                    "n_components)` que arma DOS pipelines y devuelve "
+                    "un dict `{'full': acc_full, 'pca': acc_pca}` con "
+                    "las accuracies medias de `cross_val_score(cv=5)`:\n"
+                    "- `full`: `StandardScaler` + "
+                    "`LogisticRegression(max_iter=1000, random_state=42)`.\n"
+                    "- `pca`: `StandardScaler` + "
+                    "`PCA(n_components=n_components, random_state=42)` "
+                    "+ `LogisticRegression(max_iter=1000, "
+                    "random_state=42)`.\n"
+                    "Ambas accuracies como `float` (no numpy)."
+                ),
+                starter_code=(
+                    "from sklearn.decomposition import PCA\n"
+                    "from sklearn.linear_model import LogisticRegression\n"
+                    "from sklearn.model_selection import cross_val_score\n"
+                    "from sklearn.pipeline import Pipeline\n"
+                    "from sklearn.preprocessing import StandardScaler\n"
+                    "\n"
+                    "\n"
+                    "def pca_conserva_accuracy(X, y, n_components):\n"
+                    "    # TODO: pipe_full = Pipeline([('sc', ...), ('lr', ...)])\n"
+                    "    # TODO: pipe_pca = Pipeline([('sc', ...), ('pca', ...), ('lr', ...)])\n"
+                    "    # TODO: acc_full = cross_val_score(pipe_full, X, y, cv=5).mean()\n"
+                    "    # TODO: acc_pca = cross_val_score(pipe_pca, X, y, cv=5).mean()\n"
+                    "    # TODO: return {'full': float(acc_full), 'pca': float(acc_pca)}\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Pipeline garantiza que el scaler se ajusta solo en train por fold.",
+                    "En iris con n_components=2, acc_full ~0.96 y acc_pca ~0.91.",
+                    "float(acc) en la salida para que el dict no tenga numpy.float64.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "iris n=2 -> ambos > 0.9, full >= pca, dict shape correcta",
+                        "code": (
+                            "from sklearn.datasets import load_iris\n"
+                            "X, y = load_iris(return_X_y=True)\n"
+                            "res = pca_conserva_accuracy(X, y, 2)\n"
+                            "assert isinstance(res, dict), type(res)\n"
+                            "assert set(res.keys()) == {'full', 'pca'}, res.keys()\n"
+                            "assert isinstance(res['full'], float), type(res['full'])\n"
+                            "assert isinstance(res['pca'], float), type(res['pca'])\n"
+                            "assert res['full'] > 0.9, res\n"
+                            "assert res['pca'] > 0.9, res\n"
+                            "assert res['full'] >= res['pca'], res"
+                        ),
+                    },
+                    {
+                        "name": "iris n=4 -> pca deberia igualar full (mismas dimensiones = sin perdida)",
+                        "code": (
+                            "from sklearn.datasets import load_iris\n"
+                            "X, y = load_iris(return_X_y=True)\n"
+                            "res = pca_conserva_accuracy(X, y, 4)\n"
+                            "assert abs(res['full'] - res['pca']) < 0.02, res"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
