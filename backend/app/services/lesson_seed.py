@@ -4560,6 +4560,385 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="ML 4 · Regresion: LinearRegression, MSE, RMSE y R2",
+        description=(
+            "Predecir un numero (no una clase): regresion lineal, "
+            "metricas MSE/RMSE/R2 y Ridge para casos con "
+            "multicolinealidad."
+        ),
+        content=(
+            "# ML 4: regresion con LinearRegression\n\n"
+            "Hasta aqui todo fue **clasificacion**: predecir una categoria "
+            "(iris = setosa/versicolor/virginica, churn = 0/1). Este "
+            "bloque cambia el juego: predecir un **numero continuo** — "
+            "el precio de una casa, la demanda del proximo mes, el "
+            "tiempo hasta el primer pago. Es **regresion**.\n\n"
+            "## Tres ideas para regresion\n\n"
+            "### 1. Clasificacion vs regresion: no es lo mismo\n\n"
+            "El shape del problema cambia todo:\n\n"
+            "| Aspecto             | Clasificacion         | Regresion             |\n"
+            "|---------------------|-----------------------|-----------------------|\n"
+            "| Target              | Categoria (0/1, A/B)  | Numero real           |\n"
+            "| Modelo base         | LogisticRegression    | LinearRegression      |\n"
+            "| Metrica intuitiva   | accuracy, f1          | MSE, RMSE, R2         |\n"
+            "| `.score()` default  | accuracy              | R2                    |\n"
+            '| Error tipico        | "clase mal predicha" | "me equivoque por X"  |\n\n'
+            "El API de sklearn es identico: `fit`, `predict`, `score`. "
+            "Solo cambian los estimadores y las metricas.\n\n"
+            "### 2. LinearRegression aprende una combinacion lineal\n\n"
+            "El modelo mas simple de regresion asume que:\n\n"
+            "```\n"
+            "y = w_1 * x_1 + w_2 * x_2 + ... + w_n * x_n + b\n"
+            "```\n\n"
+            "El entrenamiento encuentra los pesos `w_i` y el intercepto "
+            "`b` que **minimizan el error cuadratico** sobre train.\n\n"
+            "```python\n"
+            "from sklearn.linear_model import LinearRegression\n\n"
+            "modelo = LinearRegression()\n"
+            "modelo.fit(X_train, y_train)\n\n"
+            "# inspeccion\n"
+            "print('coefs:', modelo.coef_)         # array de w_i\n"
+            "print('intercept:', modelo.intercept_) # b\n\n"
+            "y_pred = modelo.predict(X_test)       # array de floats\n"
+            "```\n\n"
+            "**Interpretacion:** si `coef_[0] == 3.0`, significa que "
+            "cuando la feature 0 sube 1 unidad, `y` sube 3.0 unidades "
+            "(manteniendo el resto constante). Este es el gran atractivo "
+            "de LinReg: es **directamente interpretable**.\n\n"
+            "### 3. Tres metricas para regresion\n\n"
+            "**MSE (Mean Squared Error)** = media de `(y_true - y_pred)^2`. "
+            "Penaliza mucho errores grandes (el cuadrado los "
+            "amplifica). El problema: sus unidades son las del target "
+            "**al cuadrado** — si predices precios en euros, MSE esta "
+            "en euros^2, dificil de interpretar.\n\n"
+            "**RMSE (Root Mean Squared Error)** = `sqrt(MSE)`. Vuelve a "
+            "las unidades del target: RMSE=1500 sobre precios de casas "
+            'significa "me equivoco tipicamente en 1500 euros". Es la '
+            "metrica que reportas a un stakeholder.\n\n"
+            "**R2 (coeficiente de determinacion)** = fraccion de la "
+            "varianza de `y` que el modelo captura. Va de -inf a 1.0:\n"
+            "- **R2 = 1.0**: predicciones perfectas.\n"
+            "- **R2 = 0.0**: el modelo no mejora sobre predecir la "
+            "media de `y`.\n"
+            "- **R2 < 0**: el modelo es **peor** que predecir la media. "
+            "Casi siempre significa que tienes un bug o un problema muy "
+            "no-lineal para LinReg.\n\n"
+            "```python\n"
+            "from sklearn.metrics import mean_squared_error, r2_score\n"
+            "import numpy as np\n\n"
+            "mse  = mean_squared_error(y_test, y_pred)\n"
+            "rmse = np.sqrt(mse)\n"
+            "r2   = r2_score(y_test, y_pred)\n"
+            "```\n\n"
+            "> Alternativa reciente: `root_mean_squared_error` te da "
+            "RMSE directo. El viejo flag `mean_squared_error(..., "
+            "squared=False)` esta deprecado en sklearn 1.6+; usa "
+            "`sqrt(mse)` o la nueva funcion.\n\n"
+            "## Ridge: regresion con regularizacion\n\n"
+            "Cuando dos features son casi identicas (**multicolinealidad**), "
+            "LinearRegression puede asignar pesos absurdos (uno "
+            "positivo enorme y el otro negativo enorme que se "
+            "cancelan). Es matematicamente correcto pero pesimo para "
+            "generalizar.\n\n"
+            "**Ridge** agrega una penalizacion al tamano de los coefs "
+            "(`alpha * ||w||^2` al costo). Los pesos quedan mas "
+            "chicos y balanceados:\n\n"
+            "```python\n"
+            "from sklearn.linear_model import Ridge\n\n"
+            "modelo = Ridge(alpha=1.0)  # alpha=0 == LinReg; alpha grande == mas penalizacion\n"
+            "modelo.fit(X_train, y_train)\n"
+            "```\n\n"
+            "**Regla de dedo:** si tienes features correlacionadas o "
+            "notas coefs raros, cambia `LinearRegression()` por "
+            "`Ridge(alpha=1.0)` como default. La perdida en R2 sobre "
+            "train es minima y ganas robustez.\n\n"
+            "**Lasso** (`Lasso(alpha=0.1)`) es similar pero manda "
+            "algunos coefs a exactamente **cero** — util para feature "
+            "selection automatica. Ridge y Lasso son las dos formas "
+            "canonicas de regularizacion lineal (L2 y L1 "
+            "respectivamente).\n\n"
+            "## El pipeline completo de regresion\n\n"
+            "Combinando lo de leccion anterior:\n\n"
+            "```python\n"
+            "from sklearn.pipeline import Pipeline\n"
+            "from sklearn.preprocessing import StandardScaler\n"
+            "from sklearn.linear_model import Ridge\n\n"
+            "pipe = Pipeline([\n"
+            "    ('sc', StandardScaler()),   # escalar es importante para Ridge/Lasso\n"
+            "    ('reg', Ridge(alpha=1.0)),\n"
+            "])\n"
+            "pipe.fit(X_train, y_train)\n"
+            "rmse = np.sqrt(mean_squared_error(y_test, pipe.predict(X_test)))\n"
+            "```\n\n"
+            "**Ridge y Lasso SI necesitan escalado**: la penalizacion es "
+            "sobre `||w||`, y una feature en escala grande naturalmente "
+            "tiene coef pequeno — la regularizacion la castigaria menos "
+            "sin escalar. StandardScaler nivela el terreno.\n\n"
+            "## Errores comunes\n\n"
+            "1. **Reportar R2 sin contexto** — un R2 de 0.6 puede ser "
+            "excelente en un dominio ruidoso (finanzas) y terrible en "
+            "otro (fisica de laboratorio). Siempre comparalo contra un "
+            "baseline trivial (predecir la media).\n"
+            '2. **RMSE sin unidades** — "mi modelo tiene RMSE=1500" '
+            'no significa nada; "me equivoco tipicamente en 1500 euros '
+            'sobre precios que van de 50k a 500k" es una frase util.\n'
+            "3. **LinReg sobre datos no-lineales** — si el patron real "
+            "es `y = x^2`, LinReg tendra R2 mediocre por diseno. Prueba "
+            "PolynomialFeatures o un modelo no-lineal (arbol, RF).\n"
+            "4. **Regularizar sin escalar** — Ridge y Lasso asumen "
+            "features en escala similar. Sin StandardScaler la "
+            "regularizacion pesa mas a features de escala pequena.\n"
+            "5. **Ignorar residuos** — R2 alto no significa que los "
+            "errores esten uniformemente distribuidos. Grafica "
+            "`y_pred vs residuos` para detectar patrones no capturados.\n\n"
+            "## Resumen\n\n"
+            "- Regresion predice un numero: `LinearRegression` es el "
+            "modelo base, mismo API (`fit`, `predict`, `score`) que "
+            "clasificacion.\n"
+            "- Metricas: MSE (unidades^2), RMSE (unidades del target, "
+            "el que reportas), R2 (fraccion de varianza explicada, "
+            "compare-friendly).\n"
+            "- Con multicolinealidad o riesgo de overfitting, usa "
+            "`Ridge(alpha=1.0)` como default. Escala las features "
+            "antes.\n"
+            "- Interpretabilidad: `coef_` te dice cuanto sube `y` por "
+            "unidad de cada feature; `intercept_` es el valor esperado "
+            "cuando todas las features son 0.\n"
+        ),
+        difficulty="intermediate",
+        category="ml-regresion",
+        order=25,
+        track="track-3",
+        estimated_duration=55,
+        prerequisites_titles=[
+            "ML 3 · Features escaladas y Pipelines",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Evaluar LinearRegression con MSE y R2",
+                description=(
+                    "Entrena un modelo lineal y devuelve las metricas "
+                    "clasicas de regresion como dict."
+                ),
+                instructions=(
+                    "Implementa `evaluar_regresion(X_train, y_train, "
+                    "X_test, y_test)` que entrena un `LinearRegression`, "
+                    "predice sobre test y retorna un `dict` con las "
+                    "claves `mse`, `rmse`, `r2` (todos floats). "
+                    "Usa `mean_squared_error` para MSE, "
+                    "`math.sqrt(mse)` o `numpy.sqrt(mse)` para RMSE y "
+                    "`r2_score` para R2."
+                ),
+                starter_code=(
+                    "import math\n"
+                    "from sklearn.linear_model import LinearRegression\n"
+                    "from sklearn.metrics import mean_squared_error, r2_score\n"
+                    "\n"
+                    "\n"
+                    "def evaluar_regresion(X_train, y_train, X_test, y_test):\n"
+                    "    # TODO: entrena LinearRegression().fit(X_train, y_train)\n"
+                    "    # TODO: y_pred = modelo.predict(X_test)\n"
+                    "    # TODO: retorna dict con 'mse', 'rmse' (=sqrt(mse)), 'r2'\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "float(mean_squared_error(y_test, y_pred)) evita numpy.float64.",
+                    "rmse = math.sqrt(mse). No hay que llamar mean_squared_error dos veces.",
+                    "Sobre y = 2x + 1 exacto, MSE deberia ser 0 y R2 igual a 1.0.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "y = 2x + 1 exacto: mse=0, rmse=0, r2=1",
+                        "code": (
+                            "import math\n"
+                            "import numpy as np\n"
+                            "X_tr = np.array([[1.0],[2.0],[3.0],[4.0],[5.0]])\n"
+                            "y_tr = np.array([3.0, 5.0, 7.0, 9.0, 11.0])\n"
+                            "X_te = np.array([[6.0],[7.0]])\n"
+                            "y_te = np.array([13.0, 15.0])\n"
+                            "res = evaluar_regresion(X_tr, y_tr, X_te, y_te)\n"
+                            "assert set(res.keys()) == {'mse','rmse','r2'}, res.keys()\n"
+                            "assert math.isclose(res['mse'], 0.0, abs_tol=1e-9), res\n"
+                            "assert math.isclose(res['rmse'], 0.0, abs_tol=1e-9), res\n"
+                            "assert math.isclose(res['r2'], 1.0, abs_tol=1e-9), res"
+                        ),
+                    },
+                    {
+                        "name": "todas las metricas son floats",
+                        "code": (
+                            "import numpy as np\n"
+                            "X_tr = np.array([[1.0],[2.0],[3.0]])\n"
+                            "y_tr = np.array([2.0, 4.0, 7.0])\n"
+                            "X_te = np.array([[4.0],[5.0]])\n"
+                            "y_te = np.array([8.0, 10.0])\n"
+                            "res = evaluar_regresion(X_tr, y_tr, X_te, y_te)\n"
+                            "for v in res.values():\n"
+                            "    assert isinstance(v, float), type(v)"
+                        ),
+                    },
+                    {
+                        "name": "rmse = sqrt(mse) siempre",
+                        "code": (
+                            "import math\n"
+                            "import numpy as np\n"
+                            "X_tr = np.array([[1.0],[2.0],[3.0]])\n"
+                            "y_tr = np.array([2.0, 4.0, 7.0])  # no lineal\n"
+                            "X_te = np.array([[4.0],[5.0]])\n"
+                            "y_te = np.array([8.0, 10.0])\n"
+                            "res = evaluar_regresion(X_tr, y_tr, X_te, y_te)\n"
+                            "assert math.isclose(res['rmse'], math.sqrt(res['mse']), abs_tol=1e-9), res"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Predecir valores nuevos",
+                description=(
+                    "Entrena un LinearRegression y usalo para predecir "
+                    "puntos que no vio."
+                ),
+                instructions=(
+                    "Implementa `predecir_lineal(X_train, y_train, "
+                    "X_nuevo)` que entrena un `LinearRegression` sobre "
+                    "train y devuelve `model.predict(X_nuevo)` como "
+                    "`np.ndarray`. Los tests pasan datos exactos y "
+                    "verifican predicciones conocidas."
+                ),
+                starter_code=(
+                    "from sklearn.linear_model import LinearRegression\n"
+                    "\n"
+                    "\n"
+                    "def predecir_lineal(X_train, y_train, X_nuevo):\n"
+                    "    # TODO: modelo = LinearRegression().fit(X_train, y_train)\n"
+                    "    # TODO: return modelo.predict(X_nuevo)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "predict acepta una matriz 2D — para un solo punto pasa [[x1, x2, ...]].",
+                    "Sobre y = 2x + 1, pred(10) = 21 y pred(20) = 41.",
+                    "El return de predict es np.ndarray; no lo conviertas a lista.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "y = 2x+1 exacto: pred(10)=21, pred(20)=41",
+                        "code": (
+                            "import numpy as np\n"
+                            "X_tr = np.array([[1.0],[2.0],[3.0],[4.0],[5.0]])\n"
+                            "y_tr = np.array([3.0, 5.0, 7.0, 9.0, 11.0])\n"
+                            "X_new = np.array([[10.0],[20.0]])\n"
+                            "pred = predecir_lineal(X_tr, y_tr, X_new)\n"
+                            "assert isinstance(pred, np.ndarray), type(pred)\n"
+                            "assert np.allclose(pred, [21.0, 41.0], atol=1e-9), pred"
+                        ),
+                    },
+                    {
+                        "name": "regresion multivariable: y = 3*x1 + 2*x2 + 1",
+                        "code": (
+                            "import numpy as np\n"
+                            "X_tr = np.array([\n"
+                            "    [0.0, 0.0], [1.0, 0.0], [0.0, 1.0],\n"
+                            "    [1.0, 1.0], [2.0, 3.0], [4.0, 2.0],\n"
+                            "])\n"
+                            "y_tr = np.array([1.0, 4.0, 3.0, 6.0, 13.0, 17.0])  # 3*x1 + 2*x2 + 1\n"
+                            "X_new = np.array([[5.0, 5.0], [10.0, 0.0]])\n"
+                            "pred = predecir_lineal(X_tr, y_tr, X_new)\n"
+                            "assert np.allclose(pred, [26.0, 31.0], atol=1e-9), pred"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Ridge vs LinearRegression con multicolinealidad",
+                description=(
+                    "Demuestra el valor de la regularizacion: Ridge "
+                    "reparte los coefs entre features colineales "
+                    "manteniendo R2 competitivo."
+                ),
+                instructions=(
+                    "Implementa `comparar_lin_vs_ridge(X_train, "
+                    "y_train, X_test, y_test, alpha)` que entrena un "
+                    "`LinearRegression` y un `Ridge(alpha=alpha, "
+                    "random_state=42)` sobre el mismo train, y devuelve "
+                    "un `dict` con las claves `lin_r2`, `ridge_r2`, "
+                    "`lin_coefs_norm`, `ridge_coefs_norm`. Usa "
+                    "`numpy.linalg.norm(model.coef_)` para la norma L2 "
+                    "de los coefs."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "from sklearn.linear_model import LinearRegression, Ridge\n"
+                    "from sklearn.metrics import r2_score\n"
+                    "\n"
+                    "\n"
+                    "def comparar_lin_vs_ridge(X_train, y_train, X_test, y_test, alpha):\n"
+                    "    # TODO: entrena LinReg y Ridge(alpha=alpha, random_state=42)\n"
+                    "    # TODO: retorna dict con 'lin_r2', 'ridge_r2',\n"
+                    "    #       'lin_coefs_norm', 'ridge_coefs_norm'\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "np.linalg.norm(model.coef_) es la norma L2 (sqrt(sum(w_i^2))).",
+                    "float(np.linalg.norm(...)) para asegurar Python float en el dict.",
+                    "Con features casi identicas, ||coefs_ridge|| < ||coefs_lin|| casi siempre.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "estructura del dict y tipos",
+                        "code": (
+                            "import numpy as np\n"
+                            "X_tr = np.array([[1.0, 1.0],[2.0, 2.0],[3.0, 3.0],[4.0, 4.0]])\n"
+                            "y_tr = np.array([2.0, 4.0, 6.0, 8.0])\n"
+                            "X_te = np.array([[5.0, 5.0],[6.0, 6.0]])\n"
+                            "y_te = np.array([10.0, 12.0])\n"
+                            "res = comparar_lin_vs_ridge(X_tr, y_tr, X_te, y_te, alpha=1.0)\n"
+                            "assert set(res.keys()) == {'lin_r2','ridge_r2','lin_coefs_norm','ridge_coefs_norm'}, res.keys()\n"
+                            "for v in res.values():\n"
+                            "    assert isinstance(v, float), type(v)"
+                        ),
+                    },
+                    {
+                        "name": "Ridge reduce ||coefs|| bajo multicolinealidad",
+                        "code": (
+                            "import numpy as np\n"
+                            "# features casi identicas (x1 ~ x2)\n"
+                            "X_tr = np.array([\n"
+                            "    [1.0, 1.01],[2.0, 2.02],[3.0, 3.01],\n"
+                            "    [4.0, 4.02],[5.0, 5.03],[6.0, 6.01],[7.0, 7.02],\n"
+                            "])\n"
+                            "y_tr = np.array([3.0, 5.0, 7.0, 9.0, 11.0, 13.0, 15.0])\n"
+                            "X_te = np.array([[8.0, 8.03],[9.0, 9.01],[10.0, 10.02]])\n"
+                            "y_te = np.array([17.0, 19.0, 21.0])\n"
+                            "res = comparar_lin_vs_ridge(X_tr, y_tr, X_te, y_te, alpha=1.0)\n"
+                            "assert res['ridge_coefs_norm'] < res['lin_coefs_norm'], res\n"
+                            "# ambos deben tener r2 razonables\n"
+                            "assert res['lin_r2'] > 0.9, res\n"
+                            "assert res['ridge_r2'] > 0.9, res"
+                        ),
+                    },
+                    {
+                        "name": "alpha minusculo hace que Ridge tienda a LinReg",
+                        "code": (
+                            "import numpy as np\n"
+                            "X_tr = np.array([[1.0, 1.01],[2.0, 2.02],[3.0, 3.01],[4.0, 4.02]])\n"
+                            "y_tr = np.array([3.0, 5.0, 7.0, 9.0])\n"
+                            "X_te = np.array([[5.0, 5.02]])\n"
+                            "y_te = np.array([11.0])\n"
+                            "res = comparar_lin_vs_ridge(X_tr, y_tr, X_te, y_te, alpha=1e-6)\n"
+                            "# con alpha minusculo, las normas casi coinciden\n"
+                            "assert abs(res['lin_coefs_norm'] - res['ridge_coefs_norm']) < 0.1, res"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
