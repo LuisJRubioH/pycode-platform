@@ -3842,6 +3842,351 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="ML 2 · Metricas mas alla de accuracy",
+        description=(
+            "Confusion matrix, precision, recall y f1. Cuando accuracy "
+            "engana y como leer un clasificador bajo desbalance real."
+        ),
+        content=(
+            "# ML 2: metricas mas alla de accuracy\n\n"
+            "En la leccion anterior mediste tu primer clasificador con "
+            "`accuracy_score`. En iris con 3 clases perfectamente "
+            "balanceadas y muy separables, accuracy es informativa. En "
+            "problemas reales (fraude, deteccion medica, spam, churn) "
+            "accuracy casi siempre miente. Aqui aprendes las metricas que "
+            "usan los equipos de ML en produccion.\n\n"
+            "## Tres ideas para entender clasificacion real\n\n"
+            "### 1. Accuracy engana con desbalance\n\n"
+            "Ejemplo canonico: un dataset de fraude bancario donde el 99% "
+            "de las transacciones son legitimas. Un modelo que **siempre "
+            "predice legitimo** tiene 99% de accuracy y detecta 0 fraudes. "
+            "En terminos de valor de negocio, ese modelo es peor que un "
+            "generador aleatorio.\n\n"
+            "Con clases desbalanceadas la clase mayoritaria domina la "
+            'cuenta. Accuracy no distingue entre "acerto todos los '
+            'faciles" y "acerto lo dificil".\n\n'
+            "### 2. La confusion matrix te da la verdad completa\n\n"
+            "Para clasificacion binaria (positivo/negativo), toda la "
+            "informacion sobre las predicciones cabe en una matriz 2x2:\n\n"
+            "```\n"
+            "                predijo=0    predijo=1\n"
+            "actual=0           TN           FP\n"
+            "actual=1           FN           TP\n"
+            "```\n\n"
+            "- **TP (True Positive)**: real=1, predijo=1. Aciertos "
+            "positivos.\n"
+            "- **TN (True Negative)**: real=0, predijo=0. Aciertos "
+            "negativos.\n"
+            "- **FP (False Positive)**: real=0, predijo=1. Falsa alarma. "
+            "Ej: usuario marcado como fraudulento cuando no lo era.\n"
+            "- **FN (False Negative)**: real=1, predijo=0. Pase por alto. "
+            "Ej: fraude no detectado, tumor no diagnosticado.\n\n"
+            "sklearn lo devuelve con:\n\n"
+            "```python\n"
+            "from sklearn.metrics import confusion_matrix\n"
+            "cm = confusion_matrix(y_true, y_pred)\n"
+            "# cm[0, 0] = TN,  cm[0, 1] = FP\n"
+            "# cm[1, 0] = FN,  cm[1, 1] = TP\n"
+            "```\n\n"
+            "> **Ordena importa:** el default de sklearn es "
+            "`labels=sorted(unique)`, asi que para 0/1 el orden es "
+            '"actual 0" arriba, "actual 1" abajo — coincide con la '
+            'convencion academica. Para etiquetas string ("spam"/"ham") '
+            "el orden alfabetico puede sorprenderte; siempre pasa `labels=` "
+            "explicito.\n\n"
+            "### 3. Precision, recall y f1: tres angulos del mismo problema\n\n"
+            "A partir de la confusion matrix salen las tres metricas "
+            "canonicas de clasificacion binaria:\n\n"
+            "**Precision** = `TP / (TP + FP)`. De todo lo que predije como "
+            "positivo, cuanto lo era. Optimizala cuando el costo de un "
+            "**falso positivo** es alto — ej: acusar de fraude a un "
+            "cliente inocente le genera friccion; queremos estar seguros "
+            "antes de senalar.\n\n"
+            "**Recall** (o sensibilidad) = `TP / (TP + FN)`. De todos los "
+            "positivos reales, cuantos atrape. Optimizala cuando el costo "
+            "de un **falso negativo** es alto — ej: no detectar un tumor "
+            "cuando lo hay puede matar al paciente; preferimos falsas "
+            "alarmas.\n\n"
+            "**F1-score** = media armonica de precision y recall = "
+            "`2 * P * R / (P + R)`. Un solo numero que penaliza dejar "
+            "cualquiera de las dos en cero. Es el default cuando no tienes "
+            "una razon fuerte para priorizar precision sobre recall.\n\n"
+            "sklearn los expone en un solo call:\n\n"
+            "```python\n"
+            "from sklearn.metrics import (\n"
+            "    precision_score, recall_score, f1_score,\n"
+            "    classification_report,\n"
+            ")\n"
+            "print('precision:', precision_score(y_true, y_pred))\n"
+            "print('recall:',    recall_score(y_true, y_pred))\n"
+            "print('f1:',        f1_score(y_true, y_pred))\n"
+            "\n"
+            "# Todo junto (por clase + weighted):\n"
+            "print(classification_report(y_true, y_pred))\n"
+            "```\n\n"
+            "## El tradeoff precision-recall\n\n"
+            "Casi todos los clasificadores devuelven una **probabilidad** "
+            "(via `predict_proba`) y aplican un **umbral** por defecto de "
+            "0.5 para pasar a 0/1. Ese umbral es un dial:\n\n"
+            "- **Umbral alto** (ej: 0.9): solo llamas positivo cuando el "
+            "modelo esta muy seguro. Precision sube, recall baja.\n"
+            "- **Umbral bajo** (ej: 0.2): llamas positivo con poca "
+            "evidencia. Recall sube, precision baja.\n\n"
+            "En produccion casi nunca usas el 0.5 default; eliges el "
+            "umbral segun el costo relativo de FP vs FN en tu caso de uso.\n\n"
+            "## Ejemplo con desbalance real: por que f1 es tu red\n\n"
+            "Imagina un dataset de churn con 90 clientes que no se van y "
+            '10 que si. Un modelo que predice "nadie se va":\n\n'
+            "- accuracy = 90/100 = **0.90**  <- se ve genial\n"
+            "- precision = indefinida (division por 0)\n"
+            "- recall = 0/10 = **0.0**  <- no atrapo un solo churn\n"
+            "- f1 = **0.0**  <- la metrica te grita que el modelo es "
+            "inutil\n\n"
+            "Un modelo decente que detecta 5 de 10 churns sin falsas "
+            "alarmas:\n\n"
+            "- accuracy = 95/100 = 0.95\n"
+            "- precision = 5/5 = 1.00\n"
+            "- recall = 5/10 = 0.50\n"
+            "- f1 = 0.667\n\n"
+            "El salto real (0 a 0.667 en f1) refleja el valor de negocio "
+            "que accuracy no captura (subio de 0.90 a 0.95, apenas 5 "
+            "puntos).\n\n"
+            "## Errores comunes\n\n"
+            "1. **Reportar solo accuracy en clasificacion binaria** — la "
+            "audiencia tecnica pedira precision y recall en el siguiente "
+            "mensaje.\n"
+            "2. **Optimizar la metrica equivocada** — si tu problema es "
+            '"encontrar todos los fraudes" (recall) pero reportas y '
+            "optimizas accuracy, terminaras con un modelo elegante que no "
+            "sirve.\n"
+            "3. **Confundir precision (metrica) con precision (numero de "
+            "decimales)** — precision de un clasificador es un ratio 0-1, "
+            "no tiene nada que ver con float precision.\n"
+            "4. **Comparar f1 entre modelos entrenados con distinto split** "
+            "— fija `random_state` y reusa el mismo `X_test`, `y_test`.\n"
+            "5. **`zero_division` warnings** — cuando no hay positivos "
+            "predichos, sklearn levanta `UndefinedMetricWarning`. Pasa "
+            "`zero_division=0` explicito para tratarlo como 0 en pipelines "
+            "reales.\n\n"
+            "## Resumen\n\n"
+            "- Accuracy es la metrica de entrada; para clasificacion real "
+            "reporta al menos precision, recall y f1.\n"
+            "- La confusion matrix es la fuente de verdad: TP, TN, FP, FN "
+            "definen todas las demas.\n"
+            "- Precision minimiza falsas alarmas; recall minimiza casos "
+            "perdidos; f1 los balancea.\n"
+            "- Bajo desbalance, accuracy alta puede coexistir con f1 = 0. "
+            "Siempre revisa la confusion matrix antes de celebrar.\n"
+        ),
+        difficulty="intermediate",
+        category="ml-evaluacion",
+        order=23,
+        track="track-3",
+        estimated_duration=50,
+        prerequisites_titles=[
+            "ML 1 · Tu primer clasificador con scikit-learn",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Extraer TN/FP/FN/TP de la confusion matrix",
+                description=(
+                    "Escribe una funcion que devuelva los 4 componentes de "
+                    "la confusion matrix binaria como dict."
+                ),
+                instructions=(
+                    "Implementa `desglose_confusion(y_true, y_pred)` que "
+                    "usa `sklearn.metrics.confusion_matrix` sobre etiquetas "
+                    "binarias 0/1 y devuelve un `dict` con las claves "
+                    "`tn`, `fp`, `fn`, `tp` (todos ints). Recuerda: "
+                    "`cm[0,0]=tn`, `cm[0,1]=fp`, `cm[1,0]=fn`, `cm[1,1]=tp`."
+                ),
+                starter_code=(
+                    "from sklearn.metrics import confusion_matrix\n"
+                    "\n"
+                    "\n"
+                    "def desglose_confusion(y_true, y_pred):\n"
+                    "    # TODO: cm = confusion_matrix(y_true, y_pred, labels=[0, 1])\n"
+                    "    # TODO: retorna dict {'tn': int(cm[0,0]), ...}\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Pasa labels=[0, 1] explicito para que el orden sea determinista.",
+                    "int(cm[i, j]) para asegurar que cada valor sea Python int, no numpy int64.",
+                    "El dict debe tener exactamente las 4 claves tn, fp, fn, tp.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "caso balanceado 4-4-1-1",
+                        "code": (
+                            "res = desglose_confusion(\n"
+                            "    [1, 0, 1, 1, 0, 1, 0, 0, 1, 0],\n"
+                            "    [1, 0, 1, 0, 0, 1, 1, 0, 1, 0],\n"
+                            ")\n"
+                            "assert isinstance(res, dict), type(res)\n"
+                            "assert set(res.keys()) == {'tn','fp','fn','tp'}, res.keys()\n"
+                            "assert res == {'tn': 4, 'fp': 1, 'fn': 1, 'tp': 4}, res"
+                        ),
+                    },
+                    {
+                        "name": "todos correctos (FP=FN=0)",
+                        "code": (
+                            "res = desglose_confusion([0, 0, 1, 1], [0, 0, 1, 1])\n"
+                            "assert res == {'tn': 2, 'fp': 0, 'fn': 0, 'tp': 2}, res"
+                        ),
+                    },
+                    {
+                        "name": "modelo dummy predice todo 0 con desbalance",
+                        "code": (
+                            "y_true = [0]*90 + [1]*10\n"
+                            "y_pred = [0]*100\n"
+                            "res = desglose_confusion(y_true, y_pred)\n"
+                            "assert res == {'tn': 90, 'fp': 0, 'fn': 10, 'tp': 0}, res"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Precision, recall y f1 de un clasificador",
+                description=("Devuelve un dict con las tres metricas usando sklearn."),
+                instructions=(
+                    "Implementa `metricas_binarias(y_true, y_pred)` que "
+                    "retorna un `dict` con las claves `precision`, "
+                    "`recall`, `f1` (floats en [0, 1]). Usa "
+                    "`precision_score`, `recall_score` y `f1_score` de "
+                    "`sklearn.metrics` con `zero_division=0` para "
+                    "manejar el caso sin positivos predichos."
+                ),
+                starter_code=(
+                    "from sklearn.metrics import precision_score, recall_score, f1_score\n"
+                    "\n"
+                    "\n"
+                    "def metricas_binarias(y_true, y_pred):\n"
+                    "    # TODO: retorna dict con 'precision', 'recall', 'f1'\n"
+                    "    # TODO: usa zero_division=0 en cada score\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "float(precision_score(...)) evita numpy.float64 en el dict.",
+                    "zero_division=0 devuelve 0.0 cuando no hay positivos predichos, en vez de lanzar warning.",
+                    "El caso balanceado del ejercicio anterior (TP=4, FP=1, FN=1) da 0.8 en las tres metricas.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "caso balanceado da 0.8 en las 3",
+                        "code": (
+                            "import math\n"
+                            "res = metricas_binarias(\n"
+                            "    [1, 0, 1, 1, 0, 1, 0, 0, 1, 0],\n"
+                            "    [1, 0, 1, 0, 0, 1, 1, 0, 1, 0],\n"
+                            ")\n"
+                            "assert set(res.keys()) == {'precision','recall','f1'}, res.keys()\n"
+                            "for v in res.values():\n"
+                            "    assert isinstance(v, float), type(v)\n"
+                            "assert math.isclose(res['precision'], 0.8, abs_tol=1e-4), res\n"
+                            "assert math.isclose(res['recall'], 0.8, abs_tol=1e-4), res\n"
+                            "assert math.isclose(res['f1'], 0.8, abs_tol=1e-4), res"
+                        ),
+                    },
+                    {
+                        "name": "modelo dummy todo 0: precision=recall=f1=0",
+                        "code": (
+                            "res = metricas_binarias([0]*90 + [1]*10, [0]*100)\n"
+                            "assert res['precision'] == 0.0, res\n"
+                            "assert res['recall'] == 0.0, res\n"
+                            "assert res['f1'] == 0.0, res"
+                        ),
+                    },
+                    {
+                        "name": "prediccion perfecta da 1.0 en las 3",
+                        "code": (
+                            "res = metricas_binarias([0, 1, 0, 1, 1], [0, 1, 0, 1, 1])\n"
+                            "assert res['precision'] == 1.0, res\n"
+                            "assert res['recall'] == 1.0, res\n"
+                            "assert res['f1'] == 1.0, res"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Accuracy vs f1 bajo desbalance",
+                description=(
+                    "Demuestra por que accuracy sola no basta: compara "
+                    "las metricas de un modelo dummy y uno decente sobre "
+                    "un dataset 90/10."
+                ),
+                instructions=(
+                    "Implementa `comparar_dummy_vs_decente(y_true, "
+                    "pred_dummy, pred_decente)` que recibe tres listas de "
+                    "0/1 y retorna un `dict` con dos entradas: `'dummy'` y "
+                    "`'decente'`. Cada entrada es a su vez un dict con "
+                    "`accuracy` y `f1` (floats con `zero_division=0`). "
+                    "La idea es que el caller vea de un vistazo que la "
+                    "diferencia real esta en f1, no en accuracy."
+                ),
+                starter_code=(
+                    "from sklearn.metrics import accuracy_score, f1_score\n"
+                    "\n"
+                    "\n"
+                    "def comparar_dummy_vs_decente(y_true, pred_dummy, pred_decente):\n"
+                    "    # TODO: para cada prediccion calcula accuracy y f1\n"
+                    "    # TODO: retorna {'dummy': {'accuracy': ..., 'f1': ...},\n"
+                    "    #                'decente': {'accuracy': ..., 'f1': ...}}\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Reutiliza accuracy_score(y_true, pred) y f1_score(y_true, pred, zero_division=0).",
+                    "El dummy sobre 90/10 con todo 0 da accuracy=0.9 y f1=0.0.",
+                    "El modelo decente con 5 TP, 0 FP, 5 FN sobre 90/10 da accuracy=0.95 y f1=0.6667.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "dummy y decente correctamente calculados",
+                        "code": (
+                            "import math\n"
+                            "y_true = [0]*90 + [1]*10\n"
+                            "pred_dummy = [0]*100\n"
+                            "pred_decente = [0]*90 + [1]*5 + [0]*5\n"
+                            "res = comparar_dummy_vs_decente(y_true, pred_dummy, pred_decente)\n"
+                            "assert set(res.keys()) == {'dummy','decente'}, res.keys()\n"
+                            "assert math.isclose(res['dummy']['accuracy'], 0.9, abs_tol=1e-4), res\n"
+                            "assert math.isclose(res['dummy']['f1'], 0.0, abs_tol=1e-4), res\n"
+                            "assert math.isclose(res['decente']['accuracy'], 0.95, abs_tol=1e-4), res\n"
+                            "assert math.isclose(res['decente']['f1'], 2/3, abs_tol=1e-3), res"
+                        ),
+                    },
+                    {
+                        "name": "moraleja: f1 discrimina, accuracy no",
+                        "code": (
+                            "y_true = [0]*90 + [1]*10\n"
+                            "res = comparar_dummy_vs_decente(y_true, [0]*100, [0]*90 + [1]*5 + [0]*5)\n"
+                            "# accuracy sube apenas 0.05 (0.90 -> 0.95)\n"
+                            "assert res['decente']['accuracy'] - res['dummy']['accuracy'] < 0.10\n"
+                            "# f1 salta drasticamente (0.0 -> 0.667)\n"
+                            "assert res['decente']['f1'] - res['dummy']['f1'] > 0.60"
+                        ),
+                    },
+                    {
+                        "name": "cada sub-entrada tiene exactamente accuracy y f1",
+                        "code": (
+                            "res = comparar_dummy_vs_decente([0,1,1], [0,0,0], [0,1,1])\n"
+                            "for label in ('dummy', 'decente'):\n"
+                            "    sub = res[label]\n"
+                            "    assert set(sub.keys()) == {'accuracy', 'f1'}, sub.keys()\n"
+                            "    for v in sub.values():\n"
+                            "        assert isinstance(v, float), type(v)"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
