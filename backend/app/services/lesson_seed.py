@@ -8254,6 +8254,252 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="AI 1 · Embeddings y busqueda semantica desde cero",
+        description=(
+            "El primer ladrillo de AI Engineering: representar texto como "
+            "vectores, medir similitud con coseno y recuperar los mas "
+            "parecidos. La 'R' (retrieval) de RAG, en numpy puro."
+        ),
+        content=(
+            "# AI 1: embeddings y busqueda semantica\n\n"
+            "Bienvenido al **Track 5 (AI Engineering)**. Aqui dejamos de "
+            "entrenar modelos y empezamos a **construir sistemas** sobre "
+            "modelos que ya existen (LLMs, embeddings). El primer bloque "
+            "es el motor de **RAG** (Retrieval-Augmented Generation): "
+            "antes de que un LLM responda, hay que **recuperar** el "
+            "contexto relevante. Eso es **busqueda semantica**, y su "
+            "mecanica se construye con numpy.\n\n"
+            "## De texto a vectores: embeddings\n\n"
+            "Un **embedding** es un vector de numeros que representa el "
+            "*significado* de un texto. Textos parecidos -> vectores "
+            "cercanos. En la practica los produce un modelo de embeddings "
+            "(OpenAI, sentence-transformers, etc.); aqui nos centramos en "
+            "lo que haces **con** esos vectores, que es lo que define un "
+            "sistema RAG.\n\n"
+            "```\n"
+            '"gato"   -> [0.9, 0.1, ...]\n'
+            '"felino" -> [0.88, 0.12, ...]   (cerca de gato)\n'
+            '"avion"  -> [0.1, 0.95, ...]    (lejos de gato)\n'
+            "```\n\n"
+            "## Similitud coseno\n\n"
+            "Para medir 'que tan parecidos' son dos vectores se usa la "
+            "**similitud coseno**: el coseno del angulo entre ellos. "
+            "Ignora la magnitud y se fija solo en la **direccion**, que "
+            "es lo que codifica el significado.\n\n"
+            "```\n"
+            "cos(a, b) = (a . b) / (||a|| * ||b||)\n"
+            "  1   -> misma direccion (maxima similitud)\n"
+            "  0   -> perpendiculares (sin relacion)\n"
+            " -1   -> opuestos\n"
+            "```\n\n"
+            "```python\n"
+            "import numpy as np\n"
+            "def cosine_sim(a, b):\n"
+            "    a = np.asarray(a, float); b = np.asarray(b, float)\n"
+            "    return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))\n"
+            "```\n\n"
+            "Fijate que **la escala no importa**: `[1,2,3]` y `[2,4,6]` "
+            "apuntan a lo mismo, similitud 1. Por eso el coseno es el "
+            "estandar para comparar embeddings (mejor que la distancia "
+            "euclidea, sensible a la magnitud).\n\n"
+            "## Recuperar los top-k\n\n"
+            "Con una **query** y una coleccion de documentos "
+            "vectorizados, calculas la similitud de la query con cada "
+            "doc y te quedas con los `k` mas altos. Ese es el corazon de "
+            "un buscador semantico (y de un retriever de RAG):\n\n"
+            "```python\n"
+            "def top_k(query, docs, k):\n"
+            "    query = np.asarray(query, float); docs = np.asarray(docs, float)\n"
+            "    sims = docs @ query / (np.linalg.norm(docs, axis=1) * np.linalg.norm(query))\n"
+            "    return list(np.argsort(sims)[::-1][:k])\n"
+            "```\n\n"
+            "`np.argsort` ordena ascendente; con `[::-1]` lo inviertes a "
+            "descendente y tomas los primeros `k`. Devolver los "
+            "**indices** te deja mapear de vuelta a los textos "
+            "originales.\n\n"
+            "## Esto ya es un mini vector store\n\n"
+            "Una matriz de embeddings (una fila por documento) + esta "
+            "busqueda top-k es, conceptualmente, lo que hacen Pinecone, "
+            "FAISS o pgvector — solo que ellos lo hacen sobre millones de "
+            "vectores con indices aproximados (ANN) para ir rapido. La "
+            "**mecanica** es la que acabas de escribir.\n\n"
+            "## Como encaja en RAG\n\n"
+            "```\n"
+            "1. Indexar:  documentos -> embeddings -> matriz\n"
+            "2. Query:    pregunta   -> embedding\n"
+            "3. Retrieve: top_k(query, matriz) -> fragmentos relevantes\n"
+            "4. Generate: LLM(pregunta + fragmentos) -> respuesta fundamentada\n"
+            "```\n\n"
+            "Esta leccion cubre los pasos 1-3 (la parte determinista y "
+            "testeable). El paso 4 (llamar al LLM) llega en las "
+            "siguientes lecciones del track.\n\n"
+            "## Errores comunes\n\n"
+            "1. **Usar distancia euclidea en vez de coseno** — sensible a "
+            "la longitud del vector; el coseno compara direccion, que es "
+            "lo que importa en embeddings.\n"
+            "2. **No normalizar** — si implementas el producto punto sin "
+            "dividir por las normas, un vector 'largo' gana siempre "
+            "aunque no sea el mas parecido.\n"
+            "3. **Ordenar ascendente y olvidar invertir** — `argsort` da "
+            "menor-a-mayor; los mas similares estan al final.\n"
+            "4. **Confundir el indice con el texto** — `top_k` devuelve "
+            "posiciones; hay que mapearlas a los documentos.\n\n"
+            "## Resumen\n\n"
+            "- Un **embedding** convierte texto en un vector de "
+            "significado.\n"
+            "- La **similitud coseno** `(a.b)/(||a|| ||b||)` mide "
+            "cercania por direccion, ignorando la escala.\n"
+            "- **Busqueda semantica** = similitud de la query con cada "
+            "doc + tomar los top-k.\n"
+            "- Esto es el **retriever** de RAG; la generacion con LLM "
+            "viene despues.\n"
+        ),
+        difficulty="intermediate",
+        category="ai-fundamentos",
+        order=38,
+        track="track-5",
+        estimated_duration=50,
+        prerequisites_titles=[],
+        exercises=[
+            ExerciseTemplate(
+                title="Similitud coseno",
+                description=(
+                    "Mide que tan parecidos son dos vectores por su " "direccion."
+                ),
+                instructions=(
+                    "Implementa `cosine_sim(a, b)` = "
+                    "`(a . b) / (||a|| * ||b||)` usando numpy "
+                    "(`a @ b` para el producto punto y `np.linalg.norm` "
+                    "para la magnitud). Devuelve un `float`."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def cosine_sim(a, b):\n"
+                    "    # TODO: a = np.asarray(a, float); b = np.asarray(b, float)\n"
+                    "    # TODO: return float(a @ b / (np.linalg.norm(a) * np.linalg.norm(b)))\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "np.linalg.norm(v) da la magnitud (longitud) del vector.",
+                    "Vectores paralelos dan 1; perpendiculares, 0.",
+                    "La escala no importa: [1,2] y [2,4] dan similitud 1.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "cosine_sim: paralelos=1, ortogonales=0, opuestos=-1",
+                        "code": (
+                            "import numpy as np\n"
+                            "assert abs(cosine_sim([1, 0], [1, 0]) - 1.0) < 1e-12\n"
+                            "assert abs(cosine_sim([1, 0], [0, 1]) - 0.0) < 1e-12\n"
+                            "assert abs(cosine_sim([1, 0], [-1, 0]) - (-1.0)) < 1e-12\n"
+                            "assert abs(cosine_sim([1, 2, 3], [2, 4, 6]) - 1.0) < 1e-9\n"
+                            "assert abs(cosine_sim([1, 1], [1, 0]) - 0.70710678) < 1e-6\n"
+                            "assert isinstance(cosine_sim([1, 0], [1, 1]), float)"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Recuperar los top-k",
+                description=(
+                    "Devuelve los indices de los documentos mas similares "
+                    "a una query."
+                ),
+                instructions=(
+                    "Implementa `top_k(query, docs, k)` donde `query` es "
+                    "un vector `(d,)` y `docs` una matriz `(n_docs, d)`. "
+                    "Calcula la similitud coseno de la query con cada "
+                    "fila de `docs` y devuelve la lista de los `k` indices "
+                    "mas similares, ordenados de mayor a menor. Pista: "
+                    "`np.argsort(sims)[::-1][:k]`."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def top_k(query, docs, k):\n"
+                    "    query = np.asarray(query, float)\n"
+                    "    docs = np.asarray(docs, float)\n"
+                    "    # TODO: sims = docs @ query / (np.linalg.norm(docs, axis=1) * np.linalg.norm(query))\n"
+                    "    # TODO: return list(np.argsort(sims)[::-1][:k])\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "np.linalg.norm(docs, axis=1) da la norma de cada fila.",
+                    "argsort ordena ascendente; [::-1] lo invierte a descendente.",
+                    "El resultado son indices (posiciones), no los vectores.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "top_k: indices mas similares, orden desc, invariante a escala",
+                        "code": (
+                            "import numpy as np\n"
+                            "q = [1.0, 0.0]\n"
+                            "docs = [[1.0, 0.0], [0.0, 1.0], [0.9, 0.1], [-1.0, 0.0]]\n"
+                            "assert list(top_k(q, docs, 2)) == [0, 2], top_k(q, docs, 2)\n"
+                            "assert list(top_k(q, docs, 1)) == [0]\n"
+                            "docs2 = [[10.0, 0.0], [0.0, 5.0], [0.9, 0.1]]\n"
+                            "assert list(top_k(q, docs2, 1)) == [0]"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Busqueda semantica end-to-end",
+                description=(
+                    "Recupera los textos mas relevantes para una query "
+                    "(el retriever de RAG)."
+                ),
+                instructions=(
+                    "Implementa `busqueda_semantica(query, docs, textos, "
+                    "k)` que recibe el vector `query`, la matriz `docs` "
+                    "de embeddings, la lista `textos` (un string por "
+                    "documento, alineado con `docs`), y devuelve la lista "
+                    "de los `k` textos mas similares a la query, de mayor "
+                    "a menor similitud."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def busqueda_semantica(query, docs, textos, k):\n"
+                    "    query = np.asarray(query, float)\n"
+                    "    docs = np.asarray(docs, float)\n"
+                    "    # TODO: sims = docs @ query / (np.linalg.norm(docs, axis=1) * np.linalg.norm(query))\n"
+                    "    # TODO: idx = np.argsort(sims)[::-1][:k]\n"
+                    "    # TODO: return [textos[i] for i in idx]\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Reutiliza la logica de top_k y mapea los indices a textos.",
+                    "textos[i] recupera el documento en la posicion i.",
+                    "Este es exactamente el retriever de un pipeline RAG.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "busqueda_semantica: devuelve los textos top-k",
+                        "code": (
+                            "import numpy as np\n"
+                            "q = [1.0, 0.0]\n"
+                            "docs = [[1.0, 0.0], [0.0, 1.0], [0.9, 0.1], [-1.0, 0.0]]\n"
+                            "textos = ['gato', 'avion', 'felino', 'antonimo']\n"
+                            "assert busqueda_semantica(q, docs, textos, 2) == ['gato', 'felino']\n"
+                            "assert busqueda_semantica(q, docs, textos, 1) == ['gato']"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
