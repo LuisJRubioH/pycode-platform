@@ -8500,6 +8500,251 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="AI 2 · Chunking e indexacion de documentos",
+        description=(
+            "Como preparar un corpus para RAG: partir documentos en "
+            "fragmentos (chunks), construir el indice de embeddings y "
+            "recuperar el contexto relevante de una pregunta."
+        ),
+        content=(
+            "# AI 2: chunking e indexacion\n\n"
+            "En AI 1 recuperaste vectores ya dados. Pero antes de "
+            "buscar, hay que **preparar el corpus**: partir los "
+            "documentos largos en fragmentos manejables y construir un "
+            "**indice** de embeddings. Este es el paso de *indexado* de "
+            "RAG, y decisiones aparentemente pequenas aqui determinan si "
+            "el sistema recupera bien o mal.\n\n"
+            "## Por que partir en chunks\n\n"
+            "No puedes (ni quieres) embeder un documento de 50 paginas "
+            "como un solo vector: perderias todo el detalle, y no cabe "
+            "en la ventana de contexto del LLM. En su lugar lo partes en "
+            "**chunks** (fragmentos de unas pocas frases/parrafos), "
+            "embedes cada uno, y recuperas solo los chunks relevantes a "
+            "la pregunta.\n\n"
+            "```\n"
+            "documento largo --chunking--> [chunk1, chunk2, ... chunkN]\n"
+            "cada chunk --embed--> un vector --> matriz indice (N, dim)\n"
+            "```\n\n"
+            "## Chunking con solapamiento\n\n"
+            "Partir en seco puede cortar una idea justo a la mitad. Por "
+            "eso los chunks suelen **solaparse**: cada uno comparte unas "
+            "palabras con el anterior, para no perder contexto en los "
+            "bordes.\n\n"
+            "```python\n"
+            "def chunk_texto(texto, tam, solapamiento=0):\n"
+            "    palabras = texto.split()\n"
+            "    step = tam - solapamiento          # cuanto avanzas cada vez\n"
+            "    chunks = []\n"
+            "    for i in range(0, len(palabras), step):\n"
+            "        chunks.append(' '.join(palabras[i:i + tam]))\n"
+            "        if i + tam >= len(palabras):\n"
+            "            break                       # ya cubriste el final\n"
+            "    return chunks\n"
+            "```\n\n"
+            "Con `tam=3, solapamiento=1` sobre `a b c d e f g`:\n\n"
+            "```\n"
+            '  "a b c"  ->  "c d e"  ->  "e f g"\n'
+            "   step = 2 (avanzas 2, mantienes 1 de solape)\n"
+            "```\n\n"
+            "El `tam` y el `solapamiento` son **hiperparametros de "
+            "RAG**: chunks muy grandes diluyen la senal; muy chicos "
+            "pierden contexto. Solape tipico: 10-20% del tamano.\n\n"
+            "## Construir el indice\n\n"
+            "El **indice** es simplemente la matriz con el embedding de "
+            "cada chunk. En produccion `embed_fn` es una llamada a un "
+            "modelo de embeddings; aqui lo recibes como funcion para que "
+            "todo sea testeable:\n\n"
+            "```python\n"
+            "def construir_indice(chunks, embed_fn):\n"
+            "    return np.array([embed_fn(c) for c in chunks], float)\n"
+            "```\n\n"
+            "## Recuperar el contexto\n\n"
+            "Juntando todo: embedes la pregunta, la comparas contra el "
+            "indice (coseno de AI 1) y devuelves los `k` chunks mas "
+            "relevantes. Eso es el **contexto** que despues le pasaras al "
+            "LLM.\n\n"
+            "```python\n"
+            "def recuperar_contexto(pregunta, chunks, embed_fn, k):\n"
+            "    indice = np.array([embed_fn(c) for c in chunks], float)\n"
+            "    q = np.asarray(embed_fn(pregunta), float)\n"
+            "    sims = indice @ q / (np.linalg.norm(indice, axis=1) * np.linalg.norm(q) + 1e-12)\n"
+            "    idx = np.argsort(sims)[::-1][:k]\n"
+            "    return [chunks[i] for i in idx]\n"
+            "```\n\n"
+            "El `+ 1e-12` evita dividir por cero si algun chunk quedara "
+            "con embedding nulo. Ya tienes el **retriever completo**: "
+            "chunk -> index -> retrieve. Solo falta la generacion.\n\n"
+            "## Como encaja en RAG\n\n"
+            "```\n"
+            "1. Indexar:  documento --chunk--> chunks --embed--> indice   <- AI 2\n"
+            "2. Retrieve: pregunta --embed--> top-k chunks del indice     <- AI 1 + AI 2\n"
+            "3. Generate: LLM(pregunta + chunks recuperados) -> respuesta <- AI 3+\n"
+            "```\n\n"
+            "## Errores comunes\n\n"
+            "1. **Chunks demasiado grandes** — recuperas texto irrelevante "
+            "junto al relevante y confundes al LLM.\n"
+            "2. **Sin solapamiento** — cortas ideas a la mitad y el chunk "
+            "pierde sentido.\n"
+            "3. **Solapamiento >= tam** — el `step` seria <= 0 y el bucle "
+            "no avanza; valida que `solapamiento < tam`.\n"
+            "4. **Reconstruir el indice en cada query** — en produccion "
+            "el indice se calcula una vez y se guarda; solo la pregunta "
+            "se embede en tiempo real.\n\n"
+            "## Resumen\n\n"
+            "- **Chunking** parte documentos en fragmentos; el "
+            "solapamiento evita cortar ideas.\n"
+            "- El **indice** es la matriz de embeddings de los chunks.\n"
+            "- **Recuperar contexto** = embeder la pregunta + top-k del "
+            "indice.\n"
+            "- Con AI 1 + AI 2 tienes el retriever completo de RAG; la "
+            "generacion con LLM llega en AI 3.\n"
+        ),
+        difficulty="intermediate",
+        category="ai-fundamentos",
+        order=39,
+        track="track-5",
+        estimated_duration=50,
+        prerequisites_titles=[
+            "AI 1 · Embeddings y busqueda semantica desde cero",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Partir texto en chunks",
+                description=(
+                    "Divide un texto en fragmentos de N palabras con "
+                    "solapamiento opcional."
+                ),
+                instructions=(
+                    "Implementa `chunk_texto(texto, tam, solapamiento=0)` "
+                    "que parte `texto` (por palabras, con `.split()`) en "
+                    "chunks de `tam` palabras, avanzando "
+                    "`step = tam - solapamiento` palabras cada vez. Cada "
+                    "chunk se devuelve como string (`' '.join(...)`). "
+                    "Para en cuanto un chunk llega al final. Lanza "
+                    "`ValueError` si `solapamiento >= tam` (step <= 0)."
+                ),
+                starter_code=(
+                    "def chunk_texto(texto, tam, solapamiento=0):\n"
+                    "    palabras = texto.split()\n"
+                    "    step = tam - solapamiento\n"
+                    "    # TODO: if step <= 0: raise ValueError(...)\n"
+                    "    # TODO: recorre range(0, len(palabras), step),\n"
+                    "    #   agrega ' '.join(palabras[i:i+tam]) y corta al llegar al final\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "step = tam - solapamiento es cuanto avanzas cada iteracion.",
+                    "Corta el bucle cuando i + tam >= len(palabras).",
+                    "Un solapamiento >= tam dejaria step <= 0: lanza ValueError.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "chunk_texto: tamano, solapamiento y validacion",
+                        "code": (
+                            "assert chunk_texto('a b c d e f', 2) == ['a b', 'c d', 'e f']\n"
+                            "assert chunk_texto('a b c d e f g', 3, 1) == ['a b c', 'c d e', 'e f g']\n"
+                            "assert chunk_texto('hola', 3) == ['hola']\n"
+                            "assert chunk_texto('a b c d e', 2) == ['a b', 'c d', 'e']\n"
+                            "try:\n"
+                            "    chunk_texto('a b c', 2, 2)\n"
+                            "    raise AssertionError('debio lanzar ValueError')\n"
+                            "except ValueError:\n"
+                            "    pass"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Construir el indice de embeddings",
+                description=("Embede cada chunk para formar la matriz del indice."),
+                instructions=(
+                    "Implementa `construir_indice(chunks, embed_fn)` que "
+                    "aplica `embed_fn` a cada chunk y devuelve un "
+                    "`np.ndarray` de shape `(n_chunks, dim)` "
+                    "(`np.array([embed_fn(c) for c in chunks], float)`)."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def construir_indice(chunks, embed_fn):\n"
+                    "    # TODO: return np.array([embed_fn(c) for c in chunks], float)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Una fila por chunk, una columna por dimension del embedding.",
+                    "embed_fn se aplica a cada chunk.",
+                    "En produccion embed_fn seria una llamada al modelo de embeddings.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "construir_indice: matriz (n_chunks, dim)",
+                        "code": (
+                            "import numpy as np\n"
+                            "embed = lambda t: [t.count('gato'), t.count('avion')]\n"
+                            "chunks = ['el gato duerme', 'un avion vuela', 'gato gato']\n"
+                            "M = np.asarray(construir_indice(chunks, embed))\n"
+                            "assert M.shape == (3, 2), M.shape\n"
+                            "assert np.allclose(M[0], [1, 0])\n"
+                            "assert np.allclose(M[2], [2, 0])"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Recuperar el contexto de una pregunta",
+                description=(
+                    "El retriever completo: indexa, embede la pregunta y "
+                    "devuelve los chunks relevantes."
+                ),
+                instructions=(
+                    "Implementa `recuperar_contexto(pregunta, chunks, "
+                    "embed_fn, k)` que construye el indice de los chunks, "
+                    "embede la `pregunta`, calcula la similitud coseno "
+                    "(usa `+ 1e-12` en el denominador para evitar "
+                    "division por cero) y devuelve la lista de los `k` "
+                    "chunks (strings) mas relevantes, de mayor a menor."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def recuperar_contexto(pregunta, chunks, embed_fn, k):\n"
+                    "    indice = np.array([embed_fn(c) for c in chunks], float)\n"
+                    "    q = np.asarray(embed_fn(pregunta), float)\n"
+                    "    # TODO: sims = indice @ q / (np.linalg.norm(indice, axis=1) * np.linalg.norm(q) + 1e-12)\n"
+                    "    # TODO: idx = np.argsort(sims)[::-1][:k]\n"
+                    "    # TODO: return [chunks[i] for i in idx]\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Es AI 1 (top-k) pero embediendo la pregunta y devolviendo chunks.",
+                    "El +1e-12 evita NaN si algun chunk tiene embedding nulo.",
+                    "Devuelve los textos de los chunks, no sus indices.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "recuperar_contexto: trae los chunks relevantes",
+                        "code": (
+                            "embed = lambda t: [t.count('gato'), t.count('avion'), t.count('python')]\n"
+                            "chunks = ['el gato maulla', 'el avion despega', 'python es un lenguaje', 'gato y python']\n"
+                            "res = recuperar_contexto('cuentame del gato', chunks, embed, 2)\n"
+                            "assert 'el gato maulla' in res, res\n"
+                            "assert 'el avion despega' not in res, res\n"
+                            "assert len(res) == 2"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
