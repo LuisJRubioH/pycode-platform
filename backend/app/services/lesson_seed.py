@@ -7230,6 +7230,247 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="DL 2 · Funciones de perdida y gradiente numerico",
+        description=(
+            "Como mide una red que tan mal lo hace (MSE, cross-entropy) "
+            "y como se aproxima un gradiente por diferencias finitas."
+        ),
+        content=(
+            "# DL 2: funciones de perdida y gradiente numerico\n\n"
+            "En DL 1 hiciste el forward pass: la red produce una "
+            "prediccion. Ahora falta lo mas importante para "
+            "**aprender**: medir que tan equivocada esta esa prediccion "
+            "y en que direccion mover los pesos para mejorarla. Eso son "
+            "la **funcion de perdida** y el **gradiente**.\n\n"
+            "## La funcion de perdida\n\n"
+            "Una **perdida** (loss) es un numero que resume el error: "
+            "grande cuando la red se equivoca, cero cuando acierta "
+            "perfecto. Entrenar = **minimizar** la perdida. Cual usar "
+            "depende del problema.\n\n"
+            "### MSE (error cuadratico medio) — regresion\n\n"
+            "Para predecir numeros continuos:\n\n"
+            "```\n"
+            "MSE = promedio( (y_pred - y_true)^2 )\n"
+            "```\n\n"
+            "Eleva al cuadrado para (a) penalizar mas los errores "
+            "grandes y (b) que el signo no importe. MSE = 0 solo si la "
+            "prediccion es exacta.\n\n"
+            "```python\n"
+            "import numpy as np\n"
+            "def mse(y_true, y_pred):\n"
+            "    y_true = np.asarray(y_true, float)\n"
+            "    y_pred = np.asarray(y_pred, float)\n"
+            "    return float(np.mean((y_pred - y_true) ** 2))\n"
+            "```\n\n"
+            "### Binary cross-entropy (BCE) — clasificacion binaria\n\n"
+            "Cuando la red predice una **probabilidad** `p` (0 a 1, la "
+            "salida de un sigmoid) y la verdad es 0 o 1:\n\n"
+            "```\n"
+            "BCE = -promedio( y*log(p) + (1-y)*log(1-p) )\n"
+            "```\n\n"
+            "Castiga con fuerza la confianza equivocada: si `y=1` y "
+            "predices `p=0.01`, `-log(0.01)=4.6` (perdida enorme); si "
+            "predices `p=0.99`, `-log(0.99)=0.01` (casi cero).\n\n"
+            "**Gotcha del clip:** `log(0)` es `-inf`. Si la red predice "
+            "exactamente 0 o 1, la perdida explota. Se evita recortando "
+            "`p` a `[eps, 1-eps]` con `np.clip` antes del `log`:\n\n"
+            "```python\n"
+            "def bce(y_true, y_pred):\n"
+            "    y_true = np.asarray(y_true, float)\n"
+            "    p = np.clip(np.asarray(y_pred, float), 1e-12, 1 - 1e-12)\n"
+            "    return float(-np.mean(y_true*np.log(p) + (1-y_true)*np.log(1-p)))\n"
+            "```\n\n"
+            "## El gradiente: en que direccion mejorar\n\n"
+            "El **gradiente** de la perdida respecto a un peso te dice "
+            "cuanto cambia la perdida si mueves ese peso un poquito. Es "
+            "la **pendiente**. Para minimizar, das un paso en direccion "
+            "**opuesta** al gradiente (descenso de gradiente, DL 4).\n\n"
+            "Analiticamente el gradiente se calcula con backprop (DL 3), "
+            "pero primero conviene la version conceptual: el **gradiente "
+            "numerico** por diferencias finitas centradas.\n\n"
+            "```\n"
+            "df/dx ~= ( f(x+h) - f(x-h) ) / (2h)     con h pequeno\n"
+            "```\n\n"
+            "```python\n"
+            "def gradiente_numerico(f, x, h=1e-5):\n"
+            "    x = np.asarray(x, float)\n"
+            "    return (f(x + h) - f(x - h)) / (2 * h)\n"
+            "```\n\n"
+            "Para `f(x)=x^2` en `x=3`, deberia dar ~6 (la derivada "
+            "`2x`). Es **lento** (no sirve para entrenar redes reales, "
+            "requiere 2 forward por parametro), pero es la mejor forma "
+            "de **verificar** que tu backprop analitico esta bien: se "
+            "llama *gradient checking*.\n\n"
+            "## La diferencia central es mas precisa\n\n"
+            "Podrias usar `(f(x+h) - f(x)) / h` (diferencia hacia "
+            "adelante), pero la **centrada** `(f(x+h)-f(x-h))/(2h)` "
+            "cancela mas error y da una aproximacion mucho mejor para el "
+            "mismo `h`.\n\n"
+            "## Errores comunes\n\n"
+            "1. **MSE sin promediar** — sumar en vez de promediar hace "
+            "la perdida dependiente del tamano del batch.\n"
+            "2. **BCE sin clip** — un `p` de 0 o 1 mete un `-inf` y todo "
+            "el entrenamiento se vuelve `nan`.\n"
+            "3. **h demasiado chico en el gradiente numerico** — con "
+            "`h=1e-12` el error de redondeo de floats domina; `1e-5` es "
+            "un buen punto medio.\n"
+            "4. **Confundir perdida con accuracy** — la perdida es "
+            "continua y derivable (por eso entrena); la accuracy es un "
+            "conteo, no sirve para el gradiente.\n\n"
+            "## Resumen\n\n"
+            "- La **perdida** mide el error; entrenar = minimizarla.\n"
+            "- `MSE` para regresion, `BCE` para clasificacion binaria "
+            "(con `clip` para evitar `log(0)`).\n"
+            "- El **gradiente** es la pendiente de la perdida; se avanza "
+            "en su direccion opuesta.\n"
+            "- El **gradiente numerico** `(f(x+h)-f(x-h))/(2h)` aproxima "
+            "la derivada; util para *verificar* backprop, no para "
+            "entrenar.\n"
+        ),
+        difficulty="intermediate",
+        category="dl-fundamentos",
+        order=34,
+        track="track-4",
+        estimated_duration=50,
+        prerequisites_titles=[
+            "DL 1 · La neurona: forward pass y activaciones",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Error cuadratico medio (MSE)",
+                description=(
+                    "Implementa la perdida MSE para regresion, " "vectorizada."
+                ),
+                instructions=(
+                    "Implementa `mse(y_true, y_pred)` que devuelve el "
+                    "promedio de `(y_pred - y_true) ** 2` como `float`. "
+                    "Convierte ambas entradas con `np.asarray(..., "
+                    "float)`."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def mse(y_true, y_pred):\n"
+                    "    # TODO: y_true = np.asarray(y_true, float); y_pred = np.asarray(y_pred, float)\n"
+                    "    # TODO: return float(np.mean((y_pred - y_true) ** 2))\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "np.mean promedia todos los elementos.",
+                    "Elevar al cuadrado elimina el signo del error.",
+                    "MSE de una prediccion perfecta es 0.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "mse: casos conocidos, simetria, float",
+                        "code": (
+                            "import numpy as np\n"
+                            "assert mse([1, 2, 3], [1, 2, 3]) == 0\n"
+                            "assert abs(mse([0, 0], [1, 1]) - 1.0) < 1e-12\n"
+                            "assert abs(mse([3.0], [0.0]) - 9.0) < 1e-12\n"
+                            "assert isinstance(mse([1.0], [2.0]), float)\n"
+                            "a = [1.0, 2.0, 3.0]\n"
+                            "b = [2.0, 0.0, 5.0]\n"
+                            "assert abs(mse(a, b) - mse(b, a)) < 1e-12"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Binary cross-entropy (BCE)",
+                description=(
+                    "Implementa la perdida de clasificacion binaria con "
+                    "clip para evitar log(0)."
+                ),
+                instructions=(
+                    "Implementa `bce(y_true, y_pred)` = "
+                    "`-promedio(y*log(p) + (1-y)*log(1-p))`. Recorta "
+                    "`y_pred` a `[1e-12, 1 - 1e-12]` con `np.clip` antes "
+                    "de los logaritmos para no obtener `-inf`. Devuelve "
+                    "un `float`."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def bce(y_true, y_pred):\n"
+                    "    # TODO: y_true = np.asarray(y_true, float)\n"
+                    "    # TODO: p = np.clip(np.asarray(y_pred, float), 1e-12, 1 - 1e-12)\n"
+                    "    # TODO: return float(-np.mean(y_true*np.log(p) + (1-y_true)*np.log(1-p)))\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "El clip es lo que evita log(0) = -inf.",
+                    "Predecir p cercano a la verdad da perdida cercana a 0.",
+                    "Predecir con confianza lo contrario da perdida alta.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "bce: valores conocidos, clip finito, peor > mejor",
+                        "code": (
+                            "import numpy as np\n"
+                            "assert abs(bce([1], [0.9]) - 0.105360516) < 1e-5, bce([1], [0.9])\n"
+                            "assert abs(bce([0], [0.1]) - 0.105360516) < 1e-5\n"
+                            "assert bce([1, 0], [0.999, 0.001]) < 0.01\n"
+                            "assert bce([1], [0.01]) > bce([1], [0.99])\n"
+                            "assert np.isfinite(bce([1], [1.0]))\n"
+                            "assert np.isfinite(bce([0], [0.0]))"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Gradiente numerico",
+                description=(
+                    "Aproxima la derivada de una funcion por diferencias "
+                    "finitas centradas."
+                ),
+                instructions=(
+                    "Implementa `gradiente_numerico(f, x, h=1e-5)` que "
+                    "devuelve `(f(x + h) - f(x - h)) / (2 * h)`. Funciona "
+                    "para `x` escalar o array (vectorizado con numpy). "
+                    "`f` es una funcion que recibe un numero/array y "
+                    "devuelve lo mismo."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def gradiente_numerico(f, x, h=1e-5):\n"
+                    "    # TODO: x = np.asarray(x, float)\n"
+                    "    # TODO: return (f(x + h) - f(x - h)) / (2 * h)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "La diferencia centrada es mas precisa que la de adelante.",
+                    "Para f(x)=x^2, la derivada en x es 2x.",
+                    "Como usa numpy, funciona elemento a elemento sobre un array.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "gradiente: x^2->2x, x^3->3x^2, vectorizado",
+                        "code": (
+                            "import numpy as np\n"
+                            "g = gradiente_numerico(lambda x: x**2, 3.0)\n"
+                            "assert abs(float(g) - 6.0) < 1e-3, g\n"
+                            "gv = np.asarray(gradiente_numerico(lambda x: x**2, np.array([1.0, 2.0, 3.0])))\n"
+                            "assert np.allclose(gv, [2, 4, 6], atol=1e-3), gv\n"
+                            "g3 = gradiente_numerico(lambda x: x**3, 2.0)\n"
+                            "assert abs(float(g3) - 12.0) < 1e-2, g3"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
