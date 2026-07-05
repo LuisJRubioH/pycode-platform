@@ -6305,6 +6305,685 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="ML 9 · Support Vector Machines (SVM)",
+        description=(
+            "Margen maximo, kernel trick (linear vs rbf), y por que "
+            "el escalado y los support vectors importan."
+        ),
+        content=(
+            "# ML 9: Support Vector Machines\n\n"
+            "Una **SVM** busca la frontera que separa las clases dejando "
+            "el **margen mas ancho posible** entre ellas. No cualquier "
+            "recta que separe: la que queda mas lejos de los puntos de "
+            "ambos lados. Esos puntos criticos que tocan el margen son "
+            "los **support vectors**, y son los unicos que definen la "
+            "frontera (si mueves un punto lejano, la frontera no cambia).\n\n"
+            "## Tres ideas clave\n\n"
+            "### 1. Margen maximo\n\n"
+            "Entre todas las fronteras que separan las clases, la SVM "
+            "elige la de mayor margen. Un margen ancho generaliza mejor: "
+            "deja mas 'colchon' antes de equivocarse con datos nuevos.\n\n"
+            "```python\n"
+            "from sklearn.svm import SVC\n"
+            "clf = SVC(kernel='linear', C=1.0, random_state=42)\n"
+            "clf.fit(X_train, y_train)\n"
+            "print(clf.support_vectors_.shape)  # cuantos SV definen la frontera\n"
+            "```\n\n"
+            "### 2. El kernel trick: separar lo no separable\n\n"
+            "Muchos datos **no** se separan con una recta. El kernel "
+            "**rbf** proyecta los datos a un espacio de mas dimensiones "
+            "donde si son linealmente separables, sin calcularlo "
+            "explicitamente. Sobre datos con forma de lunas o circulos, "
+            "`kernel='rbf'` supera claramente a `kernel='linear'`:\n\n"
+            "```\n"
+            "make_moons (no lineal):\n"
+            "  kernel linear:  CV accuracy ~0.85\n"
+            "  kernel rbf:     CV accuracy ~0.96\n"
+            "```\n\n"
+            "### 3. C y gamma\n\n"
+            "- **C** controla el trade-off margen vs errores. C grande = "
+            "menos tolerante a errores (margen estrecho, riesgo de "
+            "overfit); C pequeno = margen ancho, mas tolerante.\n"
+            "- **gamma** (solo rbf) controla el alcance de cada punto. "
+            "Gamma grande = fronteras muy locales (overfit); `gamma="
+            "'scale'` es el default sensato.\n\n"
+            "## Escalado obligatorio\n\n"
+            "La SVM mide **distancias**, asi que es sensible a la escala "
+            "igual que KNN. **Siempre** `StandardScaler` antes (dentro de "
+            "un `Pipeline`), o una feature de rango grande dominara.\n\n"
+            "```python\n"
+            "from sklearn.pipeline import Pipeline\n"
+            "from sklearn.preprocessing import StandardScaler\n"
+            "pipe = Pipeline([('sc', StandardScaler()),\n"
+            "                 ('svc', SVC(kernel='rbf', gamma='scale'))])\n"
+            "```\n\n"
+            "## Cuando usar SVM\n\n"
+            "- **Datasets pequenos/medianos** con frontera compleja: rbf "
+            "brilla.\n"
+            "- **Muchas features, pocas muestras** (texto, genomica): SVM "
+            "lineal es fuerte.\n"
+            "- **Evitala** en datasets enormes (millones de filas): "
+            "escala mal con n (usa modelos lineales o arboles).\n"
+            "- **No da probabilidades** de forma natural (necesita "
+            "`probability=True`, que la hace mas lenta).\n\n"
+            "## Resumen\n\n"
+            "- SVM maximiza el margen; solo los **support vectors** "
+            "cuentan.\n"
+            "- `kernel='rbf'` separa datos no lineales; `linear` para "
+            "alta dimension.\n"
+            "- **Escala siempre** antes con `StandardScaler`.\n"
+            "- Ajusta `C` (y `gamma` en rbf); usa `gamma='scale'` de "
+            "base.\n"
+        ),
+        difficulty="intermediate",
+        category="ml-svm",
+        order=30,
+        track="track-3",
+        estimated_duration=50,
+        prerequisites_titles=[
+            "ML 8 · PCA para reducir dimensionalidad",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Entrenar una SVM con kernel configurable",
+                description=(
+                    "Entrena una SVC con kernel y C dados y devuelve la "
+                    "accuracy en test."
+                ),
+                instructions=(
+                    "Implementa `entrenar_svm(X_train, y_train, X_test, "
+                    "y_test, kernel='rbf', C=1.0)` que crea "
+                    "`SVC(kernel=kernel, C=C, gamma='scale', "
+                    "random_state=42)`, la entrena con train y devuelve "
+                    "la accuracy sobre test como `float`. Asume que X ya "
+                    "viene escalado."
+                ),
+                starter_code=(
+                    "from sklearn.svm import SVC\n"
+                    "\n"
+                    "\n"
+                    "def entrenar_svm(X_train, y_train, X_test, y_test, kernel='rbf', C=1.0):\n"
+                    "    # TODO: clf = SVC(kernel=kernel, C=C, gamma='scale', random_state=42)\n"
+                    "    # TODO: clf.fit(X_train, y_train)\n"
+                    "    # TODO: return float(clf.score(X_test, y_test))\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "clf.score(X, y) ya devuelve la accuracy.",
+                    "gamma='scale' es el default sensato para rbf.",
+                    "En datos no lineales, rbf supera a linear.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "moons escalado: rbf >0.9 y rbf >= linear",
+                        "code": (
+                            "from sklearn.datasets import make_moons\n"
+                            "from sklearn.preprocessing import StandardScaler\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "X, y = make_moons(n_samples=200, noise=0.2, random_state=42)\n"
+                            "Xs = StandardScaler().fit_transform(X)\n"
+                            "Xtr, Xte, ytr, yte = train_test_split(Xs, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "rbf = entrenar_svm(Xtr, ytr, Xte, yte, kernel='rbf')\n"
+                            "lin = entrenar_svm(Xtr, ytr, Xte, yte, kernel='linear')\n"
+                            "assert isinstance(rbf, float), type(rbf)\n"
+                            "assert rbf > 0.9, rbf\n"
+                            "assert lin > 0.8, lin\n"
+                            "assert rbf >= lin, (rbf, lin)"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Comparar kernels linear vs rbf",
+                description=(
+                    "Compara la accuracy CV de un kernel lineal contra "
+                    "uno rbf sobre datos no lineales."
+                ),
+                instructions=(
+                    "Implementa `comparar_kernels(X, y)` que, para cada "
+                    "kernel en `['linear', 'rbf']`, arma un "
+                    "`Pipeline([StandardScaler, SVC(kernel=..., "
+                    "gamma='scale', random_state=42)])`, calcula "
+                    "`cross_val_score(pipe, X, y, cv=5).mean()` y devuelve "
+                    "un dict `{'linear': media, 'rbf': media}` con floats."
+                ),
+                starter_code=(
+                    "from sklearn.svm import SVC\n"
+                    "from sklearn.pipeline import Pipeline\n"
+                    "from sklearn.preprocessing import StandardScaler\n"
+                    "from sklearn.model_selection import cross_val_score\n"
+                    "\n"
+                    "\n"
+                    "def comparar_kernels(X, y):\n"
+                    "    # TODO: para cada kernel arma pipeline con StandardScaler + SVC\n"
+                    "    # TODO: media = cross_val_score(pipe, X, y, cv=5).mean()\n"
+                    "    # TODO: return {'linear': ..., 'rbf': ...}\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Un dict comprehension sobre los dos kernels es suficiente.",
+                    "cross_val_score devuelve un array; usa .mean().",
+                    "En make_moons el rbf gana con holgura.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "moons: rbf supera a linear, ambos floats",
+                        "code": (
+                            "from sklearn.datasets import make_moons\n"
+                            "X, y = make_moons(n_samples=200, noise=0.2, random_state=42)\n"
+                            "res = comparar_kernels(X, y)\n"
+                            "assert set(res.keys()) == {'linear', 'rbf'}, res.keys()\n"
+                            "assert isinstance(res['rbf'], float), type(res['rbf'])\n"
+                            "assert res['rbf'] > res['linear'], res\n"
+                            "assert res['rbf'] > 0.9, res['rbf']"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Contar support vectors",
+                description=(
+                    "Cuenta cuantos puntos de entrenamiento terminan "
+                    "siendo support vectors."
+                ),
+                instructions=(
+                    "Implementa `n_support_vectors(X_train, y_train, "
+                    "kernel='linear')` que entrena "
+                    "`SVC(kernel=kernel, gamma='scale', random_state=42)` "
+                    "y devuelve el numero total de support vectors "
+                    "(`clf.support_vectors_.shape[0]`) como `int`."
+                ),
+                starter_code=(
+                    "from sklearn.svm import SVC\n"
+                    "\n"
+                    "\n"
+                    "def n_support_vectors(X_train, y_train, kernel='linear'):\n"
+                    "    # TODO: clf = SVC(kernel=kernel, gamma='scale', random_state=42)\n"
+                    "    # TODO: clf.fit(X_train, y_train)\n"
+                    "    # TODO: return int(clf.support_vectors_.shape[0])\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "support_vectors_ es un array (n_sv, n_features).",
+                    "Los SV son un subconjunto del train, nunca mas que len(y_train).",
+                    "La frontera depende SOLO de esos puntos.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "moons: 0 < n_sv < n_train",
+                        "code": (
+                            "from sklearn.datasets import make_moons\n"
+                            "from sklearn.preprocessing import StandardScaler\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "X, y = make_moons(n_samples=200, noise=0.2, random_state=42)\n"
+                            "Xs = StandardScaler().fit_transform(X)\n"
+                            "Xtr, Xte, ytr, yte = train_test_split(Xs, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "n = n_support_vectors(Xtr, ytr, kernel='linear')\n"
+                            "assert isinstance(n, int), type(n)\n"
+                            "assert 0 < n < len(ytr), (n, len(ytr))"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
+    LessonTemplate(
+        title="ML 10 · Naive Bayes",
+        description=(
+            "Clasificador probabilistico basado en el teorema de Bayes "
+            "y la suposicion 'naive' de independencia. Rapido y buen "
+            "baseline."
+        ),
+        content=(
+            "# ML 10: Naive Bayes\n\n"
+            "**Naive Bayes** es un clasificador probabilistico que aplica "
+            "el **teorema de Bayes** asumiendo que las features son "
+            "**independientes entre si** dada la clase. Esa suposicion "
+            "casi nunca es literalmente cierta (por eso 'naive', "
+            "ingenua), pero funciona sorprendentemente bien y es "
+            "**rapidisimo** de entrenar.\n\n"
+            "## La idea\n\n"
+            "Para cada clase, calcula la probabilidad de que la muestra "
+            "pertenezca a ella y elige la mayor:\n\n"
+            "```\n"
+            "P(clase | features) proporcional a P(clase) * prod P(feature_i | clase)\n"
+            "```\n\n"
+            "El termino `prod P(feature_i | clase)` es donde entra la "
+            "suposicion naive: multiplica las probabilidades de cada "
+            "feature como si fueran independientes.\n\n"
+            "## Variantes\n\n"
+            "- **GaussianNB**: features continuas; asume que cada feature "
+            "sigue una normal por clase. Es la que usaras con datos como "
+            "iris.\n"
+            "- **MultinomialNB**: conteos (bolsa de palabras en texto).\n"
+            "- **BernoulliNB**: features binarias (presencia/ausencia).\n\n"
+            "```python\n"
+            "from sklearn.naive_bayes import GaussianNB\n"
+            "clf = GaussianNB()\n"
+            "clf.fit(X_train, y_train)\n"
+            "print(clf.predict_proba(X_test)[:3])  # probabilidades por clase\n"
+            "```\n\n"
+            "## Da probabilidades calibradas-ish\n\n"
+            "A diferencia de la SVM, Naive Bayes entrega `predict_proba` "
+            "de forma natural: cada fila suma 1 (una distribucion sobre "
+            "las clases). Util cuando necesitas confianza, no solo la "
+            "etiqueta.\n\n"
+            "## Baseline fuerte y barato\n\n"
+            "Sobre iris, GaussianNB (~0.95 CV) queda a un pelo de "
+            "LogisticRegression (~0.97), sin tuning y entrenando en "
+            "milisegundos:\n\n"
+            "```\n"
+            "iris (CV 5-fold):\n"
+            "  GaussianNB:          ~0.953\n"
+            "  LogisticRegression:  ~0.973\n"
+            "```\n\n"
+            "Por eso Naive Bayes es un **baseline** que deberias probar "
+            "antes de sacar la artilleria: si tu modelo complejo no lo "
+            "supera, algo esta mal.\n\n"
+            "## Cuando usar Naive Bayes\n\n"
+            "- **Clasificacion de texto / spam** — MultinomialNB es un "
+            "clasico que sigue vigente.\n"
+            "- **Baseline rapido** en cualquier problema de "
+            "clasificacion.\n"
+            "- **Muchisimas features** — como asume independencia, no "
+            "sufre tanto la maldicion de la dimensionalidad.\n"
+            "- **Evitalo** cuando las features estan muy correlacionadas "
+            "(la suposicion naive se rompe) y necesitas exprimir "
+            "accuracy.\n\n"
+            "## Resumen\n\n"
+            "- Aplica Bayes asumiendo independencia entre features.\n"
+            "- `GaussianNB` para continuas, `MultinomialNB` para conteos.\n"
+            "- Entrega `predict_proba` (filas suman 1).\n"
+            "- Rapido, sin hiperparametros, gran baseline.\n"
+        ),
+        difficulty="intermediate",
+        category="ml-naive-bayes",
+        order=31,
+        track="track-3",
+        estimated_duration=45,
+        prerequisites_titles=[
+            "ML 9 · Support Vector Machines (SVM)",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Entrenar GaussianNB",
+                description=(
+                    "Entrena un GaussianNB y devuelve la accuracy en " "test."
+                ),
+                instructions=(
+                    "Implementa `entrenar_gnb(X_train, y_train, X_test, "
+                    "y_test)` que crea `GaussianNB()`, la entrena con "
+                    "train y devuelve la accuracy sobre test como "
+                    "`float`."
+                ),
+                starter_code=(
+                    "from sklearn.naive_bayes import GaussianNB\n"
+                    "\n"
+                    "\n"
+                    "def entrenar_gnb(X_train, y_train, X_test, y_test):\n"
+                    "    # TODO: clf = GaussianNB(); clf.fit(X_train, y_train)\n"
+                    "    # TODO: return float(clf.score(X_test, y_test))\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "GaussianNB no lleva hiperparametros.",
+                    "clf.score(X, y) devuelve la accuracy.",
+                    "GaussianNB ni siquiera necesita escalado.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "iris split 0.3 -> accuracy > 0.85",
+                        "code": (
+                            "from sklearn.datasets import load_iris\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "X, y = load_iris(return_X_y=True)\n"
+                            "Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "acc = entrenar_gnb(Xtr, ytr, Xte, yte)\n"
+                            "assert isinstance(acc, float), type(acc)\n"
+                            "assert acc > 0.85, acc"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Probabilidades por clase",
+                description=(
+                    "Devuelve la matriz de probabilidades predichas y "
+                    "verifica que cada fila es una distribucion."
+                ),
+                instructions=(
+                    "Implementa `proba_gnb(X_train, y_train, X_test)` que "
+                    "entrena `GaussianNB` con train y devuelve "
+                    "`clf.predict_proba(X_test)` (un `np.ndarray` de shape "
+                    "`(n_test, n_clases)` donde cada fila suma 1)."
+                ),
+                starter_code=(
+                    "from sklearn.naive_bayes import GaussianNB\n"
+                    "\n"
+                    "\n"
+                    "def proba_gnb(X_train, y_train, X_test):\n"
+                    "    # TODO: clf = GaussianNB(); clf.fit(X_train, y_train)\n"
+                    "    # TODO: return clf.predict_proba(X_test)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "predict_proba devuelve una fila por muestra.",
+                    "Cada fila es una distribucion: suma 1.",
+                    "iris tiene 3 clases -> 3 columnas.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "iris: shape (n,3), filas suman 1, valores en [0,1]",
+                        "code": (
+                            "import numpy as np\n"
+                            "from sklearn.datasets import load_iris\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "X, y = load_iris(return_X_y=True)\n"
+                            "Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.3, random_state=42, stratify=y)\n"
+                            "P = np.asarray(proba_gnb(Xtr, ytr, Xte))\n"
+                            "assert P.shape == (45, 3), P.shape\n"
+                            "assert np.allclose(P.sum(axis=1), 1.0), P.sum(axis=1)[:5]\n"
+                            "assert (P >= 0).all() and (P <= 1).all()"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Naive Bayes vs Logistic Regression",
+                description=(
+                    "Compara CV de GaussianNB contra LogisticRegression "
+                    "como baseline."
+                ),
+                instructions=(
+                    "Implementa `nb_vs_logreg(X, y)` que calcula "
+                    "`cross_val_score(clf, X, y, cv=5).mean()` para "
+                    "`GaussianNB()` y para "
+                    "`LogisticRegression(max_iter=1000)`, y devuelve un "
+                    "dict `{'nb': media_nb, 'logreg': media_logreg}` con "
+                    "floats."
+                ),
+                starter_code=(
+                    "from sklearn.naive_bayes import GaussianNB\n"
+                    "from sklearn.linear_model import LogisticRegression\n"
+                    "from sklearn.model_selection import cross_val_score\n"
+                    "\n"
+                    "\n"
+                    "def nb_vs_logreg(X, y):\n"
+                    "    # TODO: nb = cross_val_score(GaussianNB(), X, y, cv=5).mean()\n"
+                    "    # TODO: lr = cross_val_score(LogisticRegression(max_iter=1000), X, y, cv=5).mean()\n"
+                    "    # TODO: return {'nb': float(nb), 'logreg': float(lr)}\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Naive Bayes suele quedar competitivo, no muy por debajo.",
+                    "Ambos deberian superar 0.9 en iris.",
+                    "NB entrena mucho mas rapido que LogReg.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "iris: ambos > 0.9, keys correctas",
+                        "code": (
+                            "from sklearn.datasets import load_iris\n"
+                            "X, y = load_iris(return_X_y=True)\n"
+                            "res = nb_vs_logreg(X, y)\n"
+                            "assert set(res.keys()) == {'nb', 'logreg'}, res.keys()\n"
+                            "assert isinstance(res['nb'], float), type(res['nb'])\n"
+                            "assert res['nb'] > 0.9, res\n"
+                            "assert res['logreg'] > 0.9, res"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
+    LessonTemplate(
+        title="ML 11 · Curva ROC, AUC y umbral de decision",
+        description=(
+            "Evaluar clasificadores binarios de forma agnostica al "
+            "umbral: TPR vs FPR, AUC y como mover el umbral cambia "
+            "precision/recall."
+        ),
+        content=(
+            "# ML 11: Curva ROC, AUC y umbral\n\n"
+            "Un clasificador binario no solo dice 0 o 1: internamente "
+            "calcula una **probabilidad** (o score) y la compara contra "
+            "un **umbral** (por defecto 0.5). Cambiar ese umbral cambia "
+            "el balance entre atrapar positivos y evitar falsas alarmas. "
+            "La **curva ROC** y el **AUC** miden que tan bueno es el "
+            "modelo **independientemente del umbral que elijas**.\n\n"
+            "## La curva ROC\n\n"
+            "Barre todos los umbrales posibles y grafica:\n\n"
+            "- **TPR** (recall, eje Y): de los positivos reales, cuantos "
+            "atrapo.\n"
+            "- **FPR** (eje X): de los negativos reales, cuantos marco "
+            "por error.\n\n"
+            "```python\n"
+            "from sklearn.metrics import roc_curve\n"
+            "proba = pipe.predict_proba(X_test)[:, 1]\n"
+            "fpr, tpr, thresholds = roc_curve(y_test, proba)\n"
+            "```\n\n"
+            "Un modelo perfecto pasa por la esquina superior izquierda "
+            "(TPR=1, FPR=0). La diagonal es el azar.\n\n"
+            "## AUC: un numero para resumir la curva\n\n"
+            "El **AUC** (area bajo la ROC) resume la curva en un valor "
+            "entre 0.5 (azar) y 1.0 (perfecto). Interpretacion elegante: "
+            "es la probabilidad de que el modelo asigne mayor score a un "
+            "positivo aleatorio que a un negativo aleatorio.\n\n"
+            "```python\n"
+            "from sklearn.metrics import roc_auc_score\n"
+            "auc = roc_auc_score(y_test, proba)   # ~0.995 en breast_cancer\n"
+            "```\n\n"
+            "**Clave**: AUC usa las **probabilidades**, no las etiquetas "
+            "0/1. No depende del umbral, por eso compara modelos de forma "
+            "mas justa que la accuracy.\n\n"
+            "## Mover el umbral: precision vs recall\n\n"
+            "El umbral 0.5 no es sagrado. **Bajarlo** marca mas cosas "
+            "como positivas: sube el **recall** (atrapas mas positivos) "
+            "pero baja la **precision** (mas falsas alarmas). Subirlo "
+            "hace lo contrario.\n\n"
+            "```\n"
+            "breast_cancer (clase benigno):\n"
+            "  umbral 0.5:  precision 0.99, recall 0.99\n"
+            "  umbral 0.3:  precision 0.97, recall 1.00   <- no se escapa ninguno\n"
+            "```\n\n"
+            "En medicina o fraude, muchas veces prefieres **recall alto** "
+            "(no perder un caso) aunque cueste precision. Eliges el "
+            "umbral segun el costo de cada tipo de error, no por "
+            "defecto.\n\n"
+            "## Cuando mirar ROC/AUC\n\n"
+            "- **Clasificacion binaria** donde el umbral es ajustable.\n"
+            "- **Clases desbalanceadas**: AUC es mas informativo que "
+            "accuracy (recuerda ML 2).\n"
+            "- **Comparar modelos** sin fijar un umbral arbitrario.\n"
+            "- **Ojo**: con desbalance extremo, la curva "
+            "**precision-recall** (PR) puede ser mas honesta que la ROC.\n\n"
+            "## Resumen\n\n"
+            "- `roc_curve` da (fpr, tpr, thresholds); graficala para ver "
+            "el trade-off.\n"
+            "- `roc_auc_score` resume la calidad en [0.5, 1.0], usando "
+            "**probabilidades**.\n"
+            "- El **umbral** es una decision de negocio: bajalo para mas "
+            "recall, subelo para mas precision.\n"
+        ),
+        difficulty="intermediate",
+        category="ml-roc",
+        order=32,
+        track="track-3",
+        estimated_duration=50,
+        prerequisites_titles=[
+            "ML 10 · Naive Bayes",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Calcular el AUC de un modelo",
+                description=(
+                    "Entrena un pipeline y devuelve el ROC AUC usando "
+                    "probabilidades."
+                ),
+                instructions=(
+                    "Implementa `auc_modelo(X_train, y_train, X_test, "
+                    "y_test)` que arma un "
+                    "`Pipeline([StandardScaler, "
+                    "LogisticRegression(max_iter=5000, "
+                    "random_state=42)])`, lo entrena, saca "
+                    "`predict_proba(X_test)[:, 1]` y devuelve "
+                    "`roc_auc_score(y_test, proba)` como `float`."
+                ),
+                starter_code=(
+                    "from sklearn.pipeline import Pipeline\n"
+                    "from sklearn.preprocessing import StandardScaler\n"
+                    "from sklearn.linear_model import LogisticRegression\n"
+                    "from sklearn.metrics import roc_auc_score\n"
+                    "\n"
+                    "\n"
+                    "def auc_modelo(X_train, y_train, X_test, y_test):\n"
+                    "    # TODO: arma y entrena el pipeline\n"
+                    "    # TODO: proba = pipe.predict_proba(X_test)[:, 1]\n"
+                    "    # TODO: return float(roc_auc_score(y_test, proba))\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "AUC usa las probabilidades de la clase positiva (columna 1).",
+                    "roc_auc_score(y_true, y_score) NO recibe etiquetas 0/1.",
+                    "En breast_cancer el AUC pasa de 0.99.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "breast_cancer: AUC > 0.98",
+                        "code": (
+                            "from sklearn.datasets import load_breast_cancer\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "X, y = load_breast_cancer(return_X_y=True)\n"
+                            "Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)\n"
+                            "auc = auc_modelo(Xtr, ytr, Xte, yte)\n"
+                            "assert isinstance(auc, float), type(auc)\n"
+                            "assert 0.98 < auc <= 1.0, auc"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Puntos de la curva ROC",
+                description=(
+                    "Devuelve fpr, tpr y thresholds y verifica sus " "propiedades."
+                ),
+                instructions=(
+                    "Implementa `curva_roc(X_train, y_train, X_test, "
+                    "y_test)` que entrena el mismo pipeline (StandardScaler "
+                    "+ LogisticRegression max_iter=5000, random_state=42), "
+                    "saca las probabilidades de la clase 1 y devuelve la "
+                    "tupla `(fpr, tpr, thresholds)` de "
+                    "`roc_curve(y_test, proba)`."
+                ),
+                starter_code=(
+                    "from sklearn.pipeline import Pipeline\n"
+                    "from sklearn.preprocessing import StandardScaler\n"
+                    "from sklearn.linear_model import LogisticRegression\n"
+                    "from sklearn.metrics import roc_curve\n"
+                    "\n"
+                    "\n"
+                    "def curva_roc(X_train, y_train, X_test, y_test):\n"
+                    "    # TODO: entrena el pipeline y saca proba de clase 1\n"
+                    "    # TODO: return roc_curve(y_test, proba)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "roc_curve devuelve tres arrays alineados.",
+                    "fpr y tpr son monotonos no decrecientes.",
+                    "La curva arranca en fpr=0 y termina en tpr=1.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "breast_cancer: fpr/tpr monotonos, arranca 0 termina 1",
+                        "code": (
+                            "import numpy as np\n"
+                            "from sklearn.datasets import load_breast_cancer\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "X, y = load_breast_cancer(return_X_y=True)\n"
+                            "Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)\n"
+                            "fpr, tpr, thr = curva_roc(Xtr, ytr, Xte, yte)\n"
+                            "fpr = np.asarray(fpr); tpr = np.asarray(tpr)\n"
+                            "assert len(fpr) == len(tpr), (len(fpr), len(tpr))\n"
+                            "assert fpr[0] == 0.0, fpr[0]\n"
+                            "assert tpr[-1] == 1.0, tpr[-1]\n"
+                            "assert np.all(np.diff(fpr) >= 0), 'fpr no monotona'\n"
+                            "assert np.all(np.diff(tpr) >= 0), 'tpr no monotona'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Metricas segun el umbral",
+                description=(
+                    "Calcula precision y recall a un umbral dado y "
+                    "comprueba el trade-off."
+                ),
+                instructions=(
+                    "Implementa `metricas_umbral(X_train, y_train, "
+                    "X_test, y_test, umbral)` que entrena el pipeline "
+                    "(StandardScaler + LogisticRegression max_iter=5000, "
+                    "random_state=42), predice positivo cuando "
+                    "`predict_proba` de la clase 1 es `>= umbral`, y "
+                    "devuelve un dict `{'precision': ..., 'recall': ...}` "
+                    "con floats (usa `zero_division=0`)."
+                ),
+                starter_code=(
+                    "from sklearn.pipeline import Pipeline\n"
+                    "from sklearn.preprocessing import StandardScaler\n"
+                    "from sklearn.linear_model import LogisticRegression\n"
+                    "from sklearn.metrics import precision_score, recall_score\n"
+                    "\n"
+                    "\n"
+                    "def metricas_umbral(X_train, y_train, X_test, y_test, umbral):\n"
+                    "    # TODO: entrena pipeline, proba = predict_proba(X_test)[:, 1]\n"
+                    "    # TODO: pred = (proba >= umbral).astype(int)\n"
+                    "    # TODO: return {'precision': ..., 'recall': ...}\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Bajar el umbral atrapa mas positivos: sube el recall.",
+                    "zero_division=0 evita warnings si no marcas ningun positivo.",
+                    "Compara 0.5 vs 0.3 para ver el trade-off.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "breast_cancer: bajar umbral 0.5->0.3 no baja el recall",
+                        "code": (
+                            "from sklearn.datasets import load_breast_cancer\n"
+                            "from sklearn.model_selection import train_test_split\n"
+                            "X, y = load_breast_cancer(return_X_y=True)\n"
+                            "Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)\n"
+                            "m5 = metricas_umbral(Xtr, ytr, Xte, yte, 0.5)\n"
+                            "m3 = metricas_umbral(Xtr, ytr, Xte, yte, 0.3)\n"
+                            "assert set(m5.keys()) == {'precision', 'recall'}, m5.keys()\n"
+                            "assert isinstance(m5['recall'], float), type(m5['recall'])\n"
+                            "assert m3['recall'] >= m5['recall'], (m5, m3)\n"
+                            "assert m5['precision'] >= m3['precision'] - 1e-9, (m5, m3)"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 

@@ -47,6 +47,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   'ml-tuning': 'ML Tuning y CV',
   'ml-clustering': 'ML Clustering',
   'ml-dim-reduction': 'ML Reducción de dim.',
+  'ml-svm': 'ML SVM',
+  'ml-naive-bayes': 'ML Naive Bayes',
+  'ml-roc': 'ML ROC y AUC',
   otros: 'Otros',
 }
 
@@ -64,6 +67,9 @@ const CATEGORY_TO_TRACK: Record<string, string> = {
   'ml-tuning': 'track-3',
   'ml-clustering': 'track-3',
   'ml-dim-reduction': 'track-3',
+  'ml-svm': 'track-3',
+  'ml-naive-bayes': 'track-3',
+  'ml-roc': 'track-3',
 }
 
 const TRACK_INFO: Record<string, { title: string; subtitle: string }> = {
