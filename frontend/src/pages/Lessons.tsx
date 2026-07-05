@@ -33,7 +33,7 @@ const Lessons: React.FC = () => {
       setLoading(true)
       setError('')
       try {
-        const res = await api.get('/lessons/')
+        const res = await api.get('/lessons')
         if (!res.ok) {
           setError('No pudimos cargar las lecciones por ahora.')
           setItems([])

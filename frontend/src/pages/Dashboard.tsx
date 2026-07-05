@@ -63,7 +63,7 @@ const Dashboard: React.FC = () => {
         const [statsRes, activityRes, lessonsRes, tracksRes] = await Promise.all([
           api.get('/progress/stats'),
           api.get('/progress/recent-activity'),
-          api.get('/lessons/'),
+          api.get('/lessons'),
           api.get('/progress/track-status'),
         ])
 

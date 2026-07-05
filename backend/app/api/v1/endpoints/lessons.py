@@ -18,7 +18,12 @@ from app.schemas.learning import LessonResponse, LessonListResponse
 router = APIRouter()
 
 
-@router.get("/", response_model=List[LessonListResponse])
+# Se sirve en ambas rutas (sin y con slash final): el rewrite de Vercel
+# (`/api/:path*`) NO proxea rutas con slash final y caían al fallback SPA
+# (devolvía index.html en vez del JSON). El frontend llama la versión sin
+# slash; la variante con slash se mantiene para compatibilidad/tests.
+@router.get("", response_model=List[LessonListResponse])
+@router.get("/", response_model=List[LessonListResponse], include_in_schema=False)
 async def list_lessons(
     category: Optional[str] = None,
     difficulty: Optional[str] = None,
