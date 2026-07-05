@@ -178,6 +178,21 @@ const CodeEditor: React.FC = () => {
       }
       const result = await runHiddenTests(code, body.tests)
       setTestsResult(result)
+      // Si todos los tests pasan, registra la submission: el backend marca
+      // el ejercicio como completado (result=success) y suma los puntos.
+      if (result.total > 0 && result.passed === result.total) {
+        try {
+          await api.post(`/exercises/${exerciseId}/submit`, {
+            exercise_id: exerciseId,
+            code,
+            success: true,
+            passed_tests: result.passed,
+            total_tests: result.total,
+          })
+        } catch (submitErr) {
+          console.error('No se pudo registrar la completitud:', submitErr)
+        }
+      }
     } catch (err) {
       console.error('Error al ejecutar tests:', err)
       setTestsError('Error al ejecutar los tests en el sandbox.')
