@@ -6,15 +6,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 PyCode Platform — learning platform for Python with Monaco editor, sandboxed code execution, a Socratic AI tutor, and a Finxter-inspired ELO puzzle progression system. 
 
-**Current Status (Fase 0 v2)**: ✅ **Fase 0 cerrada (30/30) — tag `fase-0-complete` (2026-05-08)**
-- Postgres + Alembic + migraciones versionadas (sin SQLite ni `create_all` en prod)
-- RLS habilitada por tabla con `current_setting('app.current_user_id')` + tests cross-user
-- Pyodide en Web Worker reemplaza el subprocess executor; backend ya no ejecuta código
-- Provider abstraction LLM (Groq default + OpenAI fallback + Stub)
-- Headers seguros, CORS whitelist, rate limiting universal con SlowAPI
-- JWT con refresh token rotation + endpoints GDPR (DELETE /me, GET /me/export)
-- Logging structlog con redaction PII, Sentry con scrubbing, Dependabot semanal
-- Deploy gratis configurado: Render (backend) + Vercel (frontend) + Supabase (Postgres)
+**Norte estratégico**: PyCode **no** es "Python para principiantes". Track 1 (Python) es la rampa hacia el pipeline **Python → Data Science → ML → Deep Learning → AI Engineering → MLOps**. Toda feature nueva debe apoyar esa rampa (ver memoria `project_norte_ml_ai`).
+
+**Estado actual (2026-07)**:
+- ✅ **Fase 0 cerrada (30/30)** — tag `fase-0-complete` (2026-05-08). Infra: Postgres+Alembic+RLS, Pyodide Web Worker, LLM provider abstraction, seguridad transversal, JWT+GDPR, deploy gratis.
+- ✅ **Fase 1 cerrada** — pulido Track 1 + ELO completo. Tutor separado en evaluador (REST) + Q&A (WS), tests ocultos Pyodide, **ELO multidominio** + snapshots de calidad de código, banco de **100 puzzles curados** + 10 retos DS/ML, capstones + **certificados PDF verificables**.
+- ✅ **Track 2 (Data Science) cerrado** (2026-06-30) — 11 lecciones (NumPy/Pandas/Viz/EDA/Stats) + capstone `track-2-eda-cafecito` + datasets seedeados + render matplotlib en el editor.
+- 🚧 **Track 3 (ML Clásico) en curso** — 8 lecciones con sklearn en Pyodide (LogReg/KNN, métricas, pipelines, regresión, árboles/RF, cross-validation, KMeans, PCA). **Falta capstone + certificado para cerrarlo.**
+- ⏳ **Pendiente**: Tracks 4 (Deep Learning), 5 (AI Engineering), 6 (MLOps).
+
+**Contenido en números**: 44 lecciones (Track 1: 25 · Track 2: 11 · Track 3: 8) · ~130 ejercicios con hidden_tests · 100 puzzles ELO curados · 10 retos · 2 capstones · 3 datasets. Migraciones 0001-0014. ~150 tests backend.
 
 **Producción**:
 - Frontend: https://pycode-platform.vercel.app (Vercel Hobby)
@@ -22,9 +23,9 @@ PyCode Platform — learning platform for Python with Monaco editor, sandboxed c
 - DB: Supabase Postgres `medutbqsurjnaaymmrin` (sa-east-1, RLS habilitada)
 - Watchdog: UptimeRobot ping `/health` cada 5 min
 
-**Próxima fase: Fase 1** — pulido del Track 1 + sistema ELO completo. Spec en `docs/superpowers/specs/2026-05-03-pycode-platform-v2-design.md`. Primer trabajo identificado: separar el evaluador de código del tutor de Q&A (dos roles, dos tablas, dos system prompts). Detalle en memoria persistente `project_fase1_tutor_redesign.md`.
+**Próximo trabajo**: cerrar Track 3 con capstone ML + certificado (el framework ya lo soporta, solo falta contenido). Luego arrancar Track 4 (Deep Learning con PyTorch). Ver `docs/ARCHITECTURE.md` para el diseño técnico y `project_track3_piloto` / `project_fase1_progress` en memoria para el detalle vivo.
 
-See [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for the vision and [PYCODE_SPEC.md](PYCODE_SPEC.md) for the phased implementation spec.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the technical design, [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for the vision, and [PYCODE_SPEC.md](PYCODE_SPEC.md) for the phased implementation spec.
 
 ## Notas operativas (post-deploy)
 
@@ -69,17 +70,23 @@ Full stack via Docker: `docker-compose up` (brings up backend, frontend, postgre
 
 ### Backend (FastAPI, async SQLAlchemy 2.0)
 
-Entry point: [backend/app/main.py](backend/app/main.py). El `lifespan` ya **no** crea tablas — el schema lo gestiona Alembic. Antes de levantar el server hay que correr `alembic upgrade head` (el `Dockerfile` lo hace en su `CMD`; el `conftest` lo hace al cargar). El lifespan solo seedea puzzles, interview puzzles, generated puzzles/challenges, external challenges y lessons-with-exercises (todos idempotentes "if empty").
+Entry point: [backend/app/main.py](backend/app/main.py). El `lifespan` ya **no** crea tablas — el schema lo gestiona Alembic. Antes de levantar el server hay que correr `alembic upgrade head` (el `Dockerfile` lo hace en su `CMD`; el `conftest` lo hace al cargar). El lifespan solo seedea puzzles, interview puzzles, generated puzzles/challenges, retos curados, external challenges, datasets, capstones y lessons-with-exercises (todos idempotentes "if empty").
 
 Cualquier modelo nuevo debe importarse en `main.py` Y en `backend/alembic/env.py` para que `Base.metadata` lo conozca.
 
 DB: defaults a `sqlite+aiosqlite:///./pycode.db` solo en dev/test; producción es `postgresql+asyncpg://...?sslmode=require`. `_get_engine_args(db_url, environment)` en [backend/app/core/database.py](backend/app/core/database.py) **rechaza SQLite si `ENVIRONMENT=production`** y rechaza URLs no soportadas (sin fallback silencioso).
 
-Migraciones Alembic en [backend/alembic/versions/](backend/alembic/versions/): `0001_initial_schema` (todas las tablas), `0002_refresh_tokens`, `0003_cascade_user_fks` (no-op en SQLite, aplica `ON DELETE CASCADE` en Postgres). La migración 0004 con políticas RLS está pendiente (Task 18).
+Migraciones Alembic en [backend/alembic/versions/](backend/alembic/versions/), `0001`→`0014` monotónicas: `0001_initial_schema` (todas las tablas base), `0002_refresh_tokens`, `0003_cascade_user_fks`, `0004_enable_rls_per_user_tables` (RLS, Postgres-only), `0005_code_evaluations`, `0006_challenge_completions`, `0007_exercise_hidden_tests`, `0008_capstones`, `0009_certificates`, `0010_elo_ratings` (multi-ELO), `0011_challenge_completion_elo_delta`, `0012_code_quality_snapshots`, `0013_lesson_track`, `0014_datasets`. Las DDL Postgres-only (RLS) empiezan con `if op.get_bind().dialect.name != "postgresql": return` para ser no-op en SQLite (tests).
 
-API surface versionada en `/api/v1` via [backend/app/api/v1/router.py](backend/app/api/v1/router.py): `auth` (login/register/refresh/logout), `users` (me, me/export, DELETE me), `lessons`, `exercises`, `execute` (run→410, validate con `ast.parse`), `tutor`, `progress`, `elo`, `challenges`. WebSocket `/ws/code` está deprecado (envía mensaje y cierra); `/ws/tutor` sigue activo.
+API surface versionada en `/api/v1` via [backend/app/api/v1/router.py](backend/app/api/v1/router.py): `auth` (login/register/refresh/logout), `users` (me, me/export, DELETE me), `lessons`, `exercises` (+ `/{id}/hidden-tests`, `/{id}/evaluations`), `execute` (run→410, validate con `ast.parse`), `tutor` (evaluate REST + WS Q&A), `progress` (competencies, track-status, code-quality), `elo` (attempt, ratings, history, puzzle-of-the-day), `challenges`, `capstones`, `certificates` (issue/download/verify público), `datasets` (CSV). WebSocket `/ws/code` está deprecado (envía mensaje y cierra); `/ws/tutor` sigue activo.
 
-**Lessons & Exercises**: [backend/app/services/lesson_content.py](backend/app/services/lesson_content.py) contiene 25 `LessonTemplate` con contenido en español + 64 `ExerciseTemplate` (3 por lección en promedio, dificultad progresiva). Seeded vía [backend/app/services/lesson_seed.py](backend/app/services/lesson_seed.py) en startup (upsert idempotente por title). **Known issue fixed**: GET `/{lesson_id}` usa `selectinload(Lesson.exercises)` para evitar lazy-load errors en contexto async.
+**Lessons & Exercises**: contenido multi-track en español, seeded idempotente por title en startup. [backend/app/services/lesson_content.py](backend/app/services/lesson_content.py) tiene los 25 `LessonTemplate` de **Track 1** (64 ejercicios) sin campo `track` (default `track-1`); [backend/app/services/lesson_seed.py](backend/app/services/lesson_seed.py) añade **Track 2** (11 lecciones, `track="track-2"`) y **Track 3** (8 lecciones, `track="track-3"`) con sus `ExerciseTemplate`. Añadir una lección a otro track = agregar un `LessonTemplate(track="track-N", category="...", ...)`; sin migración ni endpoints nuevos (la columna `lessons.track` es libre, migración 0013). **Known issue fixed**: GET `/{lesson_id}` usa `selectinload(Lesson.exercises)` para evitar lazy-load errors en contexto async.
+
+**Hidden tests (Pyodide)**: cada `ExerciseTemplate` puede llevar `hidden_tests` (JSON) que NO se exponen en `GET /lessons/{id}` ni `GET /exercises/lesson/{id}` (test de no-leak lo verifica). El worker Pyodide corre cada test en namespace fresco. Es el patrón base de validación replicable a todos los tracks. Datasets (`iris`, `ventas-pyme`, `encuestas`) se sirven via `/api/v1/datasets/{slug}/csv` y se consumen en Pyodide con `pycode.fetch_dataset_csv(slug)`; numpy/pandas/scipy/sklearn autocargan via `loadPackagesFromImports`.
+
+**Capstones & Certificados**: `Capstone` (definicional por track) + `CapstoneSubmission` (uno por user, evaluado con `runCapstoneTests` multi-archivo en Pyodide). Aprobar un capstone (`status="passed"`) desbloquea `POST /certificates/{track}/issue` (gate server-side, 403 si no aprobó), que emite un `Certificate` con `verification_code` público verificable en `GET /certificates/verify/{code}` (sin auth). PDF con reportlab. Capstones actuales: `track-1-cli-ventas`, `track-2-eda-cafecito` (Track 3 pendiente).
+
+**ELO multidominio & calidad de código**: `EloRating(user, domain, scope)` da ELO separado por actividad y categoría temática (`puzzle:<category>`, `challenge:<dificultad>`), con lazy-init desde el ELO global. `code_quality_service.analyze_code` calcula un `static_score` 0-100 con AST (sin ejecutar) que, combinado con los scores logic/general del evaluador LLM, se persiste en `CodeQualitySnapshot` y se grafica en `/progress/code-quality`.
 
 Code execution: el endpoint `POST /api/v1/execute/run` retorna **410 Gone**; toda la ejecución de código del estudiante vive en [Pyodide en Web Worker](frontend/src/sandbox/pyodideWorker.ts) en el cliente. `POST /api/v1/execute/validate` solo corre `ast.parse` para detectar errores de sintaxis sin ejecutar. El backend nunca toca código del estudiante.
 
@@ -87,7 +94,7 @@ Code execution: el endpoint `POST /api/v1/execute/run` retorna **410 Gone**; tod
 
 LLM: [llm_provider.py](backend/app/services/llm_provider.py) abstrae Groq + OpenAI + Stub. `get_provider(settings)` despacha por `LLM_PROVIDER`. Stub se usa cuando no hay API key — devuelve `""` y deja que el caller use fallback.
 
-ELO system: puzzles, attempts, ratings, and rank progression live in [backend/app/services/elo_service.py](backend/app/services/elo_service.py) + [backend/app/models/elo_models.py](backend/app/models/elo_models.py). Rank deltas use step tables keyed by rating range (`ELO_DELTA_TABLE`, `ELO_DELTA_TABLE_ADVANCED`). The tutor prompt lives in the repo-root file referenced by `TUTOR_PROMPT_FILE` (default `maestro_evaluador_de_codigo_python.txt`) and is resolved via `settings.tutor_prompt_path`.
+ELO system: puzzles, attempts, ratings, and rank progression live in [backend/app/services/elo_service.py](backend/app/services/elo_service.py) + [backend/app/models/elo_models.py](backend/app/models/elo_models.py). Rank deltas use step tables keyed by rating range (`ELO_DELTA_TABLE`, `ELO_DELTA_TABLE_ADVANCED`). El ELO multidominio (separado por track/categoría) vive en [elo_rating_service.py](backend/app/services/elo_rating_service.py) + [code_quality_service.py](backend/app/services/code_quality_service.py) para la progresión de calidad. The tutor prompt lives in the repo-root file referenced by `TUTOR_PROMPT_FILE` (default `maestro_evaluador_de_codigo_python.txt`) and is resolved via `settings.tutor_prompt_path`.
 
 ### Frontend (React + TS + Vite + Tailwind + Zustand)
 
@@ -105,4 +112,7 @@ Pyodide sandbox vive en [frontend/src/sandbox/](frontend/src/sandbox/): `pyodide
 - Las FKs hacia `users.id` deben llevar `ondelete="CASCADE"` para que `DELETE /users/me` (GDPR) funcione sin orphans en Postgres.
 - The `Elo_pycode/` folder is a **staging area**, not dead code — files there are meant to be integrated into `backend/app/...` and `frontend/src/...` per Fase 2 of the spec. Check both locations before assuming something is missing.
 - Async SQLAlchemy: Always use eager loading (`selectinload`, `joinedload`) for relationships accessed in endpoints — lazy loading fails in async context (MissingGreenlet error).
+- **Patrón para añadir un track/lección nuevo** (validado en Tracks 2 y 3, replica 1:1): agregar `LessonTemplate(track="track-N", category="...", ...)` con sus `ExerciseTemplate(hidden_tests=...)`; registrar la `category` en `Competencies.tsx` (`CATEGORY_LABELS` + `CATEGORY_TO_TRACK` + `TRACK_INFO`); si el track lo cierra un capstone, añadir entrada a `CAPSTONES` en `capstone_seed.py` y `TRACK_TITLES` en `core/tracks.py`. Sin migraciones ni endpoints nuevos — `/progress/track-status` y los certificados son genéricos por track.
+- **Guard rail de no-leak**: cuando algo es opt-in o se oculta a la UI (`hidden_tests`, `reference_solution`, `correct_output` de un puzzle), añadir un test que verifique que los endpoints públicos NO lo exponen.
+- **Gotcha dev Windows**: al levantar uvicorn local exportar `$env:PYTHONUTF8="1"` — sin eso structlog crashea al loggear contenido seedeado con Unicode en la consola cp1252. No afecta prod (Docker/Linux) ni CI.
 - **No Co-Authored-By en commits** del proyecto (preferencia del usuario).
