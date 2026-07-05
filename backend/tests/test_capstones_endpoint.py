@@ -250,3 +250,56 @@ async def test_get_my_submission_404_when_none(client, auth_headers):
 async def test_get_my_submission_requires_auth(client):
     r = await client.get("/api/v1/capstones/track-1-cli-ventas/my-submission")
     assert r.status_code in (401, 403)
+
+
+# ---------- capstone Track 3 (ML) ----------
+
+
+@pytest.mark.asyncio
+async def test_track3_capstone_seeded_and_listed(client, auth_headers):
+    """El capstone ML de Track 3 se seedea y aparece en la lista."""
+    await _ensure_real_seeded()
+    r = await client.get("/api/v1/capstones", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    slugs = [item["slug"] for item in r.json()["items"]]
+    assert "track-3-diagnostico-ml" in slugs
+
+
+@pytest.mark.asyncio
+async def test_track3_capstone_detail_no_hidden_tests(client, auth_headers):
+    """Detalle expone tests_total=8 pero nunca los hidden_tests."""
+    await _ensure_real_seeded()
+    r = await client.get(
+        "/api/v1/capstones/track-3-diagnostico-ml", headers=auth_headers
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["track"] == "track-3"
+    assert body["tests_total"] == 8
+    assert "hidden_tests" not in body
+    # Los nombres/codigo de los tests ocultos no deben filtrarse. Usamos
+    # marcadores unicos de los hidden_tests (no presentes en starter/enunciado).
+    assert "455/114" not in r.text
+    assert "diagonal domina" not in r.text
+
+
+def test_track3_capstone_structure_integrity():
+    """8 requisitos, 8 hidden_tests y el starter expone las 8 funciones."""
+    from app.services.capstone_seed import CAPSTONES
+
+    cap = next(c for c in CAPSTONES if c["slug"] == "track-3-diagnostico-ml")
+    assert len(cap["requirements"]) == 8
+    assert len(cap["hidden_tests"]) == 8
+    assert cap["track"] == "track-3"
+    modelo = next(f for f in cap["starter_files"] if f["path"] == "modelo.py")
+    for fn in (
+        "dividir_datos",
+        "construir_pipeline",
+        "entrenar_evaluar",
+        "matriz_confusion",
+        "cv_media",
+        "comparar_C",
+        "predecir_con_umbral",
+        "ranking_coeficientes",
+    ):
+        assert f"def {fn}(" in modelo["content"], fn

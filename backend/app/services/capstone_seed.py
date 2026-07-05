@@ -731,6 +731,373 @@ CAPSTONES: list[dict] = [
         "difficulty": "intermediate",
         "order_index": 2,
     },
+    {
+        "slug": "track-3-diagnostico-ml",
+        "track": "track-3",
+        "title": "Diagnostico asistido: clasificador de tumores end-to-end",
+        "short_description": (
+            "Construye un pipeline de ML completo sobre el dataset breast "
+            "cancer: split estratificado, escalado, LogisticRegression, "
+            "metricas honestas, cross-validation, tuning de regularizacion, "
+            "umbral de decision e interpretabilidad. Cierra el Track 3 de "
+            "ML Clasico."
+        ),
+        "description": (
+            "## Contexto\n\n"
+            "Un hospital tiene mediciones de nucleos celulares (radio, "
+            "textura, perimetro, area, ...) extraidas de imagenes de "
+            "biopsias, y una etiqueta: tumor **maligno** (0) o **benigno** "
+            "(1). Te piden un clasificador que ayude al equipo medico, pero "
+            "**hecho bien**: sin data leakage, evaluado con metricas que "
+            "importan en salud (no solo accuracy), con la regularizacion "
+            "ajustada y con el umbral de decision bajo control.\n\n"
+            "Usaras el dataset `breast_cancer` que trae sklearn "
+            "(`load_breast_cancer`, 569 muestras x 30 features). Es el "
+            "mismo que corre dentro de Pyodide, sin descargas externas.\n\n"
+            "## Que integra este capstone\n\n"
+            "Una funcion por cada idea del Track 3:\n\n"
+            "- **ML 1** — split estratificado train/test.\n"
+            "- **ML 3** — `StandardScaler` + `Pipeline` (escalado sin "
+            "leakage).\n"
+            "- **ML 2** — precision, recall, f1 y matriz de confusion.\n"
+            "- **ML 6** — cross-validation y comparacion de "
+            "hiperparametros (`C`).\n"
+            "- **ML 8 / regresion logistica** — probabilidades, umbral de "
+            "decision e interpretacion de coeficientes.\n\n"
+            "## Estructura\n\n"
+            "```\n"
+            "diagnostico/\n"
+            "  modelo.py      # Las 8 funciones puras que se evaluan\n"
+            "  explora.py     # Script libre para experimentar (no se evalua)\n"
+            "```\n\n"
+            "## Reglas de oro (te las repetimos porque cuentan)\n\n"
+            "- **Nunca** ajustes el `StandardScaler` con el test: va dentro "
+            "del `Pipeline` para que `fit` toque solo train.\n"
+            "- En salud, **recall** (no perder un maligno) suele pesar mas "
+            "que accuracy. Reporta las cuatro metricas.\n"
+            "- El umbral 0.5 no es sagrado: bajarlo captura mas positivos "
+            "(mas recall, menos precision).\n\n"
+            "## Como se evalua\n\n"
+            "Al pulsar **Enviar capstone**, la plataforma corre 8 tests "
+            "ocultos que invocan cada funcion con el dataset real y "
+            "comparan contra rangos esperados (no floats exactos, para no "
+            "romperse entre versiones de sklearn). No veras los tests, pero "
+            "si cuantos pasaron y el error de los que fallen. Necesitas al "
+            "menos **7 de 8** para completar el capstone y desbloquear el "
+            "certificado del Track 3."
+        ),
+        "requirements": [
+            {
+                "id": "R1",
+                "text": (
+                    "`dividir_datos(X, y, test_size=0.2, seed=42) -> tuple` "
+                    "hace un split **estratificado** (`stratify=y`, "
+                    "`random_state=seed`) y devuelve "
+                    "`(X_train, X_test, y_train, y_test)`."
+                ),
+            },
+            {
+                "id": "R2",
+                "text": (
+                    "`construir_pipeline(C=1.0) -> Pipeline` devuelve un "
+                    "`Pipeline` con `StandardScaler` seguido de "
+                    "`LogisticRegression(C=C, max_iter=5000, "
+                    "random_state=42)` como ultimo paso."
+                ),
+            },
+            {
+                "id": "R3",
+                "text": (
+                    "`entrenar_evaluar(pipe, X_train, y_train, X_test, "
+                    "y_test) -> dict` entrena el pipeline con train y "
+                    "devuelve un dict con `accuracy`, `precision`, `recall` "
+                    "y `f1` calculados sobre test."
+                ),
+            },
+            {
+                "id": "R4",
+                "text": (
+                    "`matriz_confusion(pipe, X_test, y_test) -> np.ndarray` "
+                    "devuelve la matriz de confusion 2x2 "
+                    "(`confusion_matrix`) del pipeline ya entrenado sobre "
+                    "el test."
+                ),
+            },
+            {
+                "id": "R5",
+                "text": (
+                    "`cv_media(pipe, X, y, folds=5) -> float` devuelve la "
+                    "media de `cross_val_score(pipe, X, y, cv=folds)`."
+                ),
+            },
+            {
+                "id": "R6",
+                "text": (
+                    "`comparar_C(X, y, valores_C, folds=5) -> dict` devuelve "
+                    "`{C: cv_media}` para cada `C` en `valores_C` "
+                    "(reutiliza `construir_pipeline` y `cv_media`)."
+                ),
+            },
+            {
+                "id": "R7",
+                "text": (
+                    "`predecir_con_umbral(pipe, X, umbral) -> np.ndarray` "
+                    "devuelve un array de 0/1 marcando positivo (1) cuando "
+                    "`predict_proba` de la clase 1 es `>= umbral`. El "
+                    "pipeline ya viene entrenado."
+                ),
+            },
+            {
+                "id": "R8",
+                "text": (
+                    "`ranking_coeficientes(pipe, nombres) -> list` devuelve "
+                    "una lista de tuplas `(nombre, magnitud)` con el valor "
+                    "absoluto del coeficiente de cada feature, ordenada de "
+                    "mayor a menor magnitud. El ultimo paso del pipeline es "
+                    "la regresion logistica."
+                ),
+            },
+        ],
+        "starter_files": [
+            {
+                "path": "modelo.py",
+                "editable": True,
+                "content": (
+                    '"""Clasificador de diagnostico end-to-end (Track 3).\n'
+                    "\n"
+                    "Implementa las 8 funciones puras. Cada una reutiliza la\n"
+                    "API de sklearn que viste en las lecciones ML 1-8.\n"
+                    '"""\n'
+                    "\n"
+                    "import numpy as np\n"
+                    "from sklearn.linear_model import LogisticRegression\n"
+                    "from sklearn.metrics import (\n"
+                    "    accuracy_score,\n"
+                    "    confusion_matrix,\n"
+                    "    f1_score,\n"
+                    "    precision_score,\n"
+                    "    recall_score,\n"
+                    ")\n"
+                    "from sklearn.model_selection import cross_val_score, train_test_split\n"
+                    "from sklearn.pipeline import Pipeline\n"
+                    "from sklearn.preprocessing import StandardScaler\n"
+                    "\n"
+                    "\n"
+                    "def dividir_datos(X, y, test_size=0.2, seed=42):\n"
+                    '    """Split estratificado -> (X_train, X_test, y_train, y_test)."""\n'
+                    "    # TODO: return train_test_split(X, y, test_size=test_size,\n"
+                    "    #     random_state=seed, stratify=y)\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def construir_pipeline(C=1.0):\n"
+                    '    """StandardScaler + LogisticRegression en un Pipeline."""\n'
+                    "    # TODO: Pipeline([('sc', StandardScaler()),\n"
+                    "    #     ('clf', LogisticRegression(C=C, max_iter=5000,\n"
+                    "    #     random_state=42))])\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def entrenar_evaluar(pipe, X_train, y_train, X_test, y_test):\n"
+                    '    """Entrena en train y devuelve dict de metricas en test."""\n'
+                    "    # TODO: pipe.fit(X_train, y_train); pred = pipe.predict(X_test)\n"
+                    "    # TODO: return {'accuracy': ..., 'precision': ...,\n"
+                    "    #     'recall': ..., 'f1': ...} con floats\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def matriz_confusion(pipe, X_test, y_test):\n"
+                    '    """Matriz de confusion 2x2 del pipeline ya entrenado."""\n'
+                    "    # TODO: return confusion_matrix(y_test, pipe.predict(X_test))\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def cv_media(pipe, X, y, folds=5):\n"
+                    '    """Media de cross_val_score con cv=folds."""\n'
+                    "    # TODO: return float(cross_val_score(pipe, X, y, cv=folds).mean())\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def comparar_C(X, y, valores_C, folds=5):\n"
+                    '    """dict {C: cv_media} probando cada C."""\n'
+                    "    # TODO: return {C: cv_media(construir_pipeline(C=C), X, y, folds)\n"
+                    "    #     for C in valores_C}\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def predecir_con_umbral(pipe, X, umbral):\n"
+                    '    """Array 0/1: positivo si predict_proba clase 1 >= umbral."""\n'
+                    "    # TODO: proba = pipe.predict_proba(X)[:, 1]\n"
+                    "    # TODO: return (proba >= umbral).astype(int)\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def ranking_coeficientes(pipe, nombres):\n"
+                    '    """[(nombre, |coef|)] ordenado desc por magnitud."""\n'
+                    "    # TODO: modelo = pipe.steps[-1][1]; coefs = modelo.coef_[0]\n"
+                    "    # TODO: pares = [(n, abs(float(c))) for n, c in zip(nombres, coefs)]\n"
+                    "    # TODO: return sorted(pares, key=lambda t: t[1], reverse=True)\n"
+                    "    raise NotImplementedError\n"
+                ),
+            },
+            {
+                "path": "explora.py",
+                "editable": True,
+                "content": (
+                    '"""Script de exploracion libre (no se evalua).\n'
+                    "\n"
+                    "Carga el dataset real y prueba tus funciones de modelo.py.\n"
+                    '"""\n'
+                    "\n"
+                    "from sklearn.datasets import load_breast_cancer\n"
+                    "\n"
+                    "from modelo import (\n"
+                    "    comparar_C,\n"
+                    "    construir_pipeline,\n"
+                    "    cv_media,\n"
+                    "    dividir_datos,\n"
+                    "    entrenar_evaluar,\n"
+                    "    matriz_confusion,\n"
+                    "    predecir_con_umbral,\n"
+                    "    ranking_coeficientes,\n"
+                    ")\n"
+                    "\n"
+                    "data = load_breast_cancer()\n"
+                    "X, y = data.data, data.target\n"
+                    "nombres = list(data.feature_names)\n"
+                    "\n"
+                    "X_tr, X_te, y_tr, y_te = dividir_datos(X, y)\n"
+                    "pipe = construir_pipeline()\n"
+                    "print(entrenar_evaluar(pipe, X_tr, y_tr, X_te, y_te))\n"
+                    "print(matriz_confusion(pipe, X_te, y_te))\n"
+                    "print('CV:', cv_media(construir_pipeline(), X, y))\n"
+                    "print('C:', comparar_C(X, y, [0.01, 0.1, 1.0, 10.0]))\n"
+                    "print('top features:', ranking_coeficientes(pipe, nombres)[:5])\n"
+                ),
+            },
+        ],
+        "hidden_tests": [
+            {
+                "name": "dividir_datos: shapes 455/114 y estratificacion",
+                "code": (
+                    "from sklearn.datasets import load_breast_cancer\n"
+                    "from modelo import dividir_datos\n"
+                    "X, y = load_breast_cancer(return_X_y=True)\n"
+                    "Xtr, Xte, ytr, yte = dividir_datos(X, y)\n"
+                    "assert Xtr.shape == (455, 30), Xtr.shape\n"
+                    "assert Xte.shape == (114, 30), Xte.shape\n"
+                    "assert len(ytr) == 455 and len(yte) == 114\n"
+                    "assert abs(ytr.mean() - yte.mean()) < 0.02, (ytr.mean(), yte.mean())"
+                ),
+            },
+            {
+                "name": "construir_pipeline: Pipeline con scaler + logreg",
+                "code": (
+                    "from sklearn.pipeline import Pipeline\n"
+                    "from sklearn.preprocessing import StandardScaler\n"
+                    "from sklearn.linear_model import LogisticRegression\n"
+                    "from modelo import construir_pipeline\n"
+                    "pipe = construir_pipeline()\n"
+                    "assert isinstance(pipe, Pipeline), type(pipe)\n"
+                    "pasos = [s for _, s in pipe.steps]\n"
+                    "assert any(isinstance(s, StandardScaler) for s in pasos), pipe.steps\n"
+                    "assert isinstance(pipe.steps[-1][1], LogisticRegression), pipe.steps"
+                ),
+            },
+            {
+                "name": "entrenar_evaluar: 4 metricas > 0.90",
+                "code": (
+                    "from sklearn.datasets import load_breast_cancer\n"
+                    "from modelo import dividir_datos, construir_pipeline, entrenar_evaluar\n"
+                    "X, y = load_breast_cancer(return_X_y=True)\n"
+                    "Xtr, Xte, ytr, yte = dividir_datos(X, y)\n"
+                    "m = entrenar_evaluar(construir_pipeline(), Xtr, ytr, Xte, yte)\n"
+                    "assert isinstance(m, dict), type(m)\n"
+                    "for k in ('accuracy', 'precision', 'recall', 'f1'):\n"
+                    "    assert k in m, k\n"
+                    "    assert 0.90 < float(m[k]) <= 1.0, (k, m[k])"
+                ),
+            },
+            {
+                "name": "matriz_confusion: 2x2, suma 114, diagonal domina",
+                "code": (
+                    "import numpy as np\n"
+                    "from sklearn.datasets import load_breast_cancer\n"
+                    "from modelo import dividir_datos, construir_pipeline, matriz_confusion\n"
+                    "X, y = load_breast_cancer(return_X_y=True)\n"
+                    "Xtr, Xte, ytr, yte = dividir_datos(X, y)\n"
+                    "pipe = construir_pipeline().fit(Xtr, ytr)\n"
+                    "cm = np.asarray(matriz_confusion(pipe, Xte, yte))\n"
+                    "assert cm.shape == (2, 2), cm.shape\n"
+                    "assert cm.sum() == 114, cm.sum()\n"
+                    "assert cm[0, 0] + cm[1, 1] > 100, cm"
+                ),
+            },
+            {
+                "name": "cv_media: float en (0.95, 1.0]",
+                "code": (
+                    "from sklearn.datasets import load_breast_cancer\n"
+                    "from modelo import construir_pipeline, cv_media\n"
+                    "X, y = load_breast_cancer(return_X_y=True)\n"
+                    "val = cv_media(construir_pipeline(), X, y, folds=5)\n"
+                    "assert isinstance(val, float), type(val)\n"
+                    "assert 0.95 < val <= 1.0, val"
+                ),
+            },
+            {
+                "name": "comparar_C: dict, C sobre-regularizado rinde peor",
+                "code": (
+                    "from sklearn.datasets import load_breast_cancer\n"
+                    "from modelo import comparar_C\n"
+                    "X, y = load_breast_cancer(return_X_y=True)\n"
+                    "res = comparar_C(X, y, [0.01, 1.0], folds=5)\n"
+                    "assert isinstance(res, dict), type(res)\n"
+                    "assert set(res.keys()) == {0.01, 1.0}, list(res.keys())\n"
+                    "assert res[0.01] < res[1.0], res\n"
+                    "assert res[1.0] > 0.95, res[1.0]"
+                ),
+            },
+            {
+                "name": "predecir_con_umbral: monotono, 0->todo, 1->nada",
+                "code": (
+                    "import numpy as np\n"
+                    "from sklearn.datasets import load_breast_cancer\n"
+                    "from modelo import dividir_datos, construir_pipeline, predecir_con_umbral\n"
+                    "X, y = load_breast_cancer(return_X_y=True)\n"
+                    "Xtr, Xte, ytr, yte = dividir_datos(X, y)\n"
+                    "pipe = construir_pipeline().fit(Xtr, ytr)\n"
+                    "bajo = np.asarray(predecir_con_umbral(pipe, Xte, 0.0))\n"
+                    "medio = np.asarray(predecir_con_umbral(pipe, Xte, 0.5))\n"
+                    "alto = np.asarray(predecir_con_umbral(pipe, Xte, 1.0))\n"
+                    "assert set(np.unique(bajo)).issubset({0, 1})\n"
+                    "assert int(bajo.sum()) == 114, bajo.sum()\n"
+                    "assert int(alto.sum()) == 0, alto.sum()\n"
+                    "assert alto.sum() <= medio.sum() <= bajo.sum()"
+                ),
+            },
+            {
+                "name": "ranking_coeficientes: 30 pares ordenados desc",
+                "code": (
+                    "from sklearn.datasets import load_breast_cancer\n"
+                    "from modelo import dividir_datos, construir_pipeline, ranking_coeficientes\n"
+                    "data = load_breast_cancer()\n"
+                    "X, y = data.data, data.target\n"
+                    "nombres = list(data.feature_names)\n"
+                    "Xtr, Xte, ytr, yte = dividir_datos(X, y)\n"
+                    "pipe = construir_pipeline().fit(Xtr, ytr)\n"
+                    "rank = ranking_coeficientes(pipe, nombres)\n"
+                    "assert len(rank) == 30, len(rank)\n"
+                    "assert all(isinstance(n, str) for n, _ in rank)\n"
+                    "mags = [float(m) for _, m in rank]\n"
+                    "assert mags == sorted(mags, reverse=True), mags[:5]\n"
+                    "assert mags[0] > 0"
+                ),
+            },
+        ],
+        "estimated_hours": 10,
+        "difficulty": "advanced",
+        "order_index": 3,
+    },
 ]
 
 
