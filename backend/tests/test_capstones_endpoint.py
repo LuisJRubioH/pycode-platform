@@ -303,3 +303,55 @@ def test_track3_capstone_structure_integrity():
         "ranking_coeficientes",
     ):
         assert f"def {fn}(" in modelo["content"], fn
+
+
+# ---------- capstone Track 4 (Deep Learning, numpy) ----------
+
+
+@pytest.mark.asyncio
+async def test_track4_capstone_seeded_and_listed(client, auth_headers):
+    """El capstone MLP de Track 4 se seedea y aparece en la lista."""
+    await _ensure_real_seeded()
+    r = await client.get("/api/v1/capstones", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    slugs = [item["slug"] for item in r.json()["items"]]
+    assert "track-4-mlp-desde-cero" in slugs
+
+
+@pytest.mark.asyncio
+async def test_track4_capstone_detail_no_hidden_tests(client, auth_headers):
+    """Detalle expone tests_total=8 pero nunca los hidden_tests."""
+    await _ensure_real_seeded()
+    r = await client.get(
+        "/api/v1/capstones/track-4-mlp-desde-cero", headers=auth_headers
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["track"] == "track-4"
+    assert body["tests_total"] == 8
+    assert "hidden_tests" not in body
+    # Marcadores unicos de los hidden_tests (no presentes en starter/enunciado).
+    assert "0.105360516" not in r.text
+    assert "atol=1e-4" not in r.text
+
+
+def test_track4_capstone_structure_integrity():
+    """8 requisitos, 8 hidden_tests y el starter expone las 8 funciones."""
+    from app.services.capstone_seed import CAPSTONES
+
+    cap = next(c for c in CAPSTONES if c["slug"] == "track-4-mlp-desde-cero")
+    assert len(cap["requirements"]) == 8
+    assert len(cap["hidden_tests"]) == 8
+    assert cap["track"] == "track-4"
+    red = next(f for f in cap["starter_files"] if f["path"] == "red.py")
+    for fn in (
+        "inicializar_pesos",
+        "forward",
+        "bce",
+        "backward",
+        "actualizar",
+        "entrenar",
+        "predecir",
+        "accuracy",
+    ):
+        assert f"def {fn}(" in red["content"], fn

@@ -1098,6 +1098,369 @@ CAPSTONES: list[dict] = [
         "difficulty": "advanced",
         "order_index": 3,
     },
+    {
+        "slug": "track-4-mlp-desde-cero",
+        "track": "track-4",
+        "title": "Red neuronal desde cero: tu propia mini-libreria de deep learning",
+        "short_description": (
+            "Construye una red neuronal completa con numpy puro: "
+            "inicializacion, forward, perdida, backprop encadenado, "
+            "descenso de gradiente y un bucle de entrenamiento que "
+            "resuelve un problema no lineal. Cierra el Track 4 de Deep "
+            "Learning."
+        ),
+        "description": (
+            "## Contexto\n\n"
+            "A lo largo del Track 4 construiste cada pieza de una red "
+            "neuronal (neurona, perdida, backprop, training loop, MLP). "
+            "Ahora las juntas en una **mini-libreria** coherente: un "
+            "modulo `red.py` con funciones puras que, combinadas, "
+            "entrenan un perceptron multicapa de 2 capas para clasificar "
+            "datos **no linealmente separables** — todo con numpy, sin "
+            "PyTorch ni sklearn.\n\n"
+            "## Que integra este capstone\n\n"
+            "- **DL 1** — forward de una capa (`X @ W + b`) y "
+            "activaciones (relu, sigmoid).\n"
+            "- **DL 2** — perdida BCE con clip.\n"
+            "- **DL 3** — backprop encadenado por 2 capas (verificado con "
+            "gradient checking).\n"
+            "- **DL 4** — descenso de gradiente y bucle de "
+            "entrenamiento.\n"
+            "- **DL 5** — arquitectura MLP (capa oculta relu + salida "
+            "sigmoid) que resuelve lo no lineal.\n\n"
+            "## Arquitectura\n\n"
+            "```\n"
+            "X --[W1,b1]--> relu --[W2,b2]--> sigmoid --> p (probabilidad)\n"
+            "```\n\n"
+            "Los pesos viven en un dict `params = {'W1','b1','W2','b2'}`. "
+            "El `forward` devuelve tambien un `cache` con los valores "
+            "intermedios que el `backward` necesita.\n\n"
+            "## Estructura\n\n"
+            "```\n"
+            "mlp/\n"
+            "  red.py       # La mini-libreria: las 8 funciones que se evaluan\n"
+            "  demo.py      # Script libre para experimentar (no se evalua)\n"
+            "```\n\n"
+            "## Como se evalua\n\n"
+            "Al pulsar **Enviar capstone**, la plataforma corre 8 tests "
+            "ocultos: verifican cada funcion por separado, hacen "
+            "**gradient checking** de tu backprop contra el gradiente "
+            "numerico, y al final entrenan tu red sobre un dataset no "
+            "lineal comprobando que alcanza **mas del 95% de "
+            "accuracy**. Necesitas pasar al menos **7 de 8** para "
+            "completar el capstone y desbloquear el certificado del "
+            "Track 4."
+        ),
+        "requirements": [
+            {
+                "id": "R1",
+                "text": (
+                    "`inicializar_pesos(d_in, d_hidden, seed=0) -> dict` "
+                    "devuelve `{'W1','b1','W2','b2'}` con `W1` shape "
+                    "`(d_in, d_hidden)` y `W2` shape `(d_hidden, 1)` "
+                    "inicializados al azar (usa "
+                    "`np.random.default_rng(seed)`), y los bias en cero. "
+                    "No inicialices W en ceros (symmetry breaking)."
+                ),
+            },
+            {
+                "id": "R2",
+                "text": (
+                    "`forward(X, params) -> (p, cache)` calcula "
+                    "`z1 = X@W1+b1`, `h = relu(z1)`, `z2 = h@W2+b2`, "
+                    "`p = sigmoid(z2)`, y devuelve las probabilidades `p` "
+                    "junto a un `cache` (dict) con al menos `z1` y `h` "
+                    "para el backward."
+                ),
+            },
+            {
+                "id": "R3",
+                "text": (
+                    "`bce(y, p) -> float` calcula la binary cross-entropy "
+                    "media, recortando `p` a `[1e-12, 1-1e-12]` para "
+                    "evitar `log(0)`."
+                ),
+            },
+            {
+                "id": "R4",
+                "text": (
+                    "`backward(y, params, cache) -> dict` devuelve "
+                    "`{'dW1','db1','dW2','db2'}` con el backprop "
+                    "encadenado: `dz2=(p-y)/N`, `dW2=h.T@dz2`, "
+                    "`dh=dz2@W2.T`, `dz1=dh*(z1>0)`, `dW1=X.T@dz1`. Debe "
+                    "coincidir con el gradiente numerico."
+                ),
+            },
+            {
+                "id": "R5",
+                "text": (
+                    "`actualizar(params, grads, lr) -> dict` devuelve los "
+                    "pesos actualizados: cada `param - lr * grad` "
+                    "correspondiente (W1 con dW1, etc.)."
+                ),
+            },
+            {
+                "id": "R6",
+                "text": (
+                    "`entrenar(X, y, d_hidden=8, lr=0.5, epocas=3000, "
+                    "seed=0) -> (params, historial)` inicializa los "
+                    "pesos y en cada epoca hace forward, guarda la BCE, "
+                    "backward y actualiza. Devuelve los pesos finales y "
+                    "la lista de perdidas."
+                ),
+            },
+            {
+                "id": "R7",
+                "text": (
+                    "`predecir(X, params) -> np.ndarray` devuelve las "
+                    "etiquetas 0/1 (probabilidad `> 0.5`) con shape "
+                    "`(N, 1)`."
+                ),
+            },
+            {
+                "id": "R8",
+                "text": (
+                    "`accuracy(y, pred) -> float` devuelve la fraccion de "
+                    "aciertos entre etiquetas verdaderas y predichas."
+                ),
+            },
+        ],
+        "starter_files": [
+            {
+                "path": "red.py",
+                "editable": True,
+                "content": (
+                    '"""Mini-libreria de red neuronal (MLP de 2 capas) con numpy."""\n'
+                    "\n"
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def sigmoid(z):\n"
+                    "    return 1.0 / (1.0 + np.exp(-np.asarray(z, float)))\n"
+                    "\n"
+                    "\n"
+                    "def relu(z):\n"
+                    "    return np.maximum(0.0, np.asarray(z, float))\n"
+                    "\n"
+                    "\n"
+                    "def inicializar_pesos(d_in, d_hidden, seed=0):\n"
+                    '    """Pesos al azar (symmetry breaking) y bias en cero."""\n'
+                    "    rng = np.random.default_rng(seed)\n"
+                    "    # TODO: return {'W1': rng.normal(size=(d_in, d_hidden)) * 0.5,\n"
+                    "    #   'b1': np.zeros(d_hidden),\n"
+                    "    #   'W2': rng.normal(size=(d_hidden, 1)) * 0.5,\n"
+                    "    #   'b2': np.zeros(1)}\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def forward(X, params):\n"
+                    '    """Devuelve (p, cache). cache guarda z1 y h para el backward."""\n'
+                    "    # TODO: z1 = X @ params['W1'] + params['b1']; h = relu(z1)\n"
+                    "    # TODO: p = sigmoid(h @ params['W2'] + params['b2'])\n"
+                    "    # TODO: return p, {'X': np.asarray(X, float), 'z1': z1, 'h': h, 'p': p}\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def bce(y, p):\n"
+                    '    """Binary cross-entropy media, con clip."""\n'
+                    "    # TODO: y = np.asarray(y, float).reshape(-1, 1)\n"
+                    "    # TODO: pc = np.clip(np.asarray(p, float).reshape(-1, 1), 1e-12, 1 - 1e-12)\n"
+                    "    # TODO: return float(-np.mean(y*np.log(pc) + (1-y)*np.log(1-pc)))\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def backward(y, params, cache):\n"
+                    '    """Backprop encadenado. Devuelve {dW1, db1, dW2, db2}."""\n'
+                    "    # TODO: y = np.asarray(y, float).reshape(-1, 1)\n"
+                    "    # TODO: X, z1, h, p = cache['X'], cache['z1'], cache['h'], cache['p']\n"
+                    "    # TODO: N = X.shape[0]; dz2 = (p - y) / N\n"
+                    "    # TODO: dW2 = h.T @ dz2; db2 = dz2.sum(axis=0)\n"
+                    "    # TODO: dh = dz2 @ params['W2'].T; dz1 = dh * (z1 > 0)\n"
+                    "    # TODO: dW1 = X.T @ dz1; db1 = dz1.sum(axis=0)\n"
+                    "    # TODO: return {'dW1': dW1, 'db1': db1, 'dW2': dW2, 'db2': db2}\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def actualizar(params, grads, lr):\n"
+                    '    """params - lr * grad, para cada peso."""\n'
+                    "    # TODO: return {k: params[k] - lr * grads['d' + k] for k in params}\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def entrenar(X, y, d_hidden=8, lr=0.5, epocas=3000, seed=0):\n"
+                    '    """Bucle de entrenamiento. Devuelve (params, historial)."""\n'
+                    "    X = np.asarray(X, float)\n"
+                    "    y = np.asarray(y, float).reshape(-1, 1)\n"
+                    "    params = inicializar_pesos(X.shape[1], d_hidden, seed)\n"
+                    "    historial = []\n"
+                    "    # TODO: for _ in range(epocas):\n"
+                    "    #   p, cache = forward(X, params); historial.append(bce(y, p))\n"
+                    "    #   grads = backward(y, params, cache); params = actualizar(params, grads, lr)\n"
+                    "    return params, historial\n"
+                    "\n"
+                    "\n"
+                    "def predecir(X, params):\n"
+                    '    """Etiquetas 0/1 (p > 0.5), shape (N, 1)."""\n'
+                    "    # TODO: p, _ = forward(X, params); return (p > 0.5).astype(int)\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def accuracy(y, pred):\n"
+                    '    """Fraccion de aciertos."""\n'
+                    "    # TODO: y = np.asarray(y, float).reshape(-1, 1)\n"
+                    "    # TODO: pred = np.asarray(pred, float).reshape(-1, 1)\n"
+                    "    # TODO: return float(np.mean(pred == y))\n"
+                    "    raise NotImplementedError\n"
+                ),
+            },
+            {
+                "path": "demo.py",
+                "editable": True,
+                "content": (
+                    '"""Experimenta libremente (no se evalua).\n'
+                    "\n"
+                    "Genera un dataset no lineal y entrena tu red.\n"
+                    '"""\n'
+                    "\n"
+                    "import numpy as np\n"
+                    "\n"
+                    "from red import entrenar, predecir, accuracy\n"
+                    "\n"
+                    "rng = np.random.default_rng(42)\n"
+                    "n = 30\n"
+                    "\n"
+                    "\n"
+                    "def blob(cx, cy):\n"
+                    "    return rng.normal([cx, cy], 0.15, size=(n, 2))\n"
+                    "\n"
+                    "\n"
+                    "X = np.vstack([blob(0, 0), blob(1, 1), blob(0, 1), blob(1, 0)])\n"
+                    "y = np.concatenate([np.zeros(2 * n), np.ones(2 * n)]).reshape(-1, 1)\n"
+                    "params, hist = entrenar(X, y, d_hidden=8, lr=0.5, epocas=3000, seed=0)\n"
+                    "print('perdida inicial->final:', hist[0], hist[-1])\n"
+                    "print('accuracy:', accuracy(y, predecir(X, params)))\n"
+                ),
+            },
+        ],
+        "hidden_tests": [
+            {
+                "name": "inicializar_pesos: shapes + symmetry breaking",
+                "code": (
+                    "from red import inicializar_pesos\n"
+                    "import numpy as np\n"
+                    "p = inicializar_pesos(2, 8, seed=0)\n"
+                    "assert p['W1'].shape == (2, 8), p['W1'].shape\n"
+                    "assert p['W2'].shape == (8, 1), p['W2'].shape\n"
+                    "assert np.asarray(p['b1']).shape == (8,)\n"
+                    "assert not np.allclose(p['W1'], 0), 'W1 no debe ser todo ceros'"
+                ),
+            },
+            {
+                "name": "forward: (p, cache), p en (0,1)",
+                "code": (
+                    "from red import inicializar_pesos, forward\n"
+                    "import numpy as np\n"
+                    "X = np.random.default_rng(1).normal(size=(5, 2))\n"
+                    "params = inicializar_pesos(2, 8, seed=0)\n"
+                    "p, cache = forward(X, params)\n"
+                    "p = np.asarray(p)\n"
+                    "assert p.shape == (5, 1), p.shape\n"
+                    "assert np.all((p > 0) & (p < 1))\n"
+                    "for k in ('z1', 'h'):\n"
+                    "    assert k in cache, k"
+                ),
+            },
+            {
+                "name": "bce: valores conocidos y clip finito",
+                "code": (
+                    "from red import bce\n"
+                    "import numpy as np\n"
+                    "assert abs(bce([1], [0.9]) - 0.105360516) < 1e-5, bce([1], [0.9])\n"
+                    "assert bce([1], [0.01]) > bce([1], [0.99])\n"
+                    "assert np.isfinite(bce([1], [1.0]))"
+                ),
+            },
+            {
+                "name": "backward: gradient checking en dW1",
+                "code": (
+                    "from red import inicializar_pesos, forward, backward, bce\n"
+                    "import numpy as np\n"
+                    "rng = np.random.default_rng(0)\n"
+                    "X = rng.normal(size=(6, 2))\n"
+                    "y = (rng.normal(size=(6, 1)) > 0).astype(float)\n"
+                    "params = inicializar_pesos(2, 5, seed=2)\n"
+                    "p, cache = forward(X, params)\n"
+                    "grads = backward(y, params, cache)\n"
+                    "dW1 = np.asarray(grads['dW1'])\n"
+                    "assert dW1.shape == params['W1'].shape\n"
+                    "def loss(W1):\n"
+                    "    q = dict(params); q['W1'] = W1\n"
+                    "    pp, _ = forward(X, q)\n"
+                    "    return bce(y, pp)\n"
+                    "h = 1e-5\n"
+                    "num = np.zeros_like(params['W1'])\n"
+                    "for i in range(params['W1'].shape[0]):\n"
+                    "    for j in range(params['W1'].shape[1]):\n"
+                    "        Wp = params['W1'].copy(); Wp[i, j] += h\n"
+                    "        Wm = params['W1'].copy(); Wm[i, j] -= h\n"
+                    "        num[i, j] = (loss(Wp) - loss(Wm)) / (2 * h)\n"
+                    "assert np.allclose(dW1, num, atol=1e-4), (dW1.ravel()[:3], num.ravel()[:3])"
+                ),
+            },
+            {
+                "name": "actualizar: params -= lr*grad",
+                "code": (
+                    "from red import actualizar\n"
+                    "import numpy as np\n"
+                    "params = {'W1': np.ones((2, 2)), 'b1': np.zeros(2), 'W2': np.ones((2, 1)), 'b2': np.zeros(1)}\n"
+                    "grads = {'dW1': np.ones((2, 2)), 'db1': np.ones(2), 'dW2': np.ones((2, 1)), 'db2': np.ones(1)}\n"
+                    "out = actualizar(params, grads, 0.1)\n"
+                    "assert np.allclose(out['W1'], 0.9), out['W1']\n"
+                    "assert np.allclose(out['b1'], -0.1)"
+                ),
+            },
+            {
+                "name": "predecir: 0/1 shape (N,1)",
+                "code": (
+                    "from red import inicializar_pesos, predecir\n"
+                    "import numpy as np\n"
+                    "X = np.random.default_rng(3).normal(size=(7, 2))\n"
+                    "params = inicializar_pesos(2, 8, seed=0)\n"
+                    "pred = np.asarray(predecir(X, params))\n"
+                    "assert pred.shape == (7, 1), pred.shape\n"
+                    "assert set(np.unique(pred)).issubset({0, 1})"
+                ),
+            },
+            {
+                "name": "accuracy: fraccion correcta",
+                "code": (
+                    "from red import accuracy\n"
+                    "assert accuracy([1, 0, 1, 0], [[1], [0], [0], [0]]) == 0.75\n"
+                    "assert accuracy([[1], [1]], [[1], [1]]) == 1.0"
+                ),
+            },
+            {
+                "name": "entrenar: resuelve dataset no lineal (acc > 0.95)",
+                "code": (
+                    "from red import entrenar, predecir, accuracy\n"
+                    "import numpy as np\n"
+                    "rng = np.random.default_rng(42)\n"
+                    "n = 30\n"
+                    "def blob(cx, cy):\n"
+                    "    return rng.normal([cx, cy], 0.15, size=(n, 2))\n"
+                    "X = np.vstack([blob(0, 0), blob(1, 1), blob(0, 1), blob(1, 0)])\n"
+                    "y = np.concatenate([np.zeros(2 * n), np.ones(2 * n)]).reshape(-1, 1)\n"
+                    "params, hist = entrenar(X, y, d_hidden=8, lr=0.5, epocas=3000, seed=0)\n"
+                    "assert hist[-1] < hist[0], (hist[0], hist[-1])\n"
+                    "acc = accuracy(y, predecir(X, params))\n"
+                    "assert acc > 0.95, acc"
+                ),
+            },
+        ],
+        "estimated_hours": 12,
+        "difficulty": "advanced",
+        "order_index": 4,
+    },
 ]
 
 
