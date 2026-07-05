@@ -8745,6 +8745,253 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="AI 3 · Llamar a un LLM y armar un prompt RAG",
+        description=(
+            "La generacion de RAG: llamar a un LLM real desde el editor, "
+            "construir un prompt con contexto recuperado, presupuestar la "
+            "ventana y parsear salida estructurada (JSON)."
+        ),
+        content=(
+            "# AI 3: llamar a un LLM y armar el prompt de RAG\n\n"
+            "En AI 1 y AI 2 construiste el **retriever**. Ahora llega la "
+            "**G** de RAG: **generar** la respuesta con un LLM, "
+            "pasandole el contexto recuperado. Aqui aprendes a llamar al "
+            "modelo y, sobre todo, a **construir bien el prompt** — que "
+            "es donde se gana o se pierde la calidad de un sistema de "
+            "AI Engineering.\n\n"
+            "## Llamar al LLM desde el editor\n\n"
+            "PyCode expone un helper que llama a un LLM real **a traves "
+            "del backend** (sin exponer API keys). Es asincrono:\n\n"
+            "```python\n"
+            "import pycode\n"
+            "respuesta = await pycode.llm_complete(\n"
+            "    'Explica que es un embedding en una frase.',\n"
+            "    system='Eres un profesor conciso.',\n"
+            "    max_tokens=100,\n"
+            ")\n"
+            "print(respuesta)\n"
+            "```\n\n"
+            "El backend aplica **rate limit** y un **tope de tokens** "
+            "para controlar el costo. En este entorno, si no hay modelo "
+            "configurado, recibiras una respuesta placeholder — la "
+            "**logica** que rodea la llamada es lo que importa y lo que "
+            "vas a practicar.\n\n"
+            "> Nota: la respuesta de un LLM es **no determinista** "
+            "(cambia entre llamadas). Por eso los ejercicios evaluados "
+            "no comprueban el texto del modelo, sino el codigo que "
+            "**prepara** la llamada y **procesa** su salida — que es "
+            "justo el trabajo de un AI Engineer.\n\n"
+            "## Construir el prompt de RAG\n\n"
+            "El truco de RAG esta en el prompt: le das al modelo el "
+            "contexto recuperado y le pides que responda **solo** con "
+            "eso (para reducir alucinaciones).\n\n"
+            "```python\n"
+            "def construir_prompt_rag(pregunta, contextos):\n"
+            "    bloque = '\\n'.join('- ' + c for c in contextos)\n"
+            "    return (\n"
+            "        'Usa unicamente el siguiente contexto para responder. '\n"
+            "        'Si la respuesta no esta en el contexto, di que no lo sabes.\\n\\n'\n"
+            "        'Contexto:\\n' + bloque + '\\n\\nPregunta: ' + pregunta\n"
+            "    )\n"
+            "```\n\n"
+            "El pipeline RAG completo queda:\n\n"
+            "```python\n"
+            "contextos = recuperar_contexto(pregunta, chunks, embed, k=3)  # AI 2\n"
+            "prompt = construir_prompt_rag(pregunta, contextos)            # AI 3\n"
+            "respuesta = await pycode.llm_complete(prompt)                 # generacion\n"
+            "```\n\n"
+            "## Presupuestar la ventana de contexto\n\n"
+            "Un LLM tiene una **ventana de contexto** finita (y cada "
+            "token cuesta). No puedes meter 500 chunks. Hay que "
+            "**presupuestar**: incluir chunks (en orden de relevancia) "
+            "hasta agotar un limite.\n\n"
+            "```python\n"
+            "def truncar_contexto(contextos, max_chars):\n"
+            "    incluidos, total = [], 0\n"
+            "    for c in contextos:\n"
+            "        if total + len(c) > max_chars:\n"
+            "            break\n"
+            "        incluidos.append(c)\n"
+            "        total += len(c)\n"
+            "    return incluidos\n"
+            "```\n\n"
+            "(En produccion se cuenta en **tokens**, no caracteres, con "
+            "un tokenizador; la idea es la misma.)\n\n"
+            "## Parsear salida estructurada\n\n"
+            "Muchas veces le pides al LLM que responda en **JSON** (para "
+            "usar la salida en codigo). Pero los modelos a menudo la "
+            "envuelven en cercas markdown ```` ```json ... ``` ```` o "
+            "agregan texto. Hay que limpiarla antes de `json.loads`:\n\n"
+            "```python\n"
+            "import json\n"
+            "def parsear_json_llm(texto):\n"
+            "    t = texto.strip()\n"
+            "    if '```' in t:\n"
+            "        t = t.split('```')[1]\n"
+            "        if t.startswith('json'):\n"
+            "            t = t[4:]\n"
+            "        t = t.strip()\n"
+            "    try:\n"
+            "        return json.loads(t)\n"
+            "    except json.JSONDecodeError:\n"
+            "        ini, fin = t.find('{'), t.rfind('}')\n"
+            "        return json.loads(t[ini:fin + 1])\n"
+            "```\n\n"
+            "## Errores comunes\n\n"
+            "1. **No acotar el contexto** — metes texto de mas, gastas "
+            "tokens y confundes al modelo.\n"
+            "2. **Confiar en que el JSON viene limpio** — casi nunca; "
+            "limpia cercas y texto antes de parsear.\n"
+            "3. **No instruir contra la alucinacion** — sin el 'usa solo "
+            "el contexto', el modelo inventa.\n"
+            "4. **Testear el texto exacto del LLM** — es no "
+            "determinista; testea la logica que lo rodea.\n\n"
+            "## Resumen\n\n"
+            "- `pycode.llm_complete(prompt)` llama a un LLM real via el "
+            "backend (await, rate-limited).\n"
+            "- RAG = recuperar contexto (AI 1-2) + **construir el "
+            "prompt** con ese contexto + generar.\n"
+            "- **Presupuesta** el contexto para no exceder la ventana.\n"
+            "- **Limpia y parsea** la salida estructurada (JSON con "
+            "cercas).\n"
+            "- Un AI Engineer disena el codigo **alrededor** del LLM; el "
+            "modelo es una pieza mas.\n"
+        ),
+        difficulty="intermediate",
+        category="ai-fundamentos",
+        order=40,
+        track="track-5",
+        estimated_duration=55,
+        prerequisites_titles=[
+            "AI 2 · Chunking e indexacion de documentos",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Construir el prompt de RAG",
+                description=(
+                    "Ensambla el contexto recuperado y la pregunta en un "
+                    "prompt anti-alucinacion."
+                ),
+                instructions=(
+                    "Implementa `construir_prompt_rag(pregunta, "
+                    "contextos)` que devuelve un prompt que: (1) instruye "
+                    "a usar SOLO el contexto y decir 'no lo sabes' si no "
+                    "esta; (2) lista cada contexto como vineta "
+                    "(`'- ' + c`); (3) termina con `'Pregunta: ' + "
+                    "pregunta`."
+                ),
+                starter_code=(
+                    "def construir_prompt_rag(pregunta, contextos):\n"
+                    "    # TODO: bloque = '\\n'.join('- ' + c for c in contextos)\n"
+                    "    # TODO: return instruccion + 'Contexto:\\n' + bloque + '\\n\\nPregunta: ' + pregunta\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "La instruccion 'usa solo el contexto' reduce alucinaciones.",
+                    "Cada contexto va como vineta: '- ' + c.",
+                    "El prompt debe contener la pregunta al final.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "prompt contiene instruccion, contextos y pregunta",
+                        "code": (
+                            "p = construir_prompt_rag('cual es la capital?', "
+                            "['Paris es la capital de Francia', 'Francia esta en Europa'])\n"
+                            "assert 'cual es la capital?' in p\n"
+                            "assert 'Paris es la capital de Francia' in p\n"
+                            "assert 'Francia esta en Europa' in p\n"
+                            "assert 'no lo sabes' in p\n"
+                            "assert '- Paris es la capital de Francia' in p"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Presupuestar el contexto",
+                description=(
+                    "Incluye chunks hasta agotar un presupuesto de " "caracteres."
+                ),
+                instructions=(
+                    "Implementa `truncar_contexto(contextos, max_chars)` "
+                    "que recorre los chunks en orden y los va incluyendo "
+                    "mientras la suma de sus longitudes no supere "
+                    "`max_chars`. En cuanto el siguiente chunk no quepa, "
+                    "para. Devuelve la lista de chunks incluidos."
+                ),
+                starter_code=(
+                    "def truncar_contexto(contextos, max_chars):\n"
+                    "    incluidos = []\n"
+                    "    total = 0\n"
+                    "    # TODO: for c in contextos: si total+len(c) > max_chars: break;\n"
+                    "    #   si no, incluir c y sumar len(c)\n"
+                    "    return incluidos\n"
+                ),
+                hints=[
+                    "Acumula la longitud total y corta cuando el siguiente no cabe.",
+                    "Si el primer chunk ya excede el presupuesto, devuelves [].",
+                    "En produccion se mide en tokens; aqui, en caracteres.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "incluye chunks hasta agotar el presupuesto",
+                        "code": (
+                            "assert truncar_contexto(['abc', 'defgh', 'ij'], 8) == ['abc', 'defgh']\n"
+                            "assert truncar_contexto(['abc'], 2) == []\n"
+                            "assert truncar_contexto([], 100) == []\n"
+                            "assert truncar_contexto(['ab', 'cd', 'ef'], 100) == ['ab', 'cd', 'ef']"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Parsear la salida JSON del LLM",
+                description=(
+                    "Limpia cercas markdown y texto para extraer el JSON "
+                    "de una respuesta."
+                ),
+                instructions=(
+                    "Implementa `parsear_json_llm(texto)` que devuelve el "
+                    "dict parseado. Debe manejar: JSON plano, JSON dentro "
+                    "de cercas ```` ```json ... ``` ```` o ```` ``` ... "
+                    "``` ````, y JSON con texto alrededor (extrae desde "
+                    "el primer `{` hasta el ultimo `}`). Usa `json.loads`."
+                ),
+                starter_code=(
+                    "import json\n"
+                    "\n"
+                    "\n"
+                    "def parsear_json_llm(texto):\n"
+                    "    t = texto.strip()\n"
+                    "    # TODO: si hay '```', quedate con lo de dentro y quita el prefijo 'json'\n"
+                    "    # TODO: intenta json.loads(t); si falla, extrae de '{' a '}' y parsea\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "t.split('```')[1] te da el bloque entre la primera pareja de cercas.",
+                    "Si el bloque empieza con 'json', quitalo (t[4:]).",
+                    "Como fallback, t[t.find('{'):t.rfind('}')+1] aisla el objeto.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "parsea JSON plano, con cercas y con texto alrededor",
+                        "code": (
+                            "assert parsear_json_llm('{\"nombre\": \"ana\", \"edad\": 30}') == {'nombre': 'ana', 'edad': 30}\n"
+                            "assert parsear_json_llm('```json\\n{\"ok\": true}\\n```') == {'ok': True}\n"
+                            "assert parsear_json_llm('Claro:\\n```\\n{\"n\": [1, 2, 3]}\\n```') == {'n': [1, 2, 3]}\n"
+                            "assert parsear_json_llm('bla bla {\"a\": 1} fin') == {'a': 1}"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
