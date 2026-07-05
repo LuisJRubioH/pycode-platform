@@ -209,9 +209,19 @@ if not getattr(_plt.show, '_pycode_patched', False):
     // Cada test corre en un namespace fresco para aislar efectos
     // secundarios entre tests. Concatenamos studentCode + test.code y
     // tratamos "no excepción" como pass.
+    //
+    // Capturamos el stdout del código del estudiante en `_salida` para que
+    // los tests de ejercicios tipo "imprime X" (Track 1) puedan verificar la
+    // salida (`assert '...' in _salida`). Se resetea al inicio de cada test
+    // (namespace fresco) y se restaura tras correr el código; si el código
+    // del estudiante lanza, el siguiente test lo resetea igual.
     for (const test of tests) {
       const ns = this.py!.toPy({});
-      const program = `${studentCode}\n\n${test.code}\n`;
+      const program =
+        `import sys as _sys, io as _io\n_sys.stdout = _io.StringIO()\n` +
+        `${studentCode}\n` +
+        `_salida = _sys.stdout.getvalue()\n_sys.stdout = _sys.__stdout__\n\n` +
+        `${test.code}\n`;
       let timer: number | undefined;
       let timedOut = false;
       const timeoutPromise = new Promise<never>((_, reject) => {

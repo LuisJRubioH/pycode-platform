@@ -70,12 +70,31 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                     "Usa print(f'Hola, {nombre}')",
                     "Asigna primero un string a nombre",
                 ],
+                hidden_tests=[
+                    {
+                        "name": "imprime 'Hola, <nombre>' con f-string",
+                        "code": (
+                            "assert nombre, 'define nombre con tu nombre'\n"
+                            "assert _salida.strip() == f'Hola, {nombre}', _salida"
+                        ),
+                    },
+                ],
             ),
             ExerciseTemplate(
                 title="Mini presentación",
                 description="Muestra dos lineas con informacion personal.",
-                instructions="Imprime ciudad y lenguaje favorito en lineas separadas.",
+                instructions="Imprime `ciudad` y `lenguaje` en dos lineas separadas (una por print).",
                 starter_code="ciudad = ''\nlenguaje = 'Python'\n# TODO\n",
+                hidden_tests=[
+                    {
+                        "name": "imprime dos lineas (incluye 'Python')",
+                        "code": (
+                            "lineas = [l for l in _salida.strip().split(chr(10)) if l.strip()]\n"
+                            "assert len(lineas) == 2, ('esperaba 2 lineas', lineas)\n"
+                            "assert 'Python' in _salida, _salida"
+                        ),
+                    },
+                ],
             ),
         ],
     ),
@@ -99,14 +118,28 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ExerciseTemplate(
                 title="Conversor simple",
                 description="Convierte texto a numero.",
-                instructions="Recibe `texto_numero` y calcula su doble como int.",
+                instructions="Convierte `texto_numero` a int, calcula su doble e imprimelo (debe dar 24).",
                 starter_code="texto_numero = '12'\n# TODO\n",
+                hidden_tests=[
+                    {
+                        "name": "imprime el doble (24)",
+                        "code": "assert '24' in _salida, ('esperaba 24 en la salida', _salida)",
+                    },
+                ],
             ),
             ExerciseTemplate(
                 title="Chequeo de tipos",
                 description="Valida tipos de variables.",
-                instructions="Imprime el tipo de `edad`, `altura` y `activo`.",
+                instructions="Imprime el tipo (`type(...)`) de `edad`, `altura` y `activo`.",
                 starter_code="edad = 18\naltura = 1.72\nactivo = True\n# TODO\n",
+                hidden_tests=[
+                    {
+                        "name": "muestra int, float y bool",
+                        "code": (
+                            "assert 'int' in _salida and 'float' in _salida and 'bool' in _salida, _salida"
+                        ),
+                    },
+                ],
             ),
         ],
     ),
@@ -136,14 +169,26 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ExerciseTemplate(
                 title="Clasificador de edad",
                 description="Define etapa de vida basica.",
-                instructions="Con `edad`, imprime `menor`, `adulto` o `senior`.",
+                instructions="Con `edad` (17), imprime `menor` (<18), `adulto` (<65) o `senior`.",
                 starter_code="edad = 17\n# TODO\n",
+                hidden_tests=[
+                    {
+                        "name": "edad 17 -> menor",
+                        "code": "assert 'menor' in _salida.lower(), _salida",
+                    },
+                ],
             ),
             ExerciseTemplate(
                 title="Acceso permitido",
                 description="Combina condiciones.",
-                instructions="Permite acceso si `tiene_pase` y `edad >= 18`.",
+                instructions="Imprime 'Acceso permitido' si `tiene_pase` y `edad >= 18`; si no, 'Acceso denegado'.",
                 starter_code="tiene_pase = True\nedad = 19\n# TODO\n",
+                hidden_tests=[
+                    {
+                        "name": "pase + mayor de edad -> permitido",
+                        "code": "assert 'permitido' in _salida.lower(), _salida",
+                    },
+                ],
             ),
         ],
     ),
@@ -167,14 +212,29 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ExerciseTemplate(
                 title="Suma acumulada",
                 description="Acumula valores 1..n.",
-                instructions="Calcula la suma de 1 a `n` usando for.",
+                instructions="Calcula la suma de 1 a `n` (10) usando for e imprime el resultado (55).",
                 starter_code="n = 10\n# TODO\n",
+                hidden_tests=[
+                    {
+                        "name": "suma 1..10 = 55",
+                        "code": "assert '55' in _salida, ('esperaba 55', _salida)",
+                    },
+                ],
             ),
             ExerciseTemplate(
                 title="Contador while",
                 description="Cuenta hacia atras.",
-                instructions="Imprime de 5 a 1 usando while.",
+                instructions="Imprime de 5 a 1 (un numero por linea) usando while.",
                 starter_code="# TODO\n",
+                hidden_tests=[
+                    {
+                        "name": "imprime 5,4,3,2,1 en orden",
+                        "code": (
+                            "nums = [x for x in _salida.split() if x.lstrip('-').isdigit()]\n"
+                            "assert nums[:5] == ['5', '4', '3', '2', '1'], nums"
+                        ),
+                    },
+                ],
             ),
         ],
     ),
@@ -253,14 +313,29 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ExerciseTemplate(
                 title="Promedio de notas",
                 description="Recorre listas.",
-                instructions="Calcula promedio de `notas` con dos decimales.",
+                instructions="Calcula el promedio de `notas` redondeado a 2 decimales e imprimelo (~4.38).",
                 starter_code="notas = [4.5, 3.8, 5.0, 4.2]\n# TODO\n",
+                hidden_tests=[
+                    {
+                        "name": "imprime el promedio (~4.38)",
+                        "code": "assert '4.3' in _salida, ('esperaba ~4.38', _salida)",
+                    },
+                ],
             ),
             ExerciseTemplate(
                 title="Agenda minima",
                 description="Uso de diccionario.",
-                instructions="Agrega y consulta un contacto en `agenda`.",
+                instructions="Agrega a `agenda` el contacto 'ana' con numero '123' e imprime su numero.",
                 starter_code="agenda = {}\n# TODO\n",
+                hidden_tests=[
+                    {
+                        "name": "agrega 'ana':'123' y lo imprime",
+                        "code": (
+                            "assert agenda.get('ana') == '123', ('agenda debe tener ana:123', agenda)\n"
+                            "assert '123' in _salida, _salida"
+                        ),
+                    },
+                ],
             ),
         ],
     ),
@@ -284,8 +359,16 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ExerciseTemplate(
                 title="Filtrado par",
                 description="Practica comprehension.",
-                instructions="Crea lista con cuadrados de numeros pares de 1..20.",
-                starter_code="# TODO\n",
+                instructions="Guarda en `resultado` la lista con los cuadrados de los numeros pares de 1 a 20.",
+                starter_code="# TODO: resultado = [...]\n",
+                hidden_tests=[
+                    {
+                        "name": "cuadrados de pares 1..20",
+                        "code": (
+                            "assert resultado == [4, 16, 36, 64, 100, 144, 196, 256, 324, 400], resultado"
+                        ),
+                    },
+                ],
             ),
             ExerciseTemplate(
                 title="Division segura",
@@ -329,18 +412,44 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ExerciseTemplate(
                 title="Clase Producto",
                 description="Modela entidad simple.",
-                instructions="Crea clase Producto con nombre/precio y metodo aplicar_descuento.",
-                starter_code="class Producto:\n    def __init__(self, nombre: str, precio: float):\n        self.nombre = nombre\n        self.precio = precio\n\n    # TODO\n",
+                instructions="Agrega a Producto el metodo `aplicar_descuento(pct)` que reduce `self.precio` en `pct` por ciento.",
+                starter_code="class Producto:\n    def __init__(self, nombre: str, precio: float):\n        self.nombre = nombre\n        self.precio = precio\n\n    # TODO: def aplicar_descuento(self, pct): ...\n",
                 difficulty="medium",
                 points=15,
+                hidden_tests=[
+                    {
+                        "name": "descuento 20% sobre 100 -> 80",
+                        "code": (
+                            "p = Producto('lapiz', 100)\n"
+                            "p.aplicar_descuento(20)\n"
+                            "assert abs(p.precio - 80) < 1e-9, p.precio"
+                        ),
+                    },
+                ],
             ),
             ExerciseTemplate(
                 title="Cuenta bancaria",
                 description="Mutacion de estado.",
-                instructions="Implementa depositar y retirar con validaciones.",
-                starter_code="class Cuenta:\n    def __init__(self):\n        self.saldo = 0\n\n    # TODO\n",
+                instructions="Implementa `depositar(monto)` (suma al saldo) y `retirar(monto)` (resta si hay saldo; si no, lanza ValueError).",
+                starter_code="class Cuenta:\n    def __init__(self):\n        self.saldo = 0\n\n    # TODO: depositar y retirar\n",
                 difficulty="medium",
                 points=15,
+                hidden_tests=[
+                    {
+                        "name": "depositar/retirar actualiza saldo; retiro invalido lanza ValueError",
+                        "code": (
+                            "c = Cuenta()\n"
+                            "c.depositar(100)\n"
+                            "c.retirar(30)\n"
+                            "assert c.saldo == 70, c.saldo\n"
+                            "try:\n"
+                            "    c.retirar(1000)\n"
+                            "    raise AssertionError('retiro > saldo debio lanzar ValueError')\n"
+                            "except ValueError:\n"
+                            "    pass"
+                        ),
+                    },
+                ],
             ),
         ],
     ),
