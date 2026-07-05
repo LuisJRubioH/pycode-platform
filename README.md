@@ -10,14 +10,14 @@ Plataforma de aprendizaje que lleva de **Python → Data Science → Machine Lea
 |---|---|---|
 | **Fase 0** — fundamentos + seguridad | ✅ Cerrada (tag `fase-0-complete`) | Postgres+Alembic+RLS, Pyodide, JWT+GDPR, seguridad transversal, deploy gratis |
 | **Fase 1** — pulido Track 1 + ELO | ✅ Cerrada | Tutor evaluador+Q&A, tests ocultos, ELO multidominio, calidad de código, certificados PDF |
-| **Track 1** — Python | ✅ Cerrado | 25 lecciones · capstone `CLI de ventas` |
+| **Track 1** — Python | ✅ Cerrado | 10 lecciones · capstone `CLI de ventas` |
 | **Track 2** — Data Science | ✅ Cerrado | 11 lecciones (NumPy/Pandas/Viz/EDA/Stats) · capstone `EDA cafecito` |
 | **Track 3** — ML Clásico | ✅ Cerrado | 11 lecciones sklearn · capstone `Diagnóstico ML` |
 | **Track 4** — Deep Learning | ✅ Cerrado | 5 lecciones **numpy puro** (backprop→MLP→XOR) · capstone `Red desde cero`. PyTorch real diferido |
 | **Track 5** — AI Engineering | 🚧 En curso | AI 1-3: embeddings, RAG retriever, LLM real vía proxy. Faltan RAG e2e/agentes/evals/capstone |
 | **Track 6** — MLOps | ⏳ Pendiente | Producción |
 
-**En números**: 55 lecciones · ~130 ejercicios con `hidden_tests` · 100 puzzles ELO curados · 10 retos DS/ML · 4 capstones · 3 datasets · migraciones 0001-0014 · 161 tests backend. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**.
+**En números**: 40 lecciones · 108 ejercicios (la mayoría con `hidden_tests`) · 100 puzzles ELO curados · 10 retos DS/ML · 4 capstones · 3 datasets · migraciones 0001-0014 · 161 tests backend. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**.
 
 ## Producción
 

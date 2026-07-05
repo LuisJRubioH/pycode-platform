@@ -35,7 +35,7 @@ Referencia del modelo de datos. Postgres 17 (Supabase en prod), gestionado con *
 
 ## 2. Contenido educativo (definicional, mayormente público)
 
-### `lessons` — lecciones (55 en el seed, multi-track)
+### `lessons` — lecciones (40 en el seed, multi-track)
 | Columna | Tipo | Notas |
 |---|---|---|
 | id | integer PK | |

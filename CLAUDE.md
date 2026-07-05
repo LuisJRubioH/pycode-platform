@@ -17,7 +17,7 @@ PyCode Platform — learning platform for Python with Monaco editor, sandboxed c
 - 🚧 **Track 5 (AI Engineering) en curso** — AI 1-3: embeddings/búsqueda semántica, chunking/indexación (retriever RAG en numpy), y LLM real + prompt RAG vía **proxy backend** `POST /api/v1/ai/complete` (reusa el LLM provider; helper `pycode.llm_complete` en el worker). Falta RAG end-to-end, agentes, evals, capstone.
 - ⏳ **Pendiente**: resto de Track 5, Track 6 (MLOps).
 
-**Contenido en números**: 55 lecciones (Track 1: 25 · Track 2: 11 · Track 3: 11 · Track 4: 5 · Track 5: 3) · ~130 ejercicios con hidden_tests · 100 puzzles ELO curados · 10 retos · 4 capstones · 3 datasets. Migraciones 0001-0014 (Tracks 3-5 y el proxy LLM **no** añaden migraciones). 161 tests backend. Esquema de datos: `docs/DATABASE.md`.
+**Contenido en números**: 40 lecciones (Track 1: 10 · Track 2: 11 · Track 3: 11 · Track 4: 5 · Track 5: 3) · 108 ejercicios (la mayoría con hidden_tests) · 100 puzzles ELO curados · 10 retos · 4 capstones · 3 datasets. Migraciones 0001-0014 (Tracks 3-5 y el proxy LLM **no** añaden migraciones). 161 tests backend. Esquema de datos: `docs/DATABASE.md`. **Nota**: el contenido real vive en `lesson_seed.py`; `lesson_content.py` es código **muerto/duplicado** (no se importa) — no editarlo pensando que seedea.
 
 **Producción**:
 - Frontend: https://pycode-platform.vercel.app (Vercel Hobby)
