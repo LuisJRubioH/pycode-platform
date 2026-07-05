@@ -10,27 +10,28 @@ Plataforma de aprendizaje que lleva de **Python → Data Science → Machine Lea
 |---|---|---|
 | **Fase 0** — fundamentos + seguridad | ✅ Cerrada (tag `fase-0-complete`) | Postgres+Alembic+RLS, Pyodide, JWT+GDPR, seguridad transversal, deploy gratis |
 | **Fase 1** — pulido Track 1 + ELO | ✅ Cerrada | Tutor evaluador+Q&A, tests ocultos, ELO multidominio, calidad de código, certificados PDF |
-| **Track 1** — Python | ✅ Cerrado | 25 lecciones · 64 ejercicios · capstone `CLI de ventas` |
+| **Track 1** — Python | ✅ Cerrado | 25 lecciones · capstone `CLI de ventas` |
 | **Track 2** — Data Science | ✅ Cerrado | 11 lecciones (NumPy/Pandas/Viz/EDA/Stats) · capstone `EDA cafecito` |
-| **Track 3** — ML Clásico | 🚧 En curso | 8 lecciones sklearn · **falta capstone + certificado** |
-| **Track 4** — Deep Learning | ⏳ Pendiente | PyTorch |
-| **Track 5** — AI Engineering | ⏳ Pendiente | RAG, agentes, evals |
+| **Track 3** — ML Clásico | ✅ Cerrado | 11 lecciones sklearn · capstone `Diagnóstico ML` |
+| **Track 4** — Deep Learning | ✅ Cerrado | 5 lecciones **numpy puro** (backprop→MLP→XOR) · capstone `Red desde cero`. PyTorch real diferido |
+| **Track 5** — AI Engineering | 🚧 En curso | AI 1-3: embeddings, RAG retriever, LLM real vía proxy. Faltan RAG e2e/agentes/evals/capstone |
 | **Track 6** — MLOps | ⏳ Pendiente | Producción |
 
-**En números**: 44 lecciones · ~130 ejercicios con `hidden_tests` · 100 puzzles ELO curados · 10 retos DS/ML · 2 capstones · 3 datasets · migraciones 0001-0014 · ~150 tests backend.
+**En números**: 55 lecciones · ~130 ejercicios con `hidden_tests` · 100 puzzles ELO curados · 10 retos DS/ML · 4 capstones · 3 datasets · migraciones 0001-0014 · 161 tests backend. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**.
 
 ## Producción
 
 - **Frontend**: https://pycode-platform.vercel.app (Vercel Hobby)
 - **Backend**: https://pycode-backend.onrender.com (Render Free, Docker)
 - **DB**: Supabase Postgres (sa-east-1, RLS habilitada)
-- **Watchdog**: UptimeRobot ping `/health` cada 5 min (evita el cold start de Render free)
+- **Watchdog**: UptimeRobot ping `/health` cada 5 min (cold start de Render) + workflow `keepalive-db.yml` (cron 4h → `/health/db`, evita que Supabase free se pause por inactividad)
 
 ## Características
 
 - **Editor Monaco** con tema/fuente configurables, descarga de script, copia al portapapeles.
 - **Pyodide en Web Worker**: el código del estudiante se ejecuta en el navegador con Comlink + timeout duro. El backend nunca lo ejecuta (`/api/v1/execute/run` retorna 410; `/validate` solo hace `ast.parse`). numpy/pandas/scipy/sklearn/matplotlib autocargan bajo demanda.
 - **Tutor IA Socrático** con dos roles separados: **evaluador de código** (REST atómico) y **Q&A** (WebSocket multi-turno). Provider abstraction: Groq (default) → OpenAI fallback → Stub determinístico si no hay API key.
+- **Proxy LLM para AI Engineering** (Track 5): `POST /api/v1/ai/complete` deja que el código del alumno (en Pyodide) llame a un LLM real vía backend — auth + rate limit + tope de tokens, sin exponer API keys. Helper `pycode.llm_complete()` en el editor.
 - **Tests ocultos por ejercicio**: `hidden_tests` que corren en Pyodide en namespace fresco, sin exponerse a la UI. Es el patrón base de validación replicado en todos los tracks.
 - **Sistema ELO multidominio**: rating separado por actividad y categoría temática (`puzzle:<category>`, `challenge:<dificultad>`), con lazy-init desde el ELO global. Banco de 100 puzzles curados + puzzle del día público.
 - **Progresión de calidad de código**: `static_score` con AST (sin ejecutar) + scores logic/general del evaluador LLM, persistidos y graficados en el tiempo.
@@ -112,7 +113,7 @@ para ser no-op en SQLite (los tests usan SQLite).
 backend/
 ├── app/
 │   ├── api/v1/endpoints/    # auth, users, lessons, exercises, execute, tutor, progress,
-│   │                          elo, challenges, capstones, certificates, datasets
+│   │                          elo, challenges, capstones, certificates, datasets, ai
 │   ├── core/                # config, database, security_headers, rate_limit,
 │   │                          logging_config, observability, tracks
 │   ├── models/              # user, learning, elo_models, refresh_token, challenge,
@@ -123,7 +124,7 @@ backend/
 │   └── websockets/          # tutor_chat (/ws/tutor); /ws/code deprecado
 ├── alembic/versions/        # 0001 → 0014
 ├── scripts/check_no_sqli.py
-├── tests/                   # ~150 tests
+├── tests/                   # 161 tests
 └── Dockerfile               # alembic upgrade head + uvicorn
 
 frontend/
@@ -140,13 +141,19 @@ frontend/
 
 docs/
 ├── ARCHITECTURE.md          # diseño técnico (empezar aquí)
+├── DATABASE.md              # esquema de base de datos descrito
 ├── DEPLOY.md                # Render + Vercel + Supabase + UptimeRobot
 └── superpowers/specs/       # specs por fase
+
+.github/workflows/
+├── ci.yml                   # backend-tests, backend-lint, frontend-build, audit
+└── keepalive-db.yml         # cron 4h → /health/db (evita pausa de Supabase)
 ```
 
 ## Documentación
 
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — diseño técnico: capas, flujo de datos, modelos, el patrón multi-track, sandbox, ELO, seguridad.
+- **[docs/DATABASE.md](docs/DATABASE.md)** — esquema de base de datos: 22 tablas por dominio, columnas, relaciones, RLS y migraciones.
 - **[CLAUDE.md](CLAUDE.md)** — guía operativa para agentes/contribuidores.
 - **[docs/DEPLOY.md](docs/DEPLOY.md)** — despliegue Render + Vercel + Supabase.
 - **[PYCODE_SPEC.md](PYCODE_SPEC.md)** / **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** — visión y spec por fases.

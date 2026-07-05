@@ -11,11 +11,13 @@ PyCode Platform — learning platform for Python with Monaco editor, sandboxed c
 **Estado actual (2026-07)**:
 - ✅ **Fase 0 cerrada (30/30)** — tag `fase-0-complete` (2026-05-08). Infra: Postgres+Alembic+RLS, Pyodide Web Worker, LLM provider abstraction, seguridad transversal, JWT+GDPR, deploy gratis.
 - ✅ **Fase 1 cerrada** — pulido Track 1 + ELO completo. Tutor separado en evaluador (REST) + Q&A (WS), tests ocultos Pyodide, **ELO multidominio** + snapshots de calidad de código, banco de **100 puzzles curados** + 10 retos DS/ML, capstones + **certificados PDF verificables**.
-- ✅ **Track 2 (Data Science) cerrado** (2026-06-30) — 11 lecciones (NumPy/Pandas/Viz/EDA/Stats) + capstone `track-2-eda-cafecito` + datasets seedeados + render matplotlib en el editor.
-- 🚧 **Track 3 (ML Clásico) en curso** — 8 lecciones con sklearn en Pyodide (LogReg/KNN, métricas, pipelines, regresión, árboles/RF, cross-validation, KMeans, PCA). **Falta capstone + certificado para cerrarlo.**
-- ⏳ **Pendiente**: Tracks 4 (Deep Learning), 5 (AI Engineering), 6 (MLOps).
+- ✅ **Track 2 (Data Science) cerrado** — 11 lecciones (NumPy/Pandas/Viz/EDA/Stats) + capstone `track-2-eda-cafecito` + datasets seedeados + render matplotlib en el editor.
+- ✅ **Track 3 (ML Clásico) cerrado** — 11 lecciones sklearn en Pyodide (LogReg/KNN, métricas, pipelines, regresión, árboles/RF, CV/GridSearch, KMeans, PCA, SVM, Naive Bayes, ROC/AUC) + capstone `track-3-diagnostico-ml`.
+- ✅ **Track 4 (Deep Learning) cerrado** — 5 lecciones **en numpy puro** (neurona/forward, pérdidas+gradiente numérico, backprop, training loop, MLP que resuelve XOR) + capstone `track-4-mlp-desde-cero`. **PyTorch real diferido** (necesitaría GPU remota/Colab; ver `project_track4_piloto`).
+- 🚧 **Track 5 (AI Engineering) en curso** — AI 1-3: embeddings/búsqueda semántica, chunking/indexación (retriever RAG en numpy), y LLM real + prompt RAG vía **proxy backend** `POST /api/v1/ai/complete` (reusa el LLM provider; helper `pycode.llm_complete` en el worker). Falta RAG end-to-end, agentes, evals, capstone.
+- ⏳ **Pendiente**: resto de Track 5, Track 6 (MLOps).
 
-**Contenido en números**: 44 lecciones (Track 1: 25 · Track 2: 11 · Track 3: 8) · ~130 ejercicios con hidden_tests · 100 puzzles ELO curados · 10 retos · 2 capstones · 3 datasets. Migraciones 0001-0014. ~150 tests backend.
+**Contenido en números**: 55 lecciones (Track 1: 25 · Track 2: 11 · Track 3: 11 · Track 4: 5 · Track 5: 3) · ~130 ejercicios con hidden_tests · 100 puzzles ELO curados · 10 retos · 4 capstones · 3 datasets. Migraciones 0001-0014 (Tracks 3-5 y el proxy LLM **no** añaden migraciones). 161 tests backend. Esquema de datos: `docs/DATABASE.md`.
 
 **Producción**:
 - Frontend: https://pycode-platform.vercel.app (Vercel Hobby)
@@ -23,7 +25,7 @@ PyCode Platform — learning platform for Python with Monaco editor, sandboxed c
 - DB: Supabase Postgres `medutbqsurjnaaymmrin` (sa-east-1, RLS habilitada)
 - Watchdog: UptimeRobot ping `/health` cada 5 min
 
-**Próximo trabajo**: cerrar Track 3 con capstone ML + certificado (el framework ya lo soporta, solo falta contenido). Luego arrancar Track 4 (Deep Learning con PyTorch). Ver `docs/ARCHITECTURE.md` para el diseño técnico y `project_track3_piloto` / `project_fase1_progress` en memoria para el detalle vivo.
+**Próximo trabajo**: continuar Track 5 (AI 4 RAG end-to-end → agentes → evals → capstone "Nebula RAG"). Decisión pendiente aparte: Track 4b con PyTorch real (GPU remota vs Colab). Ver `docs/ARCHITECTURE.md` (diseño), `docs/DATABASE.md` (esquema) y `project_track5_piloto` / `project_track4_piloto` en memoria para el detalle vivo.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the technical design, [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for the vision, and [PYCODE_SPEC.md](PYCODE_SPEC.md) for the phased implementation spec.
 
@@ -33,6 +35,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the technical design, [PROJ
 - **WebSocket del Tutor IA**: Vercel Hobby no proxea WebSockets de forma confiable a través de los rewrites de `vercel.json`. `TutorChat.tsx` conecta directamente a `wss://pycode-backend.onrender.com/ws/tutor` cuando `import.meta.env.PROD` es true.
 - **CORS_ORIGINS** en Render incluye el dominio Vercel exacto (`https://pycode-platform.vercel.app`). Si se cambia el dominio de Vercel (ej. dominio custom), hay que actualizar `CORS_ORIGINS` en Render Settings → Environment y redesplegar.
 - **Rate limit de SlowAPI** guarda contadores en memoria del proceso de Render; un redeploy los resetea, útil si te bloqueas durante pruebas.
+- **Supabase free se pausa** tras ~7 días sin actividad de DB (estado `INACTIVE`) y tumba el siguiente deploy de Render (`alembic upgrade head` no conecta). Mitigación: el workflow `.github/workflows/keepalive-db.yml` (cron cada 4h) golpea `/health/db` (`SELECT 1`). **Señal diagnóstica**: si Render dice "deploy failed" pero **CI está verde**, sospechar Supabase pausada antes que el código/deps; restaurar con el MCP de Supabase (`restore_project`), sin tocar código.
+- **Proxy LLM (Track 5)**: `POST /api/v1/ai/complete` llama al modelo real solo si `GROQ_API_KEY` está seteada en Render; sin key cae al `StubProvider` (placeholder determinista). Verificar esa env var antes de esperar respuestas reales del LLM en prod.
 
 ## Common commands
 
@@ -78,7 +82,7 @@ DB: defaults a `sqlite+aiosqlite:///./pycode.db` solo en dev/test; producción e
 
 Migraciones Alembic en [backend/alembic/versions/](backend/alembic/versions/), `0001`→`0014` monotónicas: `0001_initial_schema` (todas las tablas base), `0002_refresh_tokens`, `0003_cascade_user_fks`, `0004_enable_rls_per_user_tables` (RLS, Postgres-only), `0005_code_evaluations`, `0006_challenge_completions`, `0007_exercise_hidden_tests`, `0008_capstones`, `0009_certificates`, `0010_elo_ratings` (multi-ELO), `0011_challenge_completion_elo_delta`, `0012_code_quality_snapshots`, `0013_lesson_track`, `0014_datasets`. Las DDL Postgres-only (RLS) empiezan con `if op.get_bind().dialect.name != "postgresql": return` para ser no-op en SQLite (tests).
 
-API surface versionada en `/api/v1` via [backend/app/api/v1/router.py](backend/app/api/v1/router.py): `auth` (login/register/refresh/logout), `users` (me, me/export, DELETE me), `lessons`, `exercises` (+ `/{id}/hidden-tests`, `/{id}/evaluations`), `execute` (run→410, validate con `ast.parse`), `tutor` (evaluate REST + WS Q&A), `progress` (competencies, track-status, code-quality), `elo` (attempt, ratings, history, puzzle-of-the-day), `challenges`, `capstones`, `certificates` (issue/download/verify público), `datasets` (CSV). WebSocket `/ws/code` está deprecado (envía mensaje y cierra); `/ws/tutor` sigue activo.
+API surface versionada en `/api/v1` via [backend/app/api/v1/router.py](backend/app/api/v1/router.py): `auth` (login/register/refresh/logout), `users` (me, me/export, DELETE me), `lessons`, `exercises` (+ `/{id}/hidden-tests`, `/{id}/evaluations`), `execute` (run→410, validate con `ast.parse`), `tutor` (evaluate REST + WS Q&A), `progress` (competencies, track-status, code-quality), `elo` (attempt, ratings, history, puzzle-of-the-day), `challenges`, `capstones`, `certificates` (issue/download/verify público), `datasets` (CSV), `ai` (`/complete` — proxy LLM del Track 5: auth + rate limit 40/día + tope de tokens, reusa el LLM provider). WebSocket `/ws/code` está deprecado (envía mensaje y cierra); `/ws/tutor` sigue activo.
 
 **Lessons & Exercises**: contenido multi-track en español, seeded idempotente por title en startup. [backend/app/services/lesson_content.py](backend/app/services/lesson_content.py) tiene los 25 `LessonTemplate` de **Track 1** (64 ejercicios) sin campo `track` (default `track-1`); [backend/app/services/lesson_seed.py](backend/app/services/lesson_seed.py) añade **Track 2** (11 lecciones, `track="track-2"`) y **Track 3** (8 lecciones, `track="track-3"`) con sus `ExerciseTemplate`. Añadir una lección a otro track = agregar un `LessonTemplate(track="track-N", category="...", ...)`; sin migración ni endpoints nuevos (la columna `lessons.track` es libre, migración 0013). **Known issue fixed**: GET `/{lesson_id}` usa `selectinload(Lesson.exercises)` para evitar lazy-load errors en contexto async.
 

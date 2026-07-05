@@ -2,7 +2,7 @@
 
 Documento técnico de referencia. Describe cómo está construida la plataforma, cómo fluyen los datos y qué patrones se replican al crecer. Para la guía operativa día a día ver [CLAUDE.md](../CLAUDE.md); para la visión de producto ver [PROJECT_OVERVIEW.md](../PROJECT_OVERVIEW.md).
 
-Última revisión: 2026-07 (Track 3 en curso).
+Última revisión: 2026-07 (Tracks 1-4 cerrados, Track 5 en curso). Para el esquema de datos detallado ver [DATABASE.md](DATABASE.md).
 
 ---
 
@@ -101,6 +101,7 @@ Tablas **públicas sin RLS** por diseño: `certificates` (credencial compartible
 | `capstones` | list, `/{slug}` detail (sin hidden_tests), submissions |
 | `certificates` | issue (gate 403), download (PDF), verify/{code} (público) |
 | `datasets` | `/{slug}/csv` |
+| `ai` | `/complete` — proxy LLM (Track 5): auth + rate limit + tope de tokens |
 
 ### 2.6 Servicios notables
 
@@ -212,14 +213,15 @@ Middleware montado en `main.py`:
 
 - **Cold start Render free**: el contenedor duerme tras 15 min idle; UptimeRobot pingea `/health` cada 5 min. Sin él, las primeras llamadas tras idle tardan 30-60s o dan 502.
 - **CORS_ORIGINS** en Render incluye el dominio Vercel exacto. Si cambia el dominio, actualizar y redesplegar.
-- **Supabase free se pausa** tras ~7 días sin actividad de DB y tumba el deploy con "tenant/user not found"; se restaura con el MCP de Supabase (sin tocar código). Mitigar con `/health/db` + UptimeRobot.
+- **Supabase free se pausa** tras ~7 días sin actividad de DB y tumba el deploy con "tenant/user not found"; se restaura con el MCP de Supabase (sin tocar código). **Mitigación implementada**: el workflow `.github/workflows/keepalive-db.yml` (cron cada 4h) golpea `GET /health/db` (que hace `SELECT 1`), generando actividad real de DB. Nota diagnóstica: si Render reporta "deploy failed" pero **CI está verde**, sospechar Supabase pausada antes que el código/deps.
+- **Proxy LLM y GROQ_API_KEY**: `POST /api/v1/ai/complete` (Track 5) llama al LLM real solo si `GROQ_API_KEY` está seteada en Render; sin key cae al `StubProvider` (respuesta placeholder determinista). El helper `pycode.llm_complete` del worker Pyodide incluye el token de sesión (empujado desde el hilo principal, ya que el worker no lee localStorage).
 - **Dev Windows**: exportar `$env:PYTHONUTF8="1"` antes de `uvicorn` — sin eso structlog crashea al loggear contenido Unicode en consola cp1252. No afecta prod ni CI (Linux UTF-8).
 
 ---
 
 ## 9. Testing y CI
 
-- **Backend**: ~150 tests (pytest-asyncio mode=auto). El `conftest` aplica `alembic upgrade head` sobre SQLite y resetea SlowAPI. Guard rails de no-leak para todo lo oculto a la UI.
+- **Backend**: 161 tests (pytest-asyncio mode=auto). El `conftest` aplica `alembic upgrade head` sobre SQLite y resetea SlowAPI. Guard rails de no-leak para todo lo oculto a la UI. El contenido de lecciones/capstones se verifica aparte con solución de referencia (numpy/sklearn local) porque sus `hidden_tests` corren en Pyodide, no en pytest.
 - **Frontend**: vitest (unit) + Playwright (E2E, Chromium headless) para flujos de capstone/certificado.
 - **CI** (`.github/workflows/ci.yml`): backend-tests, backend-lint (black + flake8 + mypy + check_no_sqli), frontend-build, audit (pip-audit + npm audit). Dependabot semanal.
 
@@ -227,4 +229,10 @@ Middleware montado en `main.py`:
 
 ## 10. Roadmap técnico
 
-Cerrado: Fase 0, Fase 1, Track 1, Track 2. En curso: Track 3 (falta capstone + certificado). Pendiente: Tracks 4 (Deep Learning / PyTorch), 5 (AI Engineering / RAG-agentes-evals), 6 (MLOps). El framework multi-track (§4.1) ya está probado para absorberlos sin cambios estructurales; el reto de Tracks 4-5 será la ejecución de PyTorch/LLMs, que probablemente **no** quepa en Pyodide y requiera repensar la capa de ejecución (Colab embebido, backend GPU efímero, o evaluación por API). Ese es el próximo punto de decisión arquitectónica real.
+**Cerrado**: Fase 0, Fase 1, Track 1 (Python), Track 2 (Data Science), Track 3 (ML Clásico), Track 4 (Deep Learning). **En curso**: Track 5 (AI Engineering) — AI 1-3 (embeddings, chunking/indexación, LLM real + prompt RAG). **Pendiente**: resto de Track 5 (RAG end-to-end, agentes, evals), Track 6 (MLOps).
+
+Dos decisiones arquitectónicas resueltas en Tracks 4-5:
+- **Track 4 (Deep Learning)**: se enseñó **desde cero en numpy** (neurona → backprop → MLP), que corre en Pyodide sin infra nueva. **PyTorch real** (nn.Module/GPU/CNNs) se **difirió** a un futuro Track 4b — requeriría ejecución fuera de Pyodide (GPU remota vs Colab), la decisión de infra/costo que sigue pendiente.
+- **Track 5 (AI Engineering)**: el retrieval de RAG se construye **en numpy** (determinista, testeable); la generación con LLM usa un **proxy backend** (`/api/v1/ai/complete`) que reutiliza el LLM provider existente — barato, sin GPU, sin exponer API keys. Las lecciones de generación testean la **lógica alrededor** del LLM (prompts, parseo), no su salida no-determinista.
+
+El framework multi-track (§4.1) absorbió Tracks 3-5 sin migraciones ni cambios estructurales.
