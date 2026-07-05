@@ -7471,6 +7471,274 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="DL 3 · Backpropagation: la regla de la cadena",
+        description=(
+            "Como fluye el gradiente hacia atras por la red: derivada "
+            "local de la activacion, backward de la capa lineal, y "
+            "gradient checking contra el gradiente numerico."
+        ),
+        content=(
+            "# DL 3: backpropagation\n\n"
+            "Ya sabes hacer el forward (DL 1) y medir el error (DL 2). "
+            "**Backpropagation** es el algoritmo que calcula el "
+            "gradiente de la perdida respecto a **cada** peso de forma "
+            "eficiente, para poder ajustarlos. No es mas que la **regla "
+            "de la cadena** del calculo, aplicada capa por capa de la "
+            "salida hacia la entrada.\n\n"
+            "## La regla de la cadena\n\n"
+            "Si `L` depende de `a`, y `a` depende de `z`, y `z` depende "
+            "de `W`, entonces:\n\n"
+            "```\n"
+            "dL/dW = dL/da * da/dz * dz/dW\n"
+            "```\n\n"
+            "Backprop calcula esto de derecha a izquierda: parte del "
+            "**gradiente que llega de arriba** (`dL/da`, el *upstream "
+            "gradient*), lo multiplica por la **derivada local** de cada "
+            "operacion, y propaga el resultado hacia atras. Cada nodo "
+            "solo necesita saber su derivada local.\n\n"
+            "## Backward de una activacion\n\n"
+            "Para el sigmoid hay un truco precioso: si `a = sigmoid(z)`, "
+            "su derivada local se escribe en terminos de la **propia "
+            "salida**:\n\n"
+            "```\n"
+            "da/dz = a * (1 - a)\n"
+            "```\n\n"
+            "Asi que el gradiente que sale hacia atras es el que entra "
+            "multiplicado elemento a elemento por la derivada local:\n\n"
+            "```python\n"
+            "def grad_sigmoid(a, grad_out):   # a = salida del sigmoid\n"
+            "    return grad_out * a * (1 - a)\n"
+            "```\n\n"
+            "(Para ReLU la derivada local es `1` donde `z > 0` y `0` "
+            "donde `z <= 0`.)\n\n"
+            "## Backward de una capa lineal\n\n"
+            "El forward era `z = X @ W + b`. Dado el gradiente que llega "
+            "`grad_z = dL/dz`, la regla de la cadena da las tres "
+            "derivadas locales (esto se deduce, pero conviene "
+            "memorizarlo):\n\n"
+            "```\n"
+            "dW = X.T @ grad_z        # como cambiar los pesos\n"
+            "db = grad_z.sum(axis=0)  # el sesgo suma sobre el batch\n"
+            "dX = grad_z @ W.T        # gradiente que sigue hacia atras\n"
+            "```\n\n"
+            "```python\n"
+            "def backward_lineal(X, W, grad_z):\n"
+            "    dW = X.T @ grad_z\n"
+            "    db = grad_z.sum(axis=0)\n"
+            "    dX = grad_z @ W.T\n"
+            "    return dW, db, dX\n"
+            "```\n\n"
+            "Fijate en las **transpuestas**: hacen que las shapes "
+            "cuadren. `dW` tiene la shape de `W`, `dX` la de `X`. Si "
+            "algo no cuadra, casi siempre es una transpuesta mal "
+            "puesta.\n\n"
+            "## Gradient checking: no te fies, verifica\n\n"
+            "El backprop analitico es facil de equivocar (un signo, una "
+            "transpuesta). La forma estandar de verificarlo es "
+            "compararlo contra el **gradiente numerico** de DL 2: "
+            "perturbas cada peso un `h` y mides como cambia la perdida. "
+            "Si el analitico y el numerico coinciden (hasta ~1e-4), tu "
+            "backprop esta bien.\n\n"
+            "```\n"
+            "para cada peso W[i,j]:\n"
+            "  num[i,j] = ( L(W con W[i,j]+h) - L(W con W[i,j]-h) ) / (2h)\n"
+            "comparar num  vs  gradiente analitico   -> deben coincidir\n"
+            "```\n\n"
+            "Esta es la mejor red de seguridad al implementar backprop a "
+            "mano. PyTorch lo hace por ti con autograd (lo veras "
+            "despues), pero ahora entiendes que hay debajo.\n\n"
+            "## Errores comunes\n\n"
+            "1. **Transpuesta olvidada** — `dW = X @ grad_z` en vez de "
+            "`X.T @ grad_z`: las shapes no cuadran o el gradiente es "
+            "erroneo.\n"
+            "2. **Usar z en vez de a en grad_sigmoid** — la formula "
+            "`a*(1-a)` usa la **salida** del sigmoid, no la entrada.\n"
+            "3. **No sumar el sesgo sobre el batch** — `db` es "
+            "`grad_z.sum(axis=0)`; el bias se comparte entre muestras.\n"
+            "4. **Saltarse el gradient checking** — implementar backprop "
+            "sin verificarlo numericamente es pedir un bug silencioso.\n\n"
+            "## Resumen\n\n"
+            "- Backprop = regla de la cadena aplicada de la salida hacia "
+            "la entrada.\n"
+            "- Cada operacion aporta su **derivada local**; se multiplica "
+            "por el gradiente *upstream*.\n"
+            "- Capa lineal: `dW = X.T @ grad_z`, `db = grad_z.sum(0)`, "
+            "`dX = grad_z @ W.T`.\n"
+            "- Sigmoid: `da/dz = a*(1-a)`.\n"
+            "- **Verifica** siempre con gradient checking contra el "
+            "gradiente numerico.\n"
+        ),
+        difficulty="advanced",
+        category="dl-fundamentos",
+        order=35,
+        track="track-4",
+        estimated_duration=60,
+        prerequisites_titles=[
+            "DL 2 · Funciones de perdida y gradiente numerico",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Backward del sigmoid",
+                description=(
+                    "Propaga el gradiente a traves de un sigmoid usando "
+                    "su derivada local a*(1-a)."
+                ),
+                instructions=(
+                    "Implementa `grad_sigmoid(a, grad_out)` donde `a` es "
+                    "la **salida** del sigmoid y `grad_out` es el "
+                    "gradiente que llega de arriba (`dL/da`). Devuelve "
+                    "`grad_out * a * (1 - a)` (elemento a elemento)."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def grad_sigmoid(a, grad_out):\n"
+                    "    # a = salida del sigmoid; grad_out = dL/da\n"
+                    "    # TODO: a = np.asarray(a, float); grad_out = np.asarray(grad_out, float)\n"
+                    "    # TODO: return grad_out * a * (1 - a)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "La derivada local del sigmoid es a*(1-a), con a la SALIDA.",
+                    "En a=0.5 la derivada local vale 0.25 (el maximo).",
+                    "Multiplica elemento a elemento por grad_out.",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "grad_sigmoid: a(1-a) y coincide con derivada numerica",
+                        "code": (
+                            "import numpy as np\n"
+                            "assert abs(float(grad_sigmoid(0.5, 1.0)) - 0.25) < 1e-12\n"
+                            "assert abs(float(grad_sigmoid(0.8, 2.0)) - 0.32) < 1e-12\n"
+                            "out = np.asarray(grad_sigmoid(np.array([0.5, 0.8]), np.array([1.0, 1.0])))\n"
+                            "assert out.shape == (2,), out.shape\n"
+                            "sig = lambda z: 1.0 / (1.0 + np.exp(-z))\n"
+                            "z0 = 0.7\n"
+                            "a = sig(z0)\n"
+                            "h = 1e-5\n"
+                            "analitico = float(grad_sigmoid(a, 1.0))\n"
+                            "numerico = (sig(z0 + h) - sig(z0 - h)) / (2 * h)\n"
+                            "assert abs(analitico - numerico) < 1e-4, (analitico, numerico)"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Backward de la capa lineal",
+                description=(
+                    "Calcula los gradientes dW, db y dX de una capa " "z = X @ W + b."
+                ),
+                instructions=(
+                    "Implementa `backward_lineal(X, W, grad_z)` que, "
+                    "dado el gradiente `grad_z = dL/dz`, devuelve la "
+                    "tupla `(dW, db, dX)` con `dW = X.T @ grad_z`, "
+                    "`db = grad_z.sum(axis=0)` y `dX = grad_z @ W.T`."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def backward_lineal(X, W, grad_z):\n"
+                    "    # TODO: dW = X.T @ grad_z\n"
+                    "    # TODO: db = grad_z.sum(axis=0)\n"
+                    "    # TODO: dX = grad_z @ W.T\n"
+                    "    # TODO: return dW, db, dX\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "dW tiene la misma shape que W; dX la misma que X.",
+                    "Las transpuestas son las que hacen cuadrar las shapes.",
+                    "db suma el gradiente sobre las muestras del batch (axis=0).",
+                ],
+                difficulty="advanced",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "backward_lineal: shapes y valores (dW, db, dX)",
+                        "code": (
+                            "import numpy as np\n"
+                            "X = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])\n"
+                            "W = np.array([[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]])\n"
+                            "grad_z = np.array([[1.0, 0.0], [0.0, 1.0]])\n"
+                            "dW, db, dX = backward_lineal(X, W, grad_z)\n"
+                            "dW = np.asarray(dW)\n"
+                            "db = np.asarray(db)\n"
+                            "dX = np.asarray(dX)\n"
+                            "assert dW.shape == (3, 2), dW.shape\n"
+                            "assert db.shape == (2,), db.shape\n"
+                            "assert dX.shape == (2, 3), dX.shape\n"
+                            "assert np.allclose(dW, X.T @ grad_z)\n"
+                            "assert np.allclose(db, [1.0, 1.0])\n"
+                            "assert np.allclose(dX, grad_z @ W.T)"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Gradient checking de una capa lineal + MSE",
+                description=(
+                    "Calcula el gradiente analitico de la perdida MSE "
+                    "respecto a W y verifica que coincide con el "
+                    "numerico."
+                ),
+                instructions=(
+                    "Para una capa `z = X @ W + b` con perdida "
+                    "`L = mean((z - y_true) ** 2)`, implementa "
+                    "`grad_W(X, W, b, y_true)` que devuelve `dL/dW`. "
+                    "Pista: `dL/dz = 2 * (z - y_true) / z.size` y "
+                    "`dL/dW = X.T @ dL/dz`. El test compara tu resultado "
+                    "contra el gradiente numerico (gradient checking)."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def grad_W(X, W, b, y_true):\n"
+                    "    # TODO: z = X @ W + b\n"
+                    "    # TODO: dz = 2.0 * (z - y_true) / z.size\n"
+                    "    # TODO: return X.T @ dz\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "El factor 2 y el /z.size vienen de derivar la media de cuadrados.",
+                    "dL/dW = X.T @ dL/dz, igual que en backward_lineal.",
+                    "Si coincide con el numerico hasta 1e-4, tu gradiente esta bien.",
+                ],
+                difficulty="advanced",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "grad_W coincide con el gradiente numerico",
+                        "code": (
+                            "import numpy as np\n"
+                            "rng = np.random.default_rng(0)\n"
+                            "X = rng.normal(size=(5, 3))\n"
+                            "W = rng.normal(size=(3, 1))\n"
+                            "b = np.array([0.5])\n"
+                            "y = rng.normal(size=(5, 1))\n"
+                            "g = np.asarray(grad_W(X, W, b, y))\n"
+                            "assert g.shape == W.shape, g.shape\n"
+                            "def loss(Wm):\n"
+                            "    z = X @ Wm + b\n"
+                            "    return float(np.mean((z - y) ** 2))\n"
+                            "h = 1e-5\n"
+                            "num = np.zeros_like(W)\n"
+                            "for i in range(W.shape[0]):\n"
+                            "    for j in range(W.shape[1]):\n"
+                            "        Wp = W.copy(); Wp[i, j] += h\n"
+                            "        Wm = W.copy(); Wm[i, j] -= h\n"
+                            "        num[i, j] = (loss(Wp) - loss(Wm)) / (2 * h)\n"
+                            "assert np.allclose(g, num, atol=1e-4), (g.ravel(), num.ravel())"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
