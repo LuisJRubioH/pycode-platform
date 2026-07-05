@@ -9143,24 +9143,51 @@ async def seed_lessons_with_exercises(db: AsyncSession) -> int:
 
         lessons_by_title[template.title] = lesson
 
-        await db.execute(delete(Exercise).where(Exercise.lesson_id == lesson.id))
+        # Upsert de ejercicios por (lesson_id, title) PRESERVANDO el id.
+        # Antes se hacia delete+recreate, lo que cambiaba los ids en cada
+        # deploy/arranque y dejaba huerfanos los CodeSubmission de los
+        # usuarios (el progreso se perdia). Ahora se actualizan in-place.
+        existing_ex_result = await db.execute(
+            select(Exercise).where(Exercise.lesson_id == lesson.id)
+        )
+        existing_by_title = {e.title: e for e in existing_ex_result.scalars().all()}
+        template_titles = set()
         for index, ex in enumerate(template.exercises, start=1):
-            db.add(
-                Exercise(
-                    lesson_id=lesson.id,
-                    title=ex.title,
-                    description=ex.description,
-                    instructions=ex.instructions,
-                    starter_code=ex.starter_code,
-                    solution_code=None,
-                    test_cases=[],
-                    hidden_tests=list(ex.hidden_tests),
-                    hints=ex.hints,
-                    points=ex.points,
-                    difficulty=ex.difficulty,
-                    order=index,
+            template_titles.add(ex.title)
+            row = existing_by_title.get(ex.title)
+            if row is None:
+                db.add(
+                    Exercise(
+                        lesson_id=lesson.id,
+                        title=ex.title,
+                        description=ex.description,
+                        instructions=ex.instructions,
+                        starter_code=ex.starter_code,
+                        solution_code=None,
+                        test_cases=[],
+                        hidden_tests=list(ex.hidden_tests),
+                        hints=ex.hints,
+                        points=ex.points,
+                        difficulty=ex.difficulty,
+                        order=index,
+                    )
                 )
-            )
+            else:
+                row.description = ex.description
+                row.instructions = ex.instructions
+                row.starter_code = ex.starter_code
+                row.hidden_tests = list(ex.hidden_tests)
+                row.hints = ex.hints
+                row.points = ex.points
+                row.difficulty = ex.difficulty
+                row.order = index
+
+        # Limpia ejercicios que ya no estan en el template (renombrados o
+        # quitados). Sus submissions se borran en cascada; los ejercicios
+        # vigentes conservan su id y su progreso.
+        for title, row in existing_by_title.items():
+            if title not in template_titles:
+                await db.execute(delete(Exercise).where(Exercise.id == row.id))
 
     await db.flush()
     for template in LESSON_TEMPLATES:
