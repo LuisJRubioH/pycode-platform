@@ -6984,6 +6984,252 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="DL 1 · La neurona: forward pass y activaciones",
+        description=(
+            "Arranca Deep Learning desde cero con numpy: que es una "
+            "neurona, el forward pass (X @ W + b) y por que las "
+            "funciones de activacion dan no-linealidad."
+        ),
+        content=(
+            "# DL 1: la neurona y el forward pass\n\n"
+            "Bienvenido al **Track 4 (Deep Learning)**. Antes de tocar "
+            "PyTorch vas a entender que hace una red neuronal por "
+            "dentro, y lo vas a construir con **numpy puro** (el mismo "
+            "que ya usaste en Data Science). Una red no es magia: es "
+            "multiplicacion de matrices + una funcion no lineal, "
+            "repetido en capas.\n\n"
+            "## La neurona\n\n"
+            "Una **neurona** toma un vector de entradas `x`, lo combina "
+            "linealmente con unos **pesos** `w` y un **sesgo** `b`, y "
+            "pasa el resultado por una **funcion de activacion** `f`:\n\n"
+            "```\n"
+            "z = w . x + b        (combinacion lineal, un escalar)\n"
+            "a = f(z)             (activacion)\n"
+            "```\n\n"
+            "Con varias neuronas en paralelo (una **capa**), los pesos "
+            "pasan a ser una matriz `W` y el calculo se vectoriza para "
+            "un **batch** de muestras `X` de una sola vez:\n\n"
+            "```python\n"
+            "import numpy as np\n"
+            "Z = X @ W + b        # X: (n_muestras, n_features)\n"
+            "                     # W: (n_features, n_units)\n"
+            "                     # b: (n_units,)  -> broadcasting\n"
+            "                     # Z: (n_muestras, n_units)\n"
+            "A = f(Z)\n"
+            "```\n\n"
+            "El operador `@` es el producto matricial. Ese `X @ W + b` "
+            "es **el forward pass de una capa densa**, la operacion mas "
+            "repetida en todo el deep learning.\n\n"
+            "## Funciones de activacion\n\n"
+            "Sin activacion, apilar capas seria inutil: la composicion "
+            "de funciones lineales es otra funcion lineal. La "
+            "**no-linealidad** es lo que permite a la red aprender "
+            "relaciones complejas.\n\n"
+            "### Sigmoid\n\n"
+            "Aplasta cualquier numero al rango `(0, 1)`. Util para "
+            "probabilidades en la capa de salida.\n\n"
+            "```\n"
+            "sigmoid(z) = 1 / (1 + e^-z)\n"
+            "  sigmoid(0)   = 0.5\n"
+            "  sigmoid(+inf) -> 1\n"
+            "  sigmoid(-inf) -> 0\n"
+            "```\n\n"
+            "```python\n"
+            "def sigmoid(z):\n"
+            "    return 1.0 / (1.0 + np.exp(-z))\n"
+            "```\n\n"
+            "### ReLU\n\n"
+            "`relu(z) = max(0, z)`. Cero para negativos, identidad para "
+            "positivos. Es la activacion por defecto en las capas "
+            "ocultas modernas: barata y no satura para valores "
+            "positivos.\n\n"
+            "```python\n"
+            "def relu(z):\n"
+            "    return np.maximum(0.0, z)\n"
+            "```\n\n"
+            "### tanh\n\n"
+            "Parecida a sigmoid pero centrada en 0, rango `(-1, 1)`. "
+            "`np.tanh(z)` ya viene en numpy.\n\n"
+            "## Por que numpy y no PyTorch (todavia)\n\n"
+            "PyTorch automatiza el calculo de gradientes (lo veras "
+            "pronto), pero **el forward pass es exactamente esto**: "
+            "`X @ W + b` y una activacion. Construirlo a mano en numpy "
+            "te da la intuicion que despues PyTorch te esconde. Cuando "
+            "pasemos al framework, no sera una caja negra.\n\n"
+            "## Errores comunes\n\n"
+            "1. **Dimensiones de W al reves** — si `X` es `(n, features)`, "
+            "entonces `W` debe ser `(features, units)`. Si las inviertes, "
+            "`@` lanza un error de shapes.\n"
+            "2. **Olvidar el sesgo** — `b` se suma por broadcasting sobre "
+            "cada muestra del batch; su shape es `(units,)`.\n"
+            "3. **Aplicar la activacion antes de sumar b** — el orden es "
+            "`f(X @ W + b)`, no `f(X @ W) + b`.\n"
+            "4. **Creer que sin activacion la red es mas potente** — sin "
+            "no-linealidad, 10 capas equivalen a 1.\n\n"
+            "## Resumen\n\n"
+            "- Una neurona: `a = f(w . x + b)`.\n"
+            "- Una capa densa vectorizada: `A = f(X @ W + b)`.\n"
+            "- `sigmoid` -> (0,1), `relu` -> max(0, z), `tanh` -> "
+            "(-1,1).\n"
+            "- La activacion aporta la no-linealidad; sin ella apilar "
+            "capas no sirve.\n"
+        ),
+        difficulty="intermediate",
+        category="dl-fundamentos",
+        order=33,
+        track="track-4",
+        estimated_duration=50,
+        prerequisites_titles=[
+            "ML 11 · Curva ROC, AUC y umbral de decision",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Funcion sigmoid",
+                description=(
+                    "Implementa la activacion sigmoid, vectorizada con " "numpy."
+                ),
+                instructions=(
+                    "Implementa `sigmoid(z)` que devuelve "
+                    "`1 / (1 + e^-z)` usando numpy, funcionando tanto "
+                    "para escalares como para arrays (vectorizada). "
+                    "Convierte la entrada con `np.asarray(z, dtype=float)` "
+                    "y usa `np.exp`."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def sigmoid(z):\n"
+                    "    # TODO: z = np.asarray(z, dtype=float)\n"
+                    "    # TODO: return 1.0 / (1.0 + np.exp(-z))\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "np.exp aplica e^x elemento a elemento.",
+                    "sigmoid(0) debe dar exactamente 0.5.",
+                    "El resultado siempre queda entre 0 y 1.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "sigmoid(0)=0.5, rango (0,1), monotona, vectorizada",
+                        "code": (
+                            "import numpy as np\n"
+                            "assert abs(float(sigmoid(0.0)) - 0.5) < 1e-9\n"
+                            "z = np.array([-20.0, -1.0, 0.0, 1.0, 20.0])\n"
+                            "s = np.asarray(sigmoid(z))\n"
+                            "assert s.shape == (5,), s.shape\n"
+                            "assert np.all((s > 0) & (s < 1)), s\n"
+                            "assert np.all(np.diff(s) > 0), 'no monotona'\n"
+                            "assert s[0] < 1e-6 and s[-1] > 0.999999, s"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Funcion ReLU",
+                description=(
+                    "Implementa la activacion ReLU con numpy, " "vectorizada."
+                ),
+                instructions=(
+                    "Implementa `relu(z)` que devuelve `max(0, z)` "
+                    "elemento a elemento usando `np.maximum`. Debe "
+                    "preservar la shape de la entrada (escalares, "
+                    "vectores o matrices)."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def relu(z):\n"
+                    "    # TODO: z = np.asarray(z, dtype=float)\n"
+                    "    # TODO: return np.maximum(0.0, z)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "np.maximum compara elemento a elemento (no confundir con np.max).",
+                    "Los negativos van a 0; los positivos quedan igual.",
+                    "La shape de salida es la misma que la de entrada.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "relu: negativos->0, positivos igual, preserva shape",
+                        "code": (
+                            "import numpy as np\n"
+                            "z = np.array([-2.0, -1.0, 0.0, 1.0, 2.0])\n"
+                            "r = np.asarray(relu(z))\n"
+                            "assert r.shape == (5,), r.shape\n"
+                            "assert np.allclose(r, [0, 0, 0, 1, 2]), r\n"
+                            "Z = np.array([[-1.0, 3.0], [2.0, -5.0]])\n"
+                            "assert np.asarray(relu(Z)).shape == (2, 2)\n"
+                            "assert np.all(np.asarray(relu(Z)) >= 0)"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Forward pass de una capa densa",
+                description=(
+                    "Combina producto matricial, sesgo y activacion en "
+                    "el forward de una capa."
+                ),
+                instructions=(
+                    "Implementa `forward_capa(X, W, b, activacion)` que "
+                    "calcula `activacion(X @ W + b)`, donde `X` es "
+                    "`(n_muestras, n_features)`, `W` es "
+                    "`(n_features, n_units)`, `b` es `(n_units,)` y "
+                    "`activacion` es una funcion (p.ej. `relu` o "
+                    "`sigmoid`). Devuelve un array `(n_muestras, "
+                    "n_units)`."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def forward_capa(X, W, b, activacion):\n"
+                    "    # TODO: z = np.asarray(X, float) @ np.asarray(W, float) + np.asarray(b, float)\n"
+                    "    # TODO: return activacion(z)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "El orden importa: primero X @ W + b, luego la activacion.",
+                    "b se suma por broadcasting sobre cada fila del batch.",
+                    "Si las shapes no cuadran, revisa que W sea (features, units).",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "forward_capa: shape (n,units) + valores con relu/sigmoid/lineal",
+                        "code": (
+                            "import numpy as np\n"
+                            "# El test define sus propias activaciones (namespace aislado)\n"
+                            "_relu = lambda x: np.maximum(0.0, x)\n"
+                            "_sig = lambda x: 1.0 / (1.0 + np.exp(-x))\n"
+                            "X = np.array([[1.0, 2.0]])\n"
+                            "W = np.array([[0.5], [-0.5]])\n"
+                            "b = np.array([0.0])\n"
+                            "out_lin = np.asarray(forward_capa(X, W, b, lambda x: x))\n"
+                            "assert out_lin.shape == (1, 1), out_lin.shape\n"
+                            "assert abs(float(out_lin[0, 0]) - (-0.5)) < 1e-9, out_lin\n"
+                            "out_relu = np.asarray(forward_capa(X, W, b, _relu))\n"
+                            "assert abs(float(out_relu[0, 0]) - 0.0) < 1e-9, out_relu\n"
+                            "out_sig = np.asarray(forward_capa(X, W, b, _sig))\n"
+                            "assert abs(float(out_sig[0, 0]) - 0.37754067) < 1e-6, out_sig\n"
+                            "Xb = np.ones((3, 2))\n"
+                            "Wb = np.ones((2, 4))\n"
+                            "bb = np.zeros(4)\n"
+                            "assert np.asarray(forward_capa(Xb, Wb, bb, _relu)).shape == (3, 4)"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 

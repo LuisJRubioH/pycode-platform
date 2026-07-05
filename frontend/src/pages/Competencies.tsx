@@ -50,6 +50,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   'ml-svm': 'ML SVM',
   'ml-naive-bayes': 'ML Naive Bayes',
   'ml-roc': 'ML ROC y AUC',
+  'dl-fundamentos': 'DL Fundamentos',
   otros: 'Otros',
 }
 
@@ -70,6 +71,7 @@ const CATEGORY_TO_TRACK: Record<string, string> = {
   'ml-svm': 'track-3',
   'ml-naive-bayes': 'track-3',
   'ml-roc': 'track-3',
+  'dl-fundamentos': 'track-4',
 }
 
 const TRACK_INFO: Record<string, { title: string; subtitle: string }> = {
@@ -85,9 +87,13 @@ const TRACK_INFO: Record<string, { title: string; subtitle: string }> = {
     title: 'Track 3 · ML Clásico',
     subtitle: 'Scikit-learn: train/test split, clasificadores lineales y KNN.',
   },
+  'track-4': {
+    title: 'Track 4 · Deep Learning',
+    subtitle: 'Redes neuronales desde cero con numpy: forward pass, activaciones y backprop.',
+  },
 }
 
-const TRACK_ORDER = ['track-1', 'track-2', 'track-3']
+const TRACK_ORDER = ['track-1', 'track-2', 'track-3', 'track-4']
 
 const trackOf = (category: string) => CATEGORY_TO_TRACK[category] || 'track-1'
 
