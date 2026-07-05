@@ -7982,6 +7982,278 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="DL 5 · Tu primer MLP: dos capas resuelven XOR",
+        description=(
+            "El clima de los fundamentos: una red de 2 capas con "
+            "forward y backward encadenados, entrenada para resolver "
+            "XOR, el problema no lineal que una sola neurona no puede."
+        ),
+        content=(
+            "# DL 5: el perceptron multicapa (MLP)\n\n"
+            "Una sola capa lineal (con o sin sigmoid) solo puede trazar "
+            "una **frontera recta**. Hay problemas donde eso no alcanza. "
+            "El clasico es **XOR**:\n\n"
+            "```\n"
+            "  (0,0) -> 0     (0,1) -> 1\n"
+            "  (1,0) -> 1     (1,1) -> 0\n"
+            "```\n\n"
+            "No existe ninguna recta que separe los 1 de los 0. Este "
+            "problema **hundio a los perceptrones** en los anos 70... "
+            "hasta que se apilaron capas con no-linealidad. Un **MLP "
+            "(perceptron multicapa)** de 2 capas lo resuelve sin "
+            "problema.\n\n"
+            "## Arquitectura de 2 capas\n\n"
+            "```\n"
+            "X --[W1,b1]--> z1 --relu--> h --[W2,b2]--> z2 --sigmoid--> p\n"
+            "   capa oculta                capa de salida\n"
+            "```\n\n"
+            "```python\n"
+            "z1 = X @ W1 + b1     # capa oculta\n"
+            "h  = relu(z1)        # no-linealidad (¡clave!)\n"
+            "z2 = h @ W2 + b2     # capa de salida\n"
+            "p  = sigmoid(z2)     # probabilidad\n"
+            "```\n\n"
+            "La capa oculta transforma el espacio para que el problema "
+            "**si** sea linealmente separable en la salida. Sin el "
+            "`relu` de por medio, las dos capas colapsarian en una sola "
+            "(recuerda DL 1): la no-linealidad es lo que da el poder.\n\n"
+            "## Backward encadenado\n\n"
+            "El gradiente fluye hacia atras por **las dos** capas, "
+            "aplicando la regla de la cadena de DL 3 dos veces. Con "
+            "salida sigmoid + BCE, `dz2 = (p - y)/N`, y de ahi:\n\n"
+            "```python\n"
+            "dz2 = (p - y) / N\n"
+            "dW2 = h.T @ dz2\n"
+            "db2 = dz2.sum(axis=0)\n"
+            "dh  = dz2 @ W2.T          # gradiente que baja a la capa oculta\n"
+            "dz1 = dh * (z1 > 0)       # derivada local del relu\n"
+            "dW1 = X.T @ dz1\n"
+            "db1 = dz1.sum(axis=0)\n"
+            "```\n\n"
+            "Nota como el gradiente de la capa 2 (`dh`) se convierte en "
+            "el gradiente *upstream* de la capa 1. Eso es "
+            "backpropagation encadenado: la salida de un backward "
+            "alimenta al siguiente. Con 50 capas seria el mismo patron, "
+            "50 veces.\n\n"
+            "## Entrenar\n\n"
+            "El bucle es identico al de DL 4 (forward -> perdida -> "
+            "backward -> actualizar), solo que ahora actualizas "
+            "**cuatro** grupos de parametros: `W1, b1, W2, b2`. Con "
+            "suficientes neuronas ocultas (p.ej. 8) y epocas, la red "
+            "aprende XOR y clasifica los 4 puntos perfecto.\n\n"
+            "## Errores comunes\n\n"
+            "1. **Olvidar la derivada del relu** — `dz1 = dh * (z1 > 0)`. "
+            "Sin ese `(z1 > 0)`, el gradiente de la capa oculta esta "
+            "mal.\n"
+            "2. **Encadenar mal** — el `dh = dz2 @ W2.T` es lo que "
+            "conecta las dos capas; es facil equivocar la transpuesta.\n"
+            "3. **Red demasiado pequena** — con 1-2 neuronas ocultas "
+            "quiza no aprenda XOR; dale unas 8.\n"
+            "4. **Inicializar los pesos en cero** — si `W1` es todo "
+            "ceros, todas las neuronas ocultas hacen lo mismo y nunca se "
+            "diferencian (*symmetry breaking*). Se inicializan al azar.\n\n"
+            "## Resumen\n\n"
+            "- Un **MLP** apila capas con no-linealidad entre medias; "
+            "resuelve problemas no lineales como XOR.\n"
+            "- Forward: `relu(X@W1+b1)` -> `sigmoid(h@W2+b2)`.\n"
+            "- Backward: encadena la regla de la cadena; el gradiente de "
+            "una capa es el *upstream* de la anterior.\n"
+            "- Con esto ya construiste una red neuronal **completa** "
+            "desde cero. Lo que sigue (PyTorch) automatiza justo este "
+            "backward que ya entiendes.\n"
+        ),
+        difficulty="advanced",
+        category="dl-fundamentos",
+        order=37,
+        track="track-4",
+        estimated_duration=70,
+        prerequisites_titles=[
+            "DL 4 · Training loop: entrenar con descenso de gradiente",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Forward de un MLP de 2 capas",
+                description=(
+                    "Encadena capa oculta (relu) y capa de salida " "(sigmoid)."
+                ),
+                instructions=(
+                    "Implementa `forward_mlp(X, W1, b1, W2, b2)` que "
+                    "calcula `z1 = X @ W1 + b1`, `h = relu(z1)`, "
+                    "`z2 = h @ W2 + b2` y devuelve `p = sigmoid(z2)` "
+                    "(las probabilidades de salida)."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def forward_mlp(X, W1, b1, W2, b2):\n"
+                    "    # TODO: z1 = X @ W1 + b1; h = np.maximum(0.0, z1)\n"
+                    "    # TODO: z2 = h @ W2 + b2\n"
+                    "    # TODO: return 1.0 / (1.0 + np.exp(-z2))\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "El relu de la capa oculta es np.maximum(0.0, z1).",
+                    "La salida pasa por sigmoid, no por relu.",
+                    "Shapes: X (n,d_in), W1 (d_in,d_oculta), W2 (d_oculta,1).",
+                ],
+                difficulty="medium",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "forward_mlp: shape y valor conocido sigmoid(2)",
+                        "code": (
+                            "import numpy as np\n"
+                            "X = np.array([[1.0, 1.0]])\n"
+                            "W1 = np.array([[1.0, 0.0], [0.0, 1.0]])\n"
+                            "b1 = np.array([0.0, 0.0])\n"
+                            "W2 = np.array([[1.0], [1.0]])\n"
+                            "b2 = np.array([0.0])\n"
+                            "p = np.asarray(forward_mlp(X, W1, b1, W2, b2))\n"
+                            "assert p.shape == (1, 1), p.shape\n"
+                            "assert 0 < float(p[0, 0]) < 1\n"
+                            "assert abs(float(p[0, 0]) - 0.880797) < 1e-4, p\n"
+                            "Xb = np.zeros((5, 2))\n"
+                            "assert np.asarray(forward_mlp(Xb, W1, b1, W2, b2)).shape == (5, 1)"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Backward encadenado del MLP",
+                description=(
+                    "Propaga el gradiente por las dos capas y verifica "
+                    "con gradient checking."
+                ),
+                instructions=(
+                    "Implementa `backward_mlp(X, W1, b1, W2, b2, y)` que "
+                    "hace el forward, y con perdida BCE calcula los "
+                    "gradientes de las dos capas: "
+                    "`dz2 = (p - y)/N`, `dW2 = h.T @ dz2`, "
+                    "`db2 = dz2.sum(0)`, `dh = dz2 @ W2.T`, "
+                    "`dz1 = dh * (z1 > 0)`, `dW1 = X.T @ dz1`, "
+                    "`db1 = dz1.sum(0)`. Devuelve `(dW1, db1, dW2, db2)`. "
+                    "`N` es el numero de muestras."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def backward_mlp(X, W1, b1, W2, b2, y):\n"
+                    "    X = np.asarray(X, float)\n"
+                    "    y = np.asarray(y, float).reshape(-1, 1)\n"
+                    "    N = X.shape[0]\n"
+                    "    # forward guardando z1, h, p\n"
+                    "    # TODO: z1 = X @ W1 + b1; h = np.maximum(0.0, z1)\n"
+                    "    # TODO: p = 1/(1+exp(-(h @ W2 + b2)))\n"
+                    "    # backward encadenado\n"
+                    "    # TODO: dz2 = (p - y)/N; dW2 = h.T @ dz2; db2 = dz2.sum(0)\n"
+                    "    # TODO: dh = dz2 @ W2.T; dz1 = dh * (z1 > 0)\n"
+                    "    # TODO: dW1 = X.T @ dz1; db1 = dz1.sum(0)\n"
+                    "    # TODO: return dW1, db1, dW2, db2\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "dh = dz2 @ W2.T conecta la salida con la capa oculta.",
+                    "La derivada del relu es (z1 > 0): 1 donde z1 positivo, 0 si no.",
+                    "El gradiente numerico de DL 2 sirve para verificar esto.",
+                ],
+                difficulty="advanced",
+                points=30,
+                hidden_tests=[
+                    {
+                        "name": "backward_mlp: coincide con gradiente numerico (dW1)",
+                        "code": (
+                            "import numpy as np\n"
+                            "rng = np.random.default_rng(0)\n"
+                            "X = rng.normal(size=(6, 3))\n"
+                            "y = (rng.normal(size=(6, 1)) > 0).astype(float)\n"
+                            "W1 = rng.normal(size=(3, 4)) * 0.5\n"
+                            "b1 = rng.normal(size=(4,)) * 0.5\n"
+                            "W2 = rng.normal(size=(4, 1)) * 0.5\n"
+                            "b2 = np.array([0.1])\n"
+                            "dW1, db1, dW2, db2 = backward_mlp(X, W1, b1, W2, b2, y)\n"
+                            "dW1 = np.asarray(dW1)\n"
+                            "dW2 = np.asarray(dW2)\n"
+                            "assert dW1.shape == W1.shape and dW2.shape == W2.shape\n"
+                            "def loss(W1_, b1_, W2_, b2_):\n"
+                            "    z1 = X @ W1_ + b1_\n"
+                            "    h = np.maximum(0.0, z1)\n"
+                            "    p = 1.0 / (1.0 + np.exp(-(h @ W2_ + b2_)))\n"
+                            "    pc = np.clip(p, 1e-12, 1 - 1e-12)\n"
+                            "    return float(-np.mean(y*np.log(pc) + (1-y)*np.log(1-pc)))\n"
+                            "h = 1e-5\n"
+                            "num = np.zeros_like(W1)\n"
+                            "for i in range(W1.shape[0]):\n"
+                            "    for j in range(W1.shape[1]):\n"
+                            "        Wp = W1.copy(); Wp[i, j] += h\n"
+                            "        Wm = W1.copy(); Wm[i, j] -= h\n"
+                            "        num[i, j] = (loss(Wp, b1, W2, b2) - loss(Wm, b1, W2, b2)) / (2 * h)\n"
+                            "assert np.allclose(dW1, num, atol=1e-4), (dW1.ravel()[:3], num.ravel()[:3])"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Entrenar el MLP para resolver XOR",
+                description=(
+                    "Bucle de entrenamiento de 2 capas que aprende XOR " "al 100%."
+                ),
+                instructions=(
+                    "Implementa `entrenar_mlp(X, y, W1, b1, W2, b2, "
+                    "lr=0.5, epocas=2000)` que en cada epoca hace el "
+                    "forward (relu + sigmoid), guarda la perdida BCE, "
+                    "computa los gradientes encadenados (como en "
+                    "`backward_mlp`) y actualiza los **cuatro** grupos de "
+                    "pesos con descenso de gradiente. Recibe los pesos "
+                    "iniciales por argumento (no los inicialices tu). "
+                    "Devuelve `(W1, b1, W2, b2, historial)`."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def entrenar_mlp(X, y, W1, b1, W2, b2, lr=0.5, epocas=2000):\n"
+                    "    X = np.asarray(X, float)\n"
+                    "    y = np.asarray(y, float).reshape(-1, 1)\n"
+                    "    W1 = np.array(W1, float); b1 = np.array(b1, float)\n"
+                    "    W2 = np.array(W2, float); b2 = np.array(b2, float)\n"
+                    "    N = X.shape[0]\n"
+                    "    historial = []\n"
+                    "    # TODO: bucle de epocas: forward, guardar BCE, backward encadenado, actualizar\n"
+                    "    return W1, b1, W2, b2, historial\n"
+                ),
+                hints=[
+                    "Es el bucle de DL 4 pero actualizando 4 grupos de pesos.",
+                    "El backward es el de backward_mlp (dz2 -> dh -> dz1).",
+                    "Con 8 neuronas ocultas y varios miles de epocas, XOR llega al 100%.",
+                ],
+                difficulty="advanced",
+                points=30,
+                hidden_tests=[
+                    {
+                        "name": "entrenar_mlp resuelve XOR al 100%",
+                        "code": (
+                            "import numpy as np\n"
+                            "X = np.array([[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]])\n"
+                            "y = np.array([[0.0], [1.0], [1.0], [0.0]])\n"
+                            "rng = np.random.default_rng(3)\n"
+                            "W1 = rng.normal(size=(2, 8)); b1 = np.zeros(8)\n"
+                            "W2 = rng.normal(size=(8, 1)); b2 = np.zeros(1)\n"
+                            "W1, b1, W2, b2, hist = entrenar_mlp(X, y, W1, b1, W2, b2, lr=0.5, epocas=4000)\n"
+                            "assert hist[-1] < hist[0], (hist[0], hist[-1])\n"
+                            "z1 = X @ np.asarray(W1) + np.asarray(b1)\n"
+                            "h = np.maximum(0.0, z1)\n"
+                            "p = 1.0 / (1.0 + np.exp(-(h @ np.asarray(W2) + np.asarray(b2))))\n"
+                            "acc = float(np.mean((p > 0.5).astype(float) == y))\n"
+                            "assert acc == 1.0, (acc, p.ravel())"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
