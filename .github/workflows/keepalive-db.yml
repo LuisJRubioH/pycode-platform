@@ -1,0 +1,50 @@
+name: Keepalive DB
+
+# Evita que Supabase free pause el proyecto por inactividad.
+#
+# Supabase pausa la base tras ~7 dias SIN actividad de DB (estado INACTIVE),
+# lo que tumba el siguiente deploy de Render (alembic falla al conectar).
+# UptimeRobot pinguea /health, que NO toca la DB, asi que no la mantiene viva.
+#
+# Este workflow golpea /health/db (hace `SELECT 1`) cada pocas horas: genera
+# actividad real de DB con margen amplio sobre la ventana de 7 dias. De paso
+# despierta el contenedor de Render (free spin-down a los 15 min).
+
+on:
+  schedule:
+    # Cada 4 horas (6 pings/dia). Muy por encima de lo necesario para la
+    # ventana de 7 dias, robusto ante runs saltados o cold starts de Render.
+    - cron: "0 */4 * * *"
+  workflow_dispatch: {} # permite dispararlo a mano desde la pestana Actions
+
+# Solo un run a la vez; cancela el anterior si se solapa.
+concurrency:
+  group: keepalive-db
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Ping /health/db (con reintentos para el cold start de Render)
+        env:
+          URL: https://pycode-backend.onrender.com/health/db
+        run: |
+          set -u
+          # Render free duerme tras 15 min; el primer request puede tardar
+          # ~50s o devolver 502 mientras arranca. Reintentamos hasta 8 veces
+          # con 30s de espera (cubre el cold start de sobra).
+          for i in $(seq 1 8); do
+            code=$(curl -sS -o /tmp/body.txt -w "%{http_code}" --max-time 90 "$URL" || echo "000")
+            echo "Intento $i -> HTTP $code"
+            if [ "$code" = "200" ]; then
+              echo "OK: DB viva."
+              cat /tmp/body.txt
+              exit 0
+            fi
+            echo "  respuesta: $(cat /tmp/body.txt 2>/dev/null | head -c 200)"
+            sleep 30
+          done
+          echo "::error::/health/db no respondio 200 tras 8 intentos. Revisar Render/Supabase."
+          exit 1
