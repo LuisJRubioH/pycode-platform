@@ -18,6 +18,7 @@ export class PyodideSandbox {
     run(req: RunRequest): Promise<RunResult>;
     runTests(req: RunTestsRequest): Promise<RunTestsResult>;
     runCapstoneTests(req: RunCapstoneTestsRequest): Promise<RunTestsResult>;
+    setAuthToken(token: string): Promise<void>;
   }> | null = null;
   private _status: RunStatus = "idle";
   private listeners = new Set<(s: RunStatus) => void>();
@@ -48,6 +49,12 @@ export class PyodideSandbox {
     this.kernel = Comlink.wrap(this.worker);
     await this.kernel.init();
     this.setStatus("ready");
+  }
+
+  /** Empuja el token de sesion al worker para las llamadas LLM (Track 5). */
+  async setAuthToken(token: string): Promise<void> {
+    await this.init();
+    await this.kernel!.setAuthToken(token);
   }
 
   async run(code: string, timeoutMs = 30_000): Promise<RunResult> {

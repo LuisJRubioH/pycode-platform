@@ -53,10 +53,50 @@ if 'pycode' not in sys.modules:
         text = await response.string()
         return pd.read_csv(io.StringIO(text))
 
+    async def llm_complete(prompt, system='Eres un asistente conciso y util.',
+                           max_tokens=256, temperature=0.4):
+        """Llama a un LLM real via el proxy del backend (Track 5).
+
+        Hace POST a /api/v1/ai/complete con el token de sesion. Devuelve el
+        texto de la respuesta del modelo. Requiere sesion iniciada; esta
+        rate-limited y con tope de tokens en el backend.
+        """
+        from pyodide.http import pyfetch
+        import js
+        import json
+        token = getattr(js, 'pycodeAuthToken', '') or ''
+        headers = {'Content-Type': 'application/json'}
+        if token:
+            headers['Authorization'] = 'Bearer ' + token
+        body = json.dumps({
+            'prompt': prompt, 'system': system,
+            'max_tokens': max_tokens, 'temperature': temperature,
+        })
+        response = await pyfetch(
+            '/api/v1/ai/complete', method='POST', headers=headers, body=body
+        )
+        if response.status in (401, 403):
+            raise PermissionError('Necesitas iniciar sesion para usar el LLM.')
+        if response.status != 200:
+            raise RuntimeError(f'El proxy LLM devolvio status {response.status}')
+        data = await response.json()
+        return data['completion']
+
     _mod.load_dataset = load_dataset
+    _mod.llm_complete = llm_complete
     sys.modules['pycode'] = _mod
 `);
     return { ready: true, pyodideVersion: this.py.version };
+  }
+
+  /**
+   * Guarda el token de acceso del usuario en el scope global del worker para
+   * que `pycode.llm_complete` lo incluya en el header Authorization al llamar
+   * al proxy LLM. Se empuja desde el hilo principal antes de cada ejecucion
+   * (el worker no puede leer localStorage).
+   */
+  async setAuthToken(token: string): Promise<void> {
+    (self as unknown as Record<string, unknown>).pycodeAuthToken = token || "";
   }
 
   /**

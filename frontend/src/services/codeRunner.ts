@@ -12,6 +12,11 @@ export async function runPythonCode(
   timeoutMs = 30_000,
 ): Promise<RunResult> {
   const sandbox = getSandbox();
+  // Empuja el token de sesion al worker para que `pycode.llm_complete`
+  // pueda autenticarse contra el proxy LLM (Track 5). El worker no puede
+  // leer localStorage, asi que lo pasamos desde el hilo principal.
+  const token = localStorage.getItem("pycode_access_token") || "";
+  await sandbox.setAuthToken(token);
   return sandbox.run(code, timeoutMs);
 }
 
