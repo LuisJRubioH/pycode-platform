@@ -7739,6 +7739,249 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="DL 4 · Training loop: entrenar con descenso de gradiente",
+        description=(
+            "Junta forward, perdida, backward y actualizacion de pesos "
+            "en un bucle que entrena de verdad: regresion y clasificacion "
+            "logistica desde cero, viendo bajar la perdida."
+        ),
+        content=(
+            "# DL 4: el bucle de entrenamiento\n\n"
+            "Ya tienes todas las piezas: forward (DL 1), perdida (DL 2) "
+            "y gradientes (DL 3). **Entrenar** es repetirlas en un bucle "
+            "y, en cada vuelta, empujar los pesos un pasito en la "
+            "direccion que reduce la perdida. Eso es el **descenso de "
+            "gradiente**.\n\n"
+            "## El paso de descenso\n\n"
+            "El gradiente apunta hacia donde la perdida **crece**. Para "
+            "minimizar, te mueves en direccion **contraria**, escalado "
+            "por el **learning rate** `lr`:\n\n"
+            "```\n"
+            "W <- W - lr * dW\n"
+            "```\n\n"
+            "```python\n"
+            "def paso_sgd(param, grad, lr):\n"
+            "    return param - lr * grad\n"
+            "```\n\n"
+            "- `lr` muy chico -> entrena lentisimo.\n"
+            "- `lr` muy grande -> la perdida oscila o **diverge** (se "
+            "va a infinito).\n"
+            "- El punto justo hace bajar la perdida de forma estable.\n\n"
+            "## El bucle completo\n\n"
+            "Un entrenamiento no es mas que esto, repetido N **epocas**:\n\n"
+            "```\n"
+            "inicializa W, b\n"
+            "repite epocas veces:\n"
+            "    z = forward(X, W, b)          # 1. forward\n"
+            "    perdida = loss(z, y)          # 2. medir error\n"
+            "    dW, db = backward(...)        # 3. gradientes\n"
+            "    W = W - lr * dW               # 4. actualizar\n"
+            "    b = b - lr * db\n"
+            "```\n\n"
+            "Para **regresion lineal** (`z = X @ W + b`, perdida MSE) el "
+            "gradiente ya lo dedujiste en DL 3:\n\n"
+            "```python\n"
+            "z = X @ W + b\n"
+            "dz = 2 * (z - y) / z.size\n"
+            "W = W - lr * (X.T @ dz)\n"
+            "b = b - lr * dz.sum(axis=0)\n"
+            "```\n\n"
+            "Si guardas la perdida de cada epoca, veras una curva que "
+            "**baja** hasta estabilizarse. Esa curva es tu mejor amiga "
+            "para diagnosticar el entrenamiento.\n\n"
+            "## El mismo bucle sirve para clasificar\n\n"
+            "Cambia la activacion y la perdida y ya tienes **regresion "
+            "logistica**: `p = sigmoid(X @ W + b)`, perdida BCE. Y aqui "
+            "pasa algo precioso: al combinar sigmoid + BCE, el gradiente "
+            "se simplifica al **mismo** que en regresion lineal:\n\n"
+            "```\n"
+            "dz = (p - y) / N        # p = sigmoid(z), N = numero de muestras\n"
+            "```\n\n"
+            "Es decir: **el bucle es identico**, solo cambian la "
+            "activacion del forward y la formula de la perdida que "
+            "registras. Esa uniformidad es lo que hace que las redes "
+            "escalen a arquitecturas enormes.\n\n"
+            "## Errores comunes\n\n"
+            "1. **Learning rate mal elegido** — si la perdida sube o se "
+            "vuelve `nan`, bajalo (prueba /10). Si baja lentisimo, "
+            "subelo.\n"
+            "2. **No normalizar las features** — con features de escalas "
+            "muy distintas, un `lr` unico no sirve para todas; el "
+            "descenso zigzaguea (recuerda `StandardScaler` de Track 3).\n"
+            "3. **Actualizar W usando el z ya actualizado** — calcula "
+            "todos los gradientes con los pesos actuales, *despues* "
+            "actualiza.\n"
+            "4. **Olvidar sumar el bias sobre el batch** — `db` es "
+            "`dz.sum(axis=0)`, no `dz`.\n\n"
+            "## Resumen\n\n"
+            "- Descenso de gradiente: `W <- W - lr * dW`, repetido por "
+            "epocas.\n"
+            "- El bucle es forward -> perdida -> backward -> "
+            "actualizar.\n"
+            "- La **curva de perdida** debe bajar; si sube, el `lr` es "
+            "muy grande.\n"
+            "- El mismo bucle entrena regresion (MSE) y clasificacion "
+            "(sigmoid + BCE); en ambos `dz` termina siendo `(pred - y)` "
+            "normalizado.\n"
+        ),
+        difficulty="advanced",
+        category="dl-fundamentos",
+        order=36,
+        track="track-4",
+        estimated_duration=60,
+        prerequisites_titles=[
+            "DL 3 · Backpropagation: la regla de la cadena",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Paso de descenso de gradiente",
+                description=(
+                    "Implementa la actualizacion de un parametro en "
+                    "direccion opuesta al gradiente."
+                ),
+                instructions=(
+                    "Implementa `paso_sgd(param, grad, lr)` que devuelve "
+                    "`param - lr * grad` (funciona para escalares o "
+                    "arrays). Convierte con `np.asarray(..., float)`."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def paso_sgd(param, grad, lr):\n"
+                    "    # TODO: return np.asarray(param, float) - lr * np.asarray(grad, float)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Se resta porque el gradiente apunta hacia donde la perdida crece.",
+                    "lr escala el tamano del paso.",
+                    "Funciona elemento a elemento sobre arrays.",
+                ],
+                difficulty="easy",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "paso_sgd resta lr*grad",
+                        "code": (
+                            "import numpy as np\n"
+                            "out = np.asarray(paso_sgd(np.array([1.0, 2.0]), np.array([0.5, -1.0]), 0.1))\n"
+                            "assert np.allclose(out, [0.95, 2.1]), out\n"
+                            "assert abs(float(paso_sgd(5.0, 2.0, 0.5)) - 4.0) < 1e-12"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Entrenar regresion lineal",
+                description=(
+                    "Escribe el bucle de entrenamiento completo para "
+                    "regresion lineal con MSE."
+                ),
+                instructions=(
+                    "Implementa `entrenar_regresion(X, y, lr=0.1, "
+                    "epocas=500)` que inicializa `W = zeros((n_features, "
+                    "1))` y `b = zeros(1)`, y en cada epoca: calcula "
+                    "`z = X @ W + b`, guarda la perdida MSE en una lista, "
+                    "computa `dz = 2*(z - y)/z.size`, y actualiza "
+                    "`W -= lr*(X.T @ dz)` y `b -= lr*dz.sum(axis=0)`. "
+                    "`y` puede venir como `(n,)` o `(n,1)` (usa "
+                    "`.reshape(-1, 1)`). Devuelve `(W, b, historial)`."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def entrenar_regresion(X, y, lr=0.1, epocas=500):\n"
+                    "    X = np.asarray(X, float)\n"
+                    "    y = np.asarray(y, float).reshape(-1, 1)\n"
+                    "    W = np.zeros((X.shape[1], 1))\n"
+                    "    b = np.zeros((1,))\n"
+                    "    historial = []\n"
+                    "    # TODO: bucle de epocas: forward, guardar MSE, dz, actualizar W y b\n"
+                    "    return W, b, historial\n"
+                ),
+                hints=[
+                    "Guarda la perdida ANTES de actualizar los pesos de esa epoca.",
+                    "dz = 2*(z - y)/z.size; dW = X.T @ dz; db = dz.sum(axis=0).",
+                    "En un problema convexo la perdida baja de forma monotona.",
+                ],
+                difficulty="advanced",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "entrenar_regresion: perdida baja y converge a W_true",
+                        "code": (
+                            "import numpy as np\n"
+                            "rng = np.random.default_rng(0)\n"
+                            "X = rng.normal(size=(20, 3))\n"
+                            "W_true = np.array([[1.0], [-2.0], [0.5]])\n"
+                            "y = X @ W_true + 0.3\n"
+                            "W, b, hist = entrenar_regresion(X, y, lr=0.1, epocas=800)\n"
+                            "assert len(hist) == 800, len(hist)\n"
+                            "assert hist[-1] < hist[0], (hist[0], hist[-1])\n"
+                            "assert all(hist[i + 1] <= hist[i] + 1e-9 for i in range(len(hist) - 1)), 'no monotono'\n"
+                            "assert hist[-1] < 1e-4, hist[-1]\n"
+                            "assert np.allclose(np.asarray(W), W_true, atol=0.05), np.asarray(W).ravel()"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Entrenar regresion logistica",
+                description=(
+                    "El mismo bucle, pero con sigmoid + BCE para " "clasificar."
+                ),
+                instructions=(
+                    "Implementa `entrenar_logistica(X, y, lr=0.5, "
+                    "epocas=500)`: en cada epoca calcula "
+                    "`p = sigmoid(X @ W + b)`, guarda la perdida BCE (con "
+                    "clip a `[1e-12, 1-1e-12]`), y actualiza con "
+                    "`dz = (p - y) / N` (N = numero de muestras), "
+                    "`W -= lr*(X.T @ dz)`, `b -= lr*dz.sum(axis=0)`. "
+                    "Inicializa `W`, `b` en cero. Devuelve "
+                    "`(W, b, historial)`."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def entrenar_logistica(X, y, lr=0.5, epocas=500):\n"
+                    "    X = np.asarray(X, float)\n"
+                    "    y = np.asarray(y, float).reshape(-1, 1)\n"
+                    "    W = np.zeros((X.shape[1], 1))\n"
+                    "    b = np.zeros((1,))\n"
+                    "    historial = []\n"
+                    "    # TODO: bucle: p = sigmoid(X@W+b), guardar BCE, dz=(p-y)/N, actualizar\n"
+                    "    return W, b, historial\n"
+                ),
+                hints=[
+                    "sigmoid(z) = 1/(1+exp(-z)).",
+                    "El gradiente sigmoid+BCE se simplifica a dz = (p - y)/N.",
+                    "Con datos separables, la accuracy final debe superar 0.9.",
+                ],
+                difficulty="advanced",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "entrenar_logistica: perdida baja y clasifica > 0.9",
+                        "code": (
+                            "import numpy as np\n"
+                            "rng = np.random.default_rng(1)\n"
+                            "X = rng.normal(size=(60, 2))\n"
+                            "W_true = np.array([[2.0], [-1.0]])\n"
+                            "y = ((X @ W_true + 0.5) > 0).astype(float).reshape(-1, 1)\n"
+                            "W, b, hist = entrenar_logistica(X, y, lr=0.5, epocas=800)\n"
+                            "assert hist[-1] < hist[0], (hist[0], hist[-1])\n"
+                            "p = 1.0 / (1.0 + np.exp(-(X @ np.asarray(W) + np.asarray(b))))\n"
+                            "acc = float(np.mean((p > 0.5).astype(float) == y))\n"
+                            "assert acc > 0.9, acc"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
