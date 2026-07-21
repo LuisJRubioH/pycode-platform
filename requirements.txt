@@ -30,7 +30,7 @@ stripe==7.8.0
 aiosqlite==0.19.0
 aioredis==2.0.1
 reportlab==4.5.1
-pillow==12.2.0
+pillow==12.3.0
 numpy==2.4.4
 pandas==3.0.2
 # Floors de seguridad para deps transitivas (Dependabot): urllib3 (PYSEC-2026-141/142),
