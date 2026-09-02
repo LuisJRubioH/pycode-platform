@@ -34,7 +34,7 @@ const Home: React.FC = () => {
         <FeatureCard
           icon={<Code2 className="h-8 w-8" />}
           title="Editor en Vivo"
-          description="Ejecuta código Python directamente en el navegador con ejecución segura en Docker."
+          description="Ejecuta código Python directamente en el navegador, de forma segura y aislada con Pyodide (WebAssembly)."
         />
         <FeatureCard
           icon={<BookOpen className="h-8 w-8" />}
