@@ -2,7 +2,6 @@
 Exercises endpoints.
 """
 
-from datetime import datetime
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +11,8 @@ from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.code_evaluation import CodeEvaluation
 from app.models.user import User
-from app.models.learning import Exercise, CodeSubmission, UserProgress
+from app.models.learning import Exercise, CodeSubmission
+from app.services.progress_service import recompute_lesson_progress
 from app.schemas.evaluation import (
     EvaluationHistoryItem,
     EvaluationHistoryOut,
@@ -85,8 +85,13 @@ async def submit_exercise(
 
     El backend ya no ejecuta código del estudiante (ver Task 14 del plan
     Fase 0). El cliente corre el código en Pyodide y envía success / output
-    / passed_tests; aquí solo registramos la submission y actualizamos
-    progreso.
+    / passed_tests; aquí registramos la submission y recalculamos el progreso
+    de la lección con la regla única de ``progress_service``.
+
+    Idempotente: reintentar un ejercicio **ya aprobado** no crea una nueva
+    submission ni duplica XP/intentos; solo re-sincroniza el progreso por si
+    quedó desfasado (datos legacy). El score de la lección es derivado
+    (Σ points de ejercicios hechos), así que nunca se duplica.
     """
     result = await db.execute(select(Exercise).where(Exercise.id == exercise_id))
     exercise = result.scalar_one_or_none()
@@ -104,6 +109,27 @@ async def submit_exercise(
         total_tests == 0 or passed_tests == total_tests
     )
 
+    # ¿El usuario ya tenía este ejercicio aprobado?
+    prior_success = (
+        await db.execute(
+            select(CodeSubmission)
+            .where(
+                CodeSubmission.user_id == current_user.id,
+                CodeSubmission.exercise_id == exercise_id,
+                CodeSubmission.result == "success",
+            )
+            .order_by(CodeSubmission.created_at.desc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+    # Reintento de un ejercicio ya aprobado: no dupliques submission/XP/intentos.
+    # Igual recomputamos por si el progreso quedó desincronizado (legacy).
+    if prior_success is not None and is_success:
+        await recompute_lesson_progress(db, current_user.id, exercise.lesson_id)
+        await db.commit()
+        return prior_success
+
     code_submission = CodeSubmission(
         user_id=current_user.id,
         exercise_id=exercise_id,
@@ -115,22 +141,13 @@ async def submit_exercise(
         passed_tests=passed_tests,
         total_tests=total_tests,
     )
-
     db.add(code_submission)
+    await db.flush()  # la submission entra en el cálculo de recompute
 
-    if code_submission.result == "success":
-        progress_result = await db.execute(
-            select(UserProgress).where(
-                UserProgress.user_id == current_user.id,
-                UserProgress.lesson_id == exercise.lesson_id,
-            )
-        )
-        progress = progress_result.scalar_one_or_none()
-
-        if progress:
-            progress.score += exercise.points
-            progress.attempts += 1
-            progress.last_accessed = datetime.utcnow()
+    progress = await recompute_lesson_progress(
+        db, current_user.id, exercise.lesson_id
+    )
+    progress.attempts = (progress.attempts or 0) + 1
 
     await db.commit()
     await db.refresh(code_submission)

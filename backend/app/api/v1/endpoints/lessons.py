@@ -2,7 +2,6 @@
 Lessons endpoints.
 """
 
-from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +13,7 @@ from app.core.security import get_current_active_user
 from app.models.user import User
 from app.models.learning import Lesson, UserProgress
 from app.schemas.learning import LessonResponse, LessonListResponse
+from app.services.progress_service import recompute_lesson_progress
 
 router = APIRouter()
 
@@ -107,25 +107,11 @@ async def get_lesson(
             status_code=status.HTTP_404_NOT_FOUND, detail="Lesson not found"
         )
 
-    # Get or create user progress
-    progress_result = await db.execute(
-        select(UserProgress).where(
-            UserProgress.user_id == current_user.id, UserProgress.lesson_id == lesson_id
-        )
-    )
-    progress = progress_result.scalar_one_or_none()
-
-    if not progress:
-        progress = UserProgress(
-            user_id=current_user.id,
-            lesson_id=lesson_id,
-            status="in_progress",
-            progress=5,
-            started_at=datetime.utcnow(),
-        )
-        db.add(progress)
-        await db.commit()
-        await db.refresh(progress)
+    # Recalcula (y crea si falta) el progreso con la regla única de
+    # progress_service: % = ejercicios_hechos / totales, en vez del 5% fijo
+    # que quedaba clavado. Abrir la lección la marca "in_progress".
+    progress = await recompute_lesson_progress(db, current_user.id, lesson_id)
+    await db.commit()
 
     sorted_exercises = sorted(lesson.exercises, key=lambda exercise: exercise.order)
 
