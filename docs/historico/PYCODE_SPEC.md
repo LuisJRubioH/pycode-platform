@@ -1,3 +1,7 @@
+> DOCUMENTO HISTÓRICO. Describe un diseño inicial que fue descartado (ejecución
+> de código en Docker server-side, Kubernetes, microservicios). No es fuente de
+> verdad. Ver README.md y docs/ARCHITECTURE.md.
+
 # PyCode Platform — Especificaciones de Implementación
 
 > Documento para Claude Code. Cada sección es una unidad de trabajo independiente.

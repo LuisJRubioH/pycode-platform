@@ -1,8 +1,8 @@
 # PyCode Platform
 
-Plataforma de aprendizaje que lleva de **Python → Data Science → Machine Learning → Deep Learning → AI Engineering → MLOps**, con tutor IA socrático, sandbox de ejecución en el navegador (Pyodide), sistema ELO de puzzles estilo Finxter y certificados verificables.
+Plataforma de aprendizaje que lleva de **Fundamentos → Python → Data Science → Machine Learning → Deep Learning → AI Engineering → MLOps**, con tutor IA socrático, sandbox de ejecución en el navegador (Pyodide), sistema ELO de puzzles estilo Finxter y certificados verificables.
 
-> **Norte estratégico**: PyCode **no** es "Python para principiantes". Track 1 es la rampa hacia los tracks de ML/AI. El diferenciador es el pipeline completo con tutor socrático y ELO transversal.
+> **Norte estratégico**: PyCode lleva al estudiante **de cero a ingeniería de ML/AI**. Se entra sin saber programar (Track 0: fundamentos, pseudocódigo, algoritmos y diagramas de flujo) y no se termina en Python básico: Track 1 es la rampa hacia Data Science, ML, Deep Learning, AI Engineering y MLOps. El diferenciador es el pipeline completo, con tutor socrático y ELO transversal.
 
 ## Estado
 
@@ -10,6 +10,7 @@ Plataforma de aprendizaje que lleva de **Python → Data Science → Machine Lea
 |---|---|---|
 | **Fase 0** — fundamentos + seguridad | ✅ Cerrada (tag `fase-0-complete`) | Postgres+Alembic+RLS, Pyodide, JWT+GDPR, seguridad transversal, deploy gratis |
 | **Fase 1** — pulido Track 1 + ELO | ✅ Cerrada | Tutor evaluador+Q&A, tests ocultos, ELO multidominio, calidad de código, certificados PDF |
+| **Track 0** — Fundamentos de programación | ⏳ En diseño | Pseudocódigo, trazas de ejecución, algoritmos, estructuras elementales, diagramas de flujo. Requiere tipos de ejercicio **no ejecutables** (ver abajo) |
 | **Track 1** — Python | ✅ Cerrado | 10 lecciones · capstone `CLI de ventas` |
 | **Track 2** — Data Science | ✅ Cerrado | 11 lecciones (NumPy/Pandas/Viz/EDA/Stats) · capstone `EDA cafecito` |
 | **Track 3** — ML Clásico | ✅ Cerrado | 11 lecciones sklearn · capstone `Diagnóstico ML` |
@@ -17,7 +18,13 @@ Plataforma de aprendizaje que lleva de **Python → Data Science → Machine Lea
 | **Track 5** — AI Engineering | 🚧 En curso | AI 1-3: embeddings, RAG retriever, LLM real vía proxy. Faltan RAG e2e/agentes/evals/capstone |
 | **Track 6** — MLOps | ⏳ Pendiente | Producción |
 
-**En números**: 40 lecciones · 108 ejercicios (la mayoría con `hidden_tests`) · 100 puzzles ELO curados · 10 retos DS/ML · 4 capstones · 3 datasets · migraciones 0001-0014 · 161 tests backend. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**.
+**En números**: 40 lecciones · 108 ejercicios (la mayoría con `hidden_tests`) · 100 puzzles ELO curados · 10 retos DS/ML · 4 capstones · 3 datasets · migraciones 0001-0014 · 166 tests backend. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**.
+
+## Rampa de entrada
+
+Track 0 **no es un peaje obligatorio**. Un alumno que ya programa en otro lenguaje no debe recorrer once lecciones de pseudocódigo para llegar a Pandas. Un diagnóstico corto (trazas y bucles) recomienda punto de entrada — Track 0 o Track 1 — pero no bloquea ninguno de los dos.
+
+Track 0 rompe el supuesto central de validación del resto de la plataforma: sus ejercicios (trazas, ordenar pasos, hallar el error, completar un diagrama) **no se ejecutan en Pyodide**. Se validan de forma determinista en el cliente y emiten el **mismo** evento de completitud que un ejercicio de Python, para que XP, progreso, ELO y competencias sigan siendo un solo camino y no dos.
 
 ## Producción
 
@@ -32,7 +39,7 @@ Plataforma de aprendizaje que lleva de **Python → Data Science → Machine Lea
 - **Pyodide en Web Worker**: el código del estudiante se ejecuta en el navegador con Comlink + timeout duro. El backend nunca lo ejecuta (`/api/v1/execute/run` retorna 410; `/validate` solo hace `ast.parse`). numpy/pandas/scipy/sklearn/matplotlib autocargan bajo demanda.
 - **Tutor IA Socrático** con dos roles separados: **evaluador de código** (REST atómico) y **Q&A** (WebSocket multi-turno). Provider abstraction: Groq (default) → OpenAI fallback → Stub determinístico si no hay API key.
 - **Proxy LLM para AI Engineering** (Track 5): `POST /api/v1/ai/complete` deja que el código del alumno (en Pyodide) llame a un LLM real vía backend — auth + rate limit + tope de tokens, sin exponer API keys. Helper `pycode.llm_complete()` en el editor.
-- **Tests ocultos por ejercicio**: `hidden_tests` que corren en Pyodide en namespace fresco, sin exponerse a la UI. Es el patrón base de validación replicado en todos los tracks.
+- **Tests ocultos por ejercicio**: `hidden_tests` que corren en Pyodide en namespace fresco, sin exponerse a la UI. Es el patrón base de validación replicado en todos los tracks de código.
 - **Sistema ELO multidominio**: rating separado por actividad y categoría temática (`puzzle:<category>`, `challenge:<dificultad>`), con lazy-init desde el ELO global. Banco de 100 puzzles curados + puzzle del día público.
 - **Progresión de calidad de código**: `static_score` con AST (sin ejecutar) + scores logic/general del evaluador LLM, persistidos y graficados en el tiempo.
 - **Capstones y certificados**: proyectos multi-archivo evaluados en Pyodide; aprobarlos desbloquea un certificado PDF con código de verificación **público**.
@@ -124,7 +131,7 @@ backend/
 │   └── websockets/          # tutor_chat (/ws/tutor); /ws/code deprecado
 ├── alembic/versions/        # 0001 → 0014
 ├── scripts/check_no_sqli.py
-├── tests/                   # 161 tests
+├── tests/                   # 166 tests
 └── Dockerfile               # alembic upgrade head + uvicorn
 
 frontend/
@@ -154,18 +161,20 @@ docs/
 
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — diseño técnico: capas, flujo de datos, modelos, el patrón multi-track, sandbox, ELO, seguridad.
 - **[docs/DATABASE.md](docs/DATABASE.md)** — esquema de base de datos: 22 tablas por dominio, columnas, relaciones, RLS y migraciones.
+- **[docs/TRACK_0.md](docs/TRACK_0.md)** — Track 0: temario, tipos de ejercicio no ejecutables y convención de pseudocódigo.
 - **[CLAUDE.md](CLAUDE.md)** — guía operativa para agentes/contribuidores.
 - **[docs/DEPLOY.md](docs/DEPLOY.md)** — despliegue Render + Vercel + Supabase.
-- **[PYCODE_SPEC.md](PYCODE_SPEC.md)** / **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** — visión y spec por fases.
+- `docs/historico/` — `PYCODE_SPEC.md` y `PLAN_COMPLETO.md`: diseño inicial **descartado** (ejecución en Docker server-side, Kubernetes, microservicios). Se conservan como registro; no son fuente de verdad.
 
 ## Convenciones
 
 - Idioma de UI / docs / commits / comentarios: **español**.
 - Commits **sin línea Co-Authored-By**.
+- **El backend nunca ejecuta código del alumno.** La ejecución vive en Pyodide, en el navegador. No reintroducir sandbox Docker ni endpoints de ejecución server-side.
 - Schema changes pasan por Alembic (no `create_all`); FKs hacia `users.id` con `ondelete="CASCADE"`; DDL Postgres-only con guard de dialecto.
 - Async SQLAlchemy: usar `selectinload`/`joinedload` para relaciones accedidas en endpoints.
-- Añadir lección/track = agregar `LessonTemplate(track=..., category=...)` + registrar la categoría en `Competencies.tsx`. Sin migración ni endpoints nuevos.
-- Guard rail de no-leak: lo oculto a la UI (hidden_tests, reference_solution) debe tener un test que verifique que no se expone.
+- Añadir lección/track de **código** = agregar `LessonTemplate(track=..., category=...)` + registrar la categoría en `Competencies.tsx`. Sin migración ni endpoints nuevos. Track 0 es la excepción: introduce tipos de ejercicio no ejecutables y sí toca modelo (ver `docs/TRACK_0.md`).
+- Guard rail de no-leak: lo oculto a la UI (`hidden_tests`, `reference_solution`, y la solución de cualquier ejercicio no ejecutable) debe tener un test que verifique que no se expone.
 
 ## Licencia
 

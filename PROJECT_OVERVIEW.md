@@ -1,43 +1,56 @@
 # Resumen del Proyecto: PyCode Platform
 
-## 1. ¿Qué es PyCode Platform?
+> Este documento cubre **qué es** PyCode, **para quién** y **hacia dónde va**.
+> Para lo técnico (arquitectura, stack, ejecución de código) mira
+> [README.md](README.md) y [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-**PyCode Platform** es una aplicación con enfoque educativo y de entrenamiento técnico diseñada específicamente para que los usuarios puedan **aprender y practicar Python en un solo lugar**.  
-La visión del proyecto radica en reemplazar las típicas plataformas pasivas (donde el usuario sólo lee o ve vídeos) por un ecosistema donde la interacción mediante la codificación en vivo, un motor estadístico de progreso y un "Tutor Socrático" impulsado por Inteligencia Artificial jueguen un papel central en el aprendizaje diario del usuario.
+## ¿Qué es PyCode?
 
-## 2. Propuesta de Valor y Filosofía de Aprendizaje
+PyCode es una plataforma de aprendizaje activo que lleva al estudiante **de cero
+a ingeniería de ML/AI** por un solo camino guiado. En lugar de vídeos o
+cuestionarios pasivos, el alumno escribe y resuelve código real desde el primer
+día, acompañado de un **tutor socrático** que hace preguntas en vez de dar la
+respuesta, y de una progresión medible (XP, competencias, sistema ELO de puzzles
+estilo Finxter y certificados verificables).
 
-A diferencia de otras plataformas, la filosofía central de PyCode es el **"Aprender haciendo, guiado inteligentemente"**. 
+## ¿Para quién?
 
-- **Resolución Activa (Ejecución Real):** El usuario no responde pautas ficticias ni encuestas interactivas. Cuenta con un editor web `(Monaco Editor)`, capaz de conectarse vía Sockets a ejecutar procesos asíncronos y devolver la misma salida en un pseudo-terminal web de interfaz intuitiva.
-- **Tutor Socrático (IA):** En lugar de dar únicamente respuestas explícitas en bloques copiables, el tutor está instruido bajo directrices socráticas. Realiza preguntas al código proporcionado estimulando al usuario a que encuentre él mismo sus propios errores, comprenda lógicas algorítmicas y piense cómo resolver antes que simplemente recibir los resultados, acercándolo más a la realidad de un Ingeniero Senior.
-- **Gamificación Sólida:** Retención de estudiantes garantizada con lecciones guiadas en curva de dificultad, sistema dinámico de Puntos por Experiencia (XP), estadísticas de completitud, visualización de progreso asíncrono y control de rachas de aprendizaje para inspirar consistencia diaria.
+Para cualquiera que quiera llegar a ML/AI Engineering, **sin dar por supuesto que
+ya sabe programar**. PyCode **no** excluye a principiantes: se puede entrar sin
+haber escrito una línea de código (por Track 0) y, a la vez, no se queda en
+"Python para principiantes" — el recorrido continúa hasta Deep Learning, AI
+Engineering y MLOps. Quien ya programa en otro lenguaje puede entrar más arriba:
+Track 0 orienta pero **no es un peaje obligatorio**.
 
-## 3. Arquitectura del Proyecto
+## El norte: de cero a ML/AI
 
-El sistema está construido como una Aplicación Integral moderna separada estrictamente entre **Frontend** y **Backend Api**, bajo el siguiente Stack Tecnológico estandarizado:
+El valor diferencial de PyCode es el **pipeline completo** en una sola
+plataforma, con el mismo tutor y la misma progresión transversal a lo largo de
+todo el trayecto:
 
-### 3.1 Tecnologías del Backend
-* **Desarrollo**: Python 3.11+, con el framework **FastAPI** que brinda enrutamiento ultra veloz ASGI.
-* **Componentes asíncronos (WebSockets)**: Infraestructura basada en eventos para emitir mensajes y evaluar ejecuciones pesadas en Docker sin congelar a los clientes HTTP en vivo.
-* **Persistencia de Base de datos:** 
-  - Modelado y Querys mediante **SQLAlchemy 2.0 (Async)**.
-  - Bases estructurales Relacionales implementadas con motores estándar (Compatible con *PostgreSQL* y con *SQLite* vía aiosqlite en ambientes locales). 
-* **Control de Sesiones e Identidad:** Rutas seguras dependientes de inyección `Depends()` con encriptadores bcrypt validando Tokens JWT estándar en cabeceras Bearer.
+**Fundamentos → Python → Data Science → Machine Learning → Deep Learning → AI
+Engineering → MLOps**
 
-### 3.2 Tecnologías del Frontend
-* **Core:** Proyecto montado sobre el generador de paquetes modernos **Vite**, impulsando **React y TypeScript**.
-* **Gestión de Estados:** Estado global dinámico mantenido con **Zustand** (para controlar sesiones de usuario estables) y herramientas de obtención asíncrona local de promesas (`fetch` api).
-* **Navegación e Interfaz:** React Router DOM para evitar recargas constantes asimilando una fluidez tipo *Single Page Application*. 
-* **Estilizado de Componentes:** Interfaz puramente estilizada con clases de utilidad impulsadas por **TailwindCSS**, junto con íconos de *Lucide React* dando acabados premium a alertas y botones. Componentes clave como *Monaco-Editor (Tecnología de VSCode)* integrados nativamente.
+Toda funcionalidad nueva debe apoyar esa rampa; no es "otra plataforma de Python
+para principiantes".
 
-## 4. Estructura y Flujos Clave
+## El recorrido de tracks
 
-El ecosistema entero gira en torno a estos pilares:
-1. **Módulo de Autenticación (`/login`, `/register`)**: Los visitantes nuevos ingresan al flujo de registro (donde un modelo en base de datos `UserProfile` asocia en tiempo cero estadísticas limpias) y loguea recibiendo su Access_Token alojado en Local Storage de manera inmediata sin redirecciones obsoletas. 
-2. **Dashboard Dinámico (`/dashboard`)**: Una abstracción gerencial que resume la persistencia del usuario mostrando rachas activas, progreso global de lecciones completadas frente al temario, y puntos XP en UI. Es consultado a la API con consultas optimizadas en PostgreSQL/SQLite asegurando mínima latencia.
-3. **Editor de Código en Vivo (`/editor`)**: Donde la destreza es probada. Contiene un gestor que no solo permite correr comandos locales dentro del flujo de la interfaz interactuando por Sockets, sino permite personalización (Ajustes de font-size del editor, temario dark/light, alternar vista de minimapas) o herramientas de externalización (guardar a tu PC un ".py", o enviar el algoritmo directo a un portapapeles).
+- **Track 0 — Fundamentos de programación** *(en diseño)*: pseudocódigo, trazas
+  de ejecución, algoritmos, estructuras elementales y diagramas de flujo. Es la
+  puerta de entrada para quien parte de cero. Sus ejercicios son de un tipo
+  distinto (trazas, ordenar pasos, hallar el error) y no requieren saber Python.
+- **Track 1 — Python**: la rampa hacia el resto del pipeline.
+- **Track 2 — Data Science**: NumPy, Pandas, visualización, EDA y estadística.
+- **Track 3 — Machine Learning clásico**: scikit-learn.
+- **Track 4 — Deep Learning**: redes desde cero (backprop, MLP).
+- **Track 5 — AI Engineering**: embeddings, RAG, LLMs en aplicaciones.
+- **Track 6 — MLOps**: llevar modelos a producción.
+
+Cada track se cierra con un **capstone** que, al aprobarse, desbloquea un
+**certificado verificable**.
 
 ---
 
-`Elaborado como material complementario de documentación en curso del desarrollo local de PyCode.`
+Documento de visión. El estado real de cada track y los números vivos están en
+[README.md](README.md).

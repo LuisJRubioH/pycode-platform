@@ -1,3 +1,7 @@
+> DOCUMENTO HISTÓRICO. Describe un diseño inicial que fue descartado (ejecución
+> de código en Docker server-side, Kubernetes, microservicios). No es fuente de
+> verdad. Ver README.md y docs/ARCHITECTURE.md.
+
 # Plataforma de Aprendizaje Python con Tutor IA
 
 Plan completo para desarrollar una plataforma educativa de código abierto que permite ejecutar código Python con un tutor IA socrático que adapta el aprendizaje según el progreso del usuario.

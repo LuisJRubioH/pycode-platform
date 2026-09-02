@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 PyCode Platform — learning platform for Python with Monaco editor, sandboxed code execution, a Socratic AI tutor, and a Finxter-inspired ELO puzzle progression system. 
 
-**Norte estratégico**: PyCode **no** es "Python para principiantes". Track 1 (Python) es la rampa hacia el pipeline **Python → Data Science → ML → Deep Learning → AI Engineering → MLOps**. Toda feature nueva debe apoyar esa rampa (ver memoria `project_norte_ml_ai`).
+**Norte estratégico**: PyCode lleva al estudiante **de cero a ingeniería de ML/AI**. Se entra sin saber programar (Track 0: fundamentos/pseudocódigo/algoritmos) y **no** se termina en Python básico: Track 1 es la rampa hacia el pipeline **Fundamentos → Python → Data Science → ML → Deep Learning → AI Engineering → MLOps**. No excluye a principiantes; el diferenciador es el pipeline completo con tutor socrático y ELO transversal. Toda feature nueva debe apoyar esa rampa (ver memoria `project_norte_ml_ai`).
 
 **Estado actual (2026-07)**:
 - ✅ **Fase 0 cerrada (30/30)** — tag `fase-0-complete` (2026-05-08). Infra: Postgres+Alembic+RLS, Pyodide Web Worker, LLM provider abstraction, seguridad transversal, JWT+GDPR, deploy gratis.
@@ -27,7 +27,7 @@ PyCode Platform — learning platform for Python with Monaco editor, sandboxed c
 
 **Próximo trabajo**: continuar Track 5 (AI 4 RAG end-to-end → agentes → evals → capstone "Nebula RAG"). Decisión pendiente aparte: Track 4b con PyTorch real (GPU remota vs Colab). Ver `docs/ARCHITECTURE.md` (diseño), `docs/DATABASE.md` (esquema) y `project_track5_piloto` / `project_track4_piloto` en memoria para el detalle vivo.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the technical design, [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for the vision, and [PYCODE_SPEC.md](PYCODE_SPEC.md) for the phased implementation spec.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the technical design, [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for the vision, and [docs/historico/](docs/historico/) for the discarded initial design (Docker server-side, Kubernetes, microservices — **not** a source of truth).
 
 ## Notas operativas (post-deploy)
 
