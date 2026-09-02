@@ -18,7 +18,7 @@ Plataforma de aprendizaje que lleva de **Fundamentos → Python → Data Science
 | **Track 5** — AI Engineering | 🚧 En curso | AI 1-3: embeddings, RAG retriever, LLM real vía proxy. Faltan RAG e2e/agentes/evals/capstone |
 | **Track 6** — MLOps | ⏳ Pendiente | Producción |
 
-**En números**: 40 lecciones · 108 ejercicios (la mayoría con `hidden_tests`) · 100 puzzles ELO curados · 10 retos DS/ML · 4 capstones · 3 datasets · migraciones 0001-0014 · 166 tests backend. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**.
+**En números**: ~40 lecciones · 100+ ejercicios (la mayoría con `hidden_tests`) · 100 puzzles ELO curados · 10 retos DS/ML · 4 capstones · 3 datasets · migraciones 0001-0014 · 160+ tests backend. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**. *(Cifras redondeadas a propósito; el conteo exacto vive en los tests, ej. `test_bank_has_100_puzzles`.)*
 
 ## Rampa de entrada
 
@@ -131,7 +131,7 @@ backend/
 │   └── websockets/          # tutor_chat (/ws/tutor); /ws/code deprecado
 ├── alembic/versions/        # 0001 → 0014
 ├── scripts/check_no_sqli.py
-├── tests/                   # 166 tests
+├── tests/                   # suite de tests del backend
 └── Dockerfile               # alembic upgrade head + uvicorn
 
 frontend/
