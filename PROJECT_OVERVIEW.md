@@ -36,10 +36,10 @@ para principiantes".
 
 ## El recorrido de tracks
 
-- **Track 0 — Fundamentos de programación** *(en diseño)*: pseudocódigo, trazas
-  de ejecución, algoritmos, estructuras elementales y diagramas de flujo. Es la
-  puerta de entrada para quien parte de cero. Sus ejercicios son de un tipo
-  distinto (trazas, ordenar pasos, hallar el error) y no requieren saber Python.
+- **Track 0 — Fundamentos de programación**: pseudocódigo, trazas de ejecución,
+  algoritmos, estructuras elementales y diagramas de flujo. Es la puerta de
+  entrada para quien parte de cero. Sus ejercicios son de un tipo distinto
+  (trazas, ordenar pasos, hallar el error) y no requieren saber Python.
 - **Track 1 — Python**: la rampa hacia el resto del pipeline.
 - **Track 2 — Data Science**: NumPy, Pandas, visualización, EDA y estadística.
 - **Track 3 — Machine Learning clásico**: scikit-learn.
