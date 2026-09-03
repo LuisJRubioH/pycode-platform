@@ -25,6 +25,58 @@ PyCode Platform — learning platform for Python with Monaco editor, sandboxed c
 - DB: Supabase Postgres `medutbqsurjnaaymmrin` (sa-east-1, RLS habilitada)
 - Watchdog: UptimeRobot ping `/health` cada 5 min
 
+## Plan de correcciones en curso (`INSTRUCCIONES_CLAUDE_CODE.md`)
+
+Fuente: `INSTRUCCIONES_CLAUDE_CODE.md` en la raíz (bloques 0-7, se pegan de uno
+en uno). **Estado a 2026-09-03**:
+
+| Bloque | Estado |
+|---|---|
+| 0 — Diagnóstico | ✅ cerrado |
+| 1 — Progreso que no se persiste | ✅ cerrado y **verificado en producción por el usuario** |
+| 2 — Navegación del editor | ✅ implementado (`6e82b1f`, `b694db2`) — se hizo **sin autorización previa** |
+| 3 — Warning de pyarrow | ✅ implementado (`9e47395`) — se hizo **sin autorización previa**; pendiente decidir si se revierte |
+| 4 — Densidad de contenido | ⏳ pendiente (empezar por "Pandas esencial", enunciados a revisión ANTES de seedear) |
+| 5 — Presentación de la lección | ⏳ pendiente (piloto en UNA lección antes de propagar) |
+| 6 — Documentación desalineada | ✅ cerrado (`docs/historico/`) |
+| 7 — Barrido de problemas | ⏳ pendiente (solo listar, no implementar) |
+
+**Verificación en producción del Bloque 1** (hecha por el usuario, no por un
+agente): los 3 ejercicios de "Pandas esencial" resueltos en
+pycode-platform.vercel.app → 3/3 tests, lección al 100%, badge HECHO, sobrevive
+al F5, contador de lecciones en 1, XP idempotente (650 XP = 65 pts, sin duplicar
+al reejecutar).
+
+### Decisiones tomadas
+
+- **Opción A para `completed`**: el flag de "ejercicio hecho" es **derivado**, no
+  una columna nueva — sin migración. Se eligió precisamente para no duplicar
+  fuentes de verdad, así que la regla vive **solo** en
+  `progress_service.completed_exercise_ids` (>= 1 `CodeSubmission` con
+  `result == "success"`, distinct por `exercise_id`) y la llaman los cinco
+  consumidores: `recompute_lesson_progress`, `GET /lessons/{id}`,
+  `GET /exercises/lesson/{id}`, `/progress/competencies` y
+  `/progress/track-status`. **No reimplementar esa query en ningún endpoint nuevo.**
+- **Orden curricular**: es `Lesson.order`, expuesto en `LessonListResponse`. El
+  cliente ordena por ese campo; no asumir que el orden de la respuesta lo sea.
+- **README**: la línea "En números" va redondeada, no al dato exacto.
+- **`backend/.venv311`**: destrackeado con un commit normal (`0eddd57`), **sin
+  reescribir historia**. Sigue en el historial antiguo y así se queda.
+- **Dependabot**: semanal (pip/npm/actions) + `pip-audit`/`npm audit` en CI. El
+  usuario usa una clasificación de severidad P1-P4 para decidir qué se bumpea;
+  **ese criterio no está escrito en el repo** — pedírselo antes de triar alertas.
+
+### Pendientes con decisión del usuario
+
+- **Backfill de `UserProgress` legacy**: `backend/scripts/backfill_legacy_progress.py`.
+  Sin `--apply` es de solo lectura (rollback). **No ejecutado.** En producción
+  afecta a **4 filas** con el sentinel `progress=5` (users 6/7/8/9; recálculo
+  5% → 0/50/50/0%; ninguna cambia de `status`).
+- **XP ×10**: `progress.py` devuelve `xp_points = total_score * 10` (línea ~85).
+  La tarjeta dice "10 pts" y el dashboard muestra 650 XP para 65 pts. El
+  multiplicador es explícito y sin comentario; **no tocar** hasta que el usuario
+  confirme si es intencional.
+
 **Próximo trabajo**: continuar Track 5 (AI 4 RAG end-to-end → agentes → evals → capstone "Nebula RAG"). Decisión pendiente aparte: Track 4b con PyTorch real (GPU remota vs Colab). Ver `docs/ARCHITECTURE.md` (diseño), `docs/DATABASE.md` (esquema) y `project_track5_piloto` / `project_track4_piloto` en memoria para el detalle vivo.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the technical design, [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for the vision, and [docs/historico/](docs/historico/) for the discarded initial design (Docker server-side, Kubernetes, microservices — **not** a source of truth).
