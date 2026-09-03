@@ -9,7 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.core.database import get_db
-from app.services.progress_service import completed_exercise_ids
+from app.services.progress_service import (
+    XP_POR_PUNTO,
+    completed_exercise_ids,
+)
 from app.core.security import get_current_active_user
 from app.core.tracks import TRACK_TITLES
 from app.models.user import User
@@ -83,7 +86,7 @@ async def get_progress_stats(
         "total_submissions": submissions_count or 0,
         "streak_days": streak_days,
         "level": "beginner",
-        "xp_points": (stats.total_score or 0) * 10,
+        "xp_points": (stats.total_score or 0) * XP_POR_PUNTO,
     }
 
 

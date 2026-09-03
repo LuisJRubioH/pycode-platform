@@ -30,6 +30,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.learning import CodeSubmission, Exercise, UserProgress
 
+# Decisión de producto: 1 punto de ejercicio = 10 XP. El `score` que se
+# persiste son puntos; el XP del dashboard es esa conversión, no otro contador.
+XP_POR_PUNTO = 10
+
 
 async def completed_exercise_ids(
     db: AsyncSession, user_id: int, exercise_ids: Iterable[int]
