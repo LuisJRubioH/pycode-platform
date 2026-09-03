@@ -17,7 +17,7 @@ PyCode Platform — learning platform for Python with Monaco editor, sandboxed c
 - 🚧 **Track 5 (AI Engineering) en curso** — AI 1-3: embeddings/búsqueda semántica, chunking/indexación (retriever RAG en numpy), y LLM real + prompt RAG vía **proxy backend** `POST /api/v1/ai/complete` (reusa el LLM provider; helper `pycode.llm_complete` en el worker). Falta RAG end-to-end, agentes, evals, capstone.
 - ⏳ **Pendiente**: resto de Track 5, Track 6 (MLOps).
 
-**Contenido en números**: 40 lecciones (Track 1: 10 · Track 2: 11 · Track 3: 11 · Track 4: 5 · Track 5: 3) · 108 ejercicios (la mayoría con hidden_tests) · 100 puzzles ELO curados · 10 retos · 4 capstones · 3 datasets. Migraciones 0001-0014 (Tracks 3-5 y el proxy LLM **no** añaden migraciones). 161 tests backend. Esquema de datos: `docs/DATABASE.md`. **Nota**: el contenido real vive en `lesson_seed.py`; `lesson_content.py` es código **muerto/duplicado** (no se importa) — no editarlo pensando que seedea.
+**Contenido en números**: 40 lecciones (Track 1: 10 · Track 2: 11 · Track 3: 11 · Track 4: 5 · Track 5: 3) · 108 ejercicios (la mayoría con hidden_tests) · 100 puzzles ELO curados · 10 retos · 4 capstones · 3 datasets. Migraciones 0001-0014 (Tracks 3-5 y el proxy LLM **no** añaden migraciones). 168 tests backend. Esquema de datos: `docs/DATABASE.md`. **Nota**: el contenido real vive en `lesson_seed.py`; `lesson_content.py` es código **muerto/duplicado** (no se importa) — no editarlo pensando que seedea.
 
 **Producción**:
 - Frontend: https://pycode-platform.vercel.app (Vercel Hobby)
@@ -105,6 +105,8 @@ ELO system: puzzles, attempts, ratings, and rank progression live in [backend/ap
 Vite dev server proxies `/api` and `/ws` to `localhost:8000` ([vite.config.ts](frontend/vite.config.ts)) — frontend code should call relative paths, not absolute `http://localhost:8000`. `@/*` alias points to `src/`.
 
 Global state: un único Zustand store [frontend/src/stores/authStore.ts](frontend/src/stores/authStore.ts) que maneja `accessToken` + `refreshToken` + `user`. API calls van por [frontend/src/services/api.ts](frontend/src/services/api.ts) (fetch nativo, no axios) — incluye interceptor que ante un 401 intenta `POST /auth/refresh` con el refresh token y reintenta el request original; si falla, limpia tokens y redirect a `/login`.
+
+El **editor tiene dos modos**: libre (`/editor`) y lección (`/editor?lesson=<id>&exercise=<id>`). En modo lección carga `GET /lessons/{id}`, muestra la cabecera "Ejercicio N de M" y navega Anterior/Siguiente entre los ejercicios de esa lección sin salir del editor; la URL identifica el ejercicio activo (compartible/recargable).
 
 Pyodide sandbox vive en [frontend/src/sandbox/](frontend/src/sandbox/): `pyodideWorker.ts` corre como Web Worker (cargado via `new URL(..., import.meta.url)` con `worker.format='es'` en `vite.config.ts`), `PyodideSandbox.ts` lo envuelve con Comlink. El runtime Pyodide se carga lazy desde `cdn.jsdelivr.net` (whitelisted en CSP).
 
