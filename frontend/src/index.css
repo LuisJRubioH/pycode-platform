@@ -13,6 +13,14 @@
 }
 
 @layer components {
+  /* El tema de highlight.js pinta fondo y padding propios en `code.hljs`.
+     El contenedor del bloque ya los aporta, asi que le dejamos al tema solo
+     los colores de los tokens: evita el doble padding y que los bloques sin
+     lenguaje (que nunca reciben la clase .hljs) se vean distintos. */
+  .prose pre code.hljs {
+    @apply bg-transparent p-0;
+  }
+
   .btn {
     @apply inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors;
   }

@@ -2,7 +2,12 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeHighlight from 'rehype-highlight'
+// Tema del resaltado. Se empaqueta con el bundle: no sale ninguna peticion
+// a un CDN, asi que no hay que tocar la CSP.
+import 'highlight.js/styles/github-dark.css'
 import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Clock, Code2 } from 'lucide-react'
+import MarkdownCodeBlock from '../components/MarkdownCodeBlock'
 import { api } from '../services/api'
 import { saveTutorContext } from '../services/tutorContext'
 
@@ -129,7 +134,13 @@ const LessonDetail: React.FC = () => {
       </Link>
 
       <div className="card p-6 prose prose-slate max-w-none">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{lesson.content || ''}</ReactMarkdown>
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeHighlight]}
+          components={{ pre: MarkdownCodeBlock }}
+        >
+          {lesson.content || ''}
+        </ReactMarkdown>
       </div>
 
       <div className="card p-6 space-y-4">
