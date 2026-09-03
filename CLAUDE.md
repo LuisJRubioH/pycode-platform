@@ -35,7 +35,7 @@ en uno). **Estado a 2026-09-03**:
 | 0 — Diagnóstico | ✅ cerrado |
 | 1 — Progreso que no se persiste | ✅ cerrado y **verificado en producción por el usuario** |
 | 2 — Navegación del editor | ✅ implementado (`6e82b1f`, `b694db2`) — se hizo **sin autorización previa** |
-| 3 — Warning de pyarrow | ✅ implementado (`9e47395`) — se hizo **sin autorización previa**; pendiente decidir si se revierte |
+| 3 — Warning de pyarrow | ✅ cerrado (`9e47395`) — se hizo fuera de turno, pero el usuario decidió mantenerlo |
 | 4 — Densidad de contenido | ⏳ pendiente (empezar por "Pandas esencial", enunciados a revisión ANTES de seedear) |
 | 5 — Presentación de la lección | ⏳ pendiente (piloto en UNA lección antes de propagar) |
 | 6 — Documentación desalineada | ✅ cerrado (`docs/historico/`) |
@@ -62,20 +62,23 @@ al reejecutar).
 - **README**: la línea "En números" va redondeada, no al dato exacto.
 - **`backend/.venv311`**: destrackeado con un commit normal (`0eddd57`), **sin
   reescribir historia**. Sigue en el historial antiguo y así se queda.
+- **XP**: 1 punto de ejercicio = **10 XP**. `score` persiste puntos; el XP del
+  dashboard es esa conversión, no un contador aparte. La constante es
+  `progress_service.XP_POR_PUNTO`. La escala se mantiene: no re-escalar.
 - **Dependabot**: semanal (pip/npm/actions) + `pip-audit`/`npm audit` en CI. El
-  usuario usa una clasificación de severidad P1-P4 para decidir qué se bumpea;
-  **ese criterio no está escrito en el repo** — pedírselo antes de triar alertas.
+  criterio de triaje P1-P4 y la clasificación de las alertas abiertas están en
+  [docs/SEGURIDAD_DEPENDENCIAS.md](docs/SEGURIDAD_DEPENDENCIAS.md). La prioridad
+  sale de alcance real (¿llega a producción? ¿la alcanza entrada no confiable?),
+  no de la severidad CVSS.
 
-### Pendientes con decisión del usuario
+### Backfill del progreso legacy — APLICADO
 
-- **Backfill de `UserProgress` legacy**: `backend/scripts/backfill_legacy_progress.py`.
-  Sin `--apply` es de solo lectura (rollback). **No ejecutado.** En producción
-  afecta a **4 filas** con el sentinel `progress=5` (users 6/7/8/9; recálculo
-  5% → 0/50/50/0%; ninguna cambia de `status`).
-- **XP ×10**: `progress.py` devuelve `xp_points = total_score * 10` (línea ~85).
-  La tarjeta dice "10 pts" y el dashboard muestra 650 XP para 65 pts. El
-  multiplicador es explícito y sin comentario; **no tocar** hasta que el usuario
-  confirme si es intencional.
+Las filas `UserProgress` con el sentinel `progress=5` (valor falso del bug viejo)
+se recalcularon en producción el **2026-09-03**: 4 filas (users 6/7/8/9),
+5% → 0/50/50/0%, ninguna cambió de `status` ni de `score`. Verificado después:
+0 sentinels, 0 filas incoherentes. El script
+`backend/scripts/backfill_legacy_progress.py` queda para futuros arrastres (sin
+`--apply` es de solo lectura).
 
 **Próximo trabajo**: continuar Track 5 (AI 4 RAG end-to-end → agentes → evals → capstone "Nebula RAG"). Decisión pendiente aparte: Track 4b con PyTorch real (GPU remota vs Colab). Ver `docs/ARCHITECTURE.md` (diseño), `docs/DATABASE.md` (esquema) y `project_track5_piloto` / `project_track4_piloto` en memoria para el detalle vivo.
 
