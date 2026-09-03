@@ -31,7 +31,18 @@ class Kernel {
     // La carga del CDN de pandas la dispara loadPackagesFromImports cuando
     // el codigo del estudiante haga `import pandas as pd`.
     await this.py.runPythonAsync(`
-import sys, types
+import sys, types, warnings
+
+# pandas emite un DeprecationWarning de pyarrow al importarse ("Pyarrow will
+# become a required dependency of pandas...") que Pyodide manda a stderr y
+# acaba mezclado con la salida del alumno: parece un error suyo. Lo
+# silenciamos por mensaje, no de forma global — cualquier otro warning
+# (incluidos los del codigo del alumno) sigue viendose.
+warnings.filterwarnings(
+    'ignore',
+    message=r'(?s).*[Pp]yarrow will become a required dependency.*',
+    category=DeprecationWarning,
+)
 
 if 'pycode' not in sys.modules:
     _mod = types.ModuleType('pycode')

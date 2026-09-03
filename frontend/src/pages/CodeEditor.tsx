@@ -96,6 +96,10 @@ const EMPTY_SOLUTION = '# Escribe tu solucion aqui\n'
 const CodeEditor: React.FC = () => {
   const [code, setCode] = useState(INITIAL_CODE)
   const [output, setOutput] = useState('')
+  // stderr y warnings van aparte del stdout: mezclarlos hacia que un
+  // DeprecationWarning pareciera un error del alumno.
+  const [errorOutput, setErrorOutput] = useState('')
+  const [outputNote, setOutputNote] = useState('')
   const [outputImages, setOutputImages] = useState<string[]>([])
   const [problemDescription, setProblemDescription] = useState('')
   const [expectedOutput, setExpectedOutput] = useState('')
@@ -197,6 +201,8 @@ const CodeEditor: React.FC = () => {
     setExpectedOutput('')
     setExerciseId(activeExercise.id)
     setOutput('')
+    setErrorOutput('')
+    setOutputNote('')
     setOutputImages([])
     setTestsResult(null)
     setTestsError('')
@@ -258,24 +264,22 @@ const CodeEditor: React.FC = () => {
 
   const runCode = async () => {
     setOutput('')
+    setErrorOutput('')
+    setOutputNote('')
     setOutputImages([])
     setIsRunning(true)
     try {
       const result = await runPythonCode(code)
-      const combined = [result.stdout, result.stderr].filter(Boolean).join('\n')
       const hasImages = (result.images || []).length > 0
-      const finalOutput =
-        combined ||
-        (result.ok
-          ? hasImages
-            ? '(plot generado)'
-            : '(sin salida)'
-          : 'Error de ejecución')
-      setOutput(finalOutput)
+      setOutput(result.stdout || '')
+      setErrorOutput(result.stderr || (result.ok ? '' : 'Error de ejecución'))
       setOutputImages(result.images || [])
+      if (!result.stdout && !result.stderr && result.ok) {
+        setOutputNote(hasImages ? '(plot generado)' : '(sin salida)')
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      setOutput(`Error: ${msg}\n`)
+      setErrorOutput(`Error: ${msg}`)
     } finally {
       setIsRunning(false)
     }
@@ -292,6 +296,8 @@ const CodeEditor: React.FC = () => {
       setExpectedOutput('')
     }
     setOutput('')
+    setErrorOutput('')
+    setOutputNote('')
     setOutputImages([])
     setEvaluation(null)
     setEvaluationError('')
@@ -388,7 +394,9 @@ const CodeEditor: React.FC = () => {
         problem_description: trimmedDesc,
         code,
         expected_output: expectedOutput.trim() || undefined,
-        actual_output: output.trim() || undefined,
+        actual_output:
+          [output, errorOutput].filter(Boolean).join('\n').trim() ||
+          undefined,
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -756,10 +764,28 @@ const CodeEditor: React.FC = () => {
           </div>
 
           <div className="flex-1 p-4 overflow-auto">
-            {output || outputImages.length > 0 ? (
+            {output || errorOutput || outputNote || outputImages.length > 0 ? (
               <div className="space-y-3">
                 {output && (
-                  <pre className="text-sm font-mono whitespace-pre-wrap">{output}</pre>
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">
+                      stdout
+                    </p>
+                    <pre className="text-sm font-mono whitespace-pre-wrap">{output}</pre>
+                  </div>
+                )}
+                {errorOutput && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-wide text-amber-400 mb-1">
+                      stderr / warnings
+                    </p>
+                    <pre className="text-sm font-mono whitespace-pre-wrap text-amber-300 bg-amber-950/40 border-l-2 border-amber-500 rounded-r px-2 py-1">
+                      {errorOutput}
+                    </pre>
+                  </div>
+                )}
+                {outputNote && (
+                  <p className="text-sm font-mono text-slate-400">{outputNote}</p>
                 )}
                 {outputImages.map((b64, i) => (
                   <img

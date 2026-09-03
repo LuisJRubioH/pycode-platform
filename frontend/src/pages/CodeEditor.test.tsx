@@ -14,8 +14,9 @@ vi.mock('@monaco-editor/react', () => ({
   useMonaco: () => null,
 }))
 
+const runPythonCodeMock = vi.fn()
 vi.mock('../services/codeRunner', () => ({
-  runPythonCode: vi.fn(),
+  runPythonCode: (...args: unknown[]) => runPythonCodeMock(...args),
   runHiddenTests: vi.fn(),
   getCodeRunner: () => ({
     status: 'idle' as const,
@@ -95,6 +96,7 @@ describe('CodeEditor — navegación por lección', () => {
   beforeEach(() => {
     getMock.mockReset()
     postMock.mockReset()
+    runPythonCodeMock.mockReset()
     localStorage.clear()
     getMock.mockImplementation((path: string) => {
       if (path === '/lessons/7') {
@@ -154,5 +156,56 @@ describe('CodeEditor — navegación por lección', () => {
     await waitFor(() => expect(screen.getByTestId('monaco')).toBeInTheDocument())
     expect(screen.queryByText(/Ejercicio 1 de/)).not.toBeInTheDocument()
     expect(getMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('CodeEditor — salida separada de stdout y stderr', () => {
+  beforeEach(() => {
+    getMock.mockReset()
+    postMock.mockReset()
+    runPythonCodeMock.mockReset()
+    localStorage.clear()
+  })
+
+  it('stdout y stderr se muestran en bloques distintos, no concatenados', async () => {
+    const user = userEvent.setup()
+    runPythonCodeMock.mockResolvedValue({
+      ok: true,
+      stdout: 'total: 42',
+      stderr: 'FutureWarning: algo va a cambiar',
+      images: [],
+      durationMs: 12,
+      timedOut: false,
+    })
+
+    renderEditor('/editor')
+    await user.click(screen.getByRole('button', { name: /Ejecutar/ }))
+
+    await screen.findByText('total: 42')
+    // Cada flujo con su etiqueta: un warning ya no parece un error del alumno.
+    expect(screen.getByText('stdout')).toBeInTheDocument()
+    expect(screen.getByText('stderr / warnings')).toBeInTheDocument()
+    // Y siguen siendo dos nodos separados.
+    expect(screen.getByText('total: 42')).not.toBe(
+      screen.getByText('FutureWarning: algo va a cambiar')
+    )
+  })
+
+  it('sin salida ni error muestra la nota, sin bloque de stderr', async () => {
+    const user = userEvent.setup()
+    runPythonCodeMock.mockResolvedValue({
+      ok: true,
+      stdout: '',
+      stderr: '',
+      images: [],
+      durationMs: 3,
+      timedOut: false,
+    })
+
+    renderEditor('/editor')
+    await user.click(screen.getByRole('button', { name: /Ejecutar/ }))
+
+    await screen.findByText('(sin salida)')
+    expect(screen.queryByText('stderr / warnings')).not.toBeInTheDocument()
   })
 })
