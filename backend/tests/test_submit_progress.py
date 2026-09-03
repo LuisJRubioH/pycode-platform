@@ -172,3 +172,56 @@ async def test_failed_attempt_records_but_no_completion(client, user_a):
     assert progress.score == 0
     assert progress.attempts == 1
     assert await _count_submissions(user_a["id"], ex_ids[0]) == 1
+
+
+@pytest.mark.asyncio
+async def test_lesson_detail_marks_completed_exercises(client, user_a):
+    """GET /lessons/{id} dice qué ejercicios tiene aprobados el usuario.
+
+    Es lo que consume la cabecera del editor ("Ejercicio N de M") para
+    marcar el ejercicio activo como hecho sin pedir otro endpoint.
+    """
+    lesson_id, ex_ids = await _seed_lesson(3)
+
+    before = (
+        await client.get(f"/api/v1/lessons/{lesson_id}", headers=user_a["headers"])
+    ).json()
+    assert [ex["completed"] for ex in before["exercises"]] == [False, False, False]
+    # El orden que consume la navegación Anterior/Siguiente es estable.
+    assert [ex["order"] for ex in before["exercises"]] == [0, 1, 2]
+
+    r = await client.post(
+        f"/api/v1/exercises/{ex_ids[1]}/submit",
+        json=_submit_payload(ex_ids[1]),
+        headers=user_a["headers"],
+    )
+    assert r.status_code == 200, r.text
+
+    after = (
+        await client.get(f"/api/v1/lessons/{lesson_id}", headers=user_a["headers"])
+    ).json()
+    completed_map = {ex["id"]: ex["completed"] for ex in after["exercises"]}
+    assert completed_map == {
+        ex_ids[0]: False,
+        ex_ids[1]: True,
+        ex_ids[2]: False,
+    }
+    # Y sigue sin filtrar los tests ocultos al cliente.
+    assert "hidden_tests" not in str(after)
+
+
+@pytest.mark.asyncio
+async def test_completed_flag_is_per_user(client, user_a, user_b):
+    """El `completed` de un usuario no se ve en la respuesta del otro."""
+    lesson_id, ex_ids = await _seed_lesson(2)
+
+    await client.post(
+        f"/api/v1/exercises/{ex_ids[0]}/submit",
+        json=_submit_payload(ex_ids[0]),
+        headers=user_a["headers"],
+    )
+
+    for_b = (
+        await client.get(f"/api/v1/lessons/{lesson_id}", headers=user_b["headers"])
+    ).json()
+    assert [ex["completed"] for ex in for_b["exercises"]] == [False, False]

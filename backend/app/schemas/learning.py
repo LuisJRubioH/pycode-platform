@@ -33,6 +33,9 @@ class ExerciseResponse(BaseModel):
     points: int
     order: int
     hints: List[str] = []
+    # Derivado de las CodeSubmission del usuario (regla única de
+    # progress_service). Nunca se persiste en la tabla Exercise.
+    completed: bool = False
 
     class Config:
         from_attributes = True

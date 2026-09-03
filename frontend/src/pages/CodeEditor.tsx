@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import Editor, { useMonaco } from '@monaco-editor/react'
 import {
   Play,
@@ -13,6 +14,10 @@ import {
   TestTube2,
   History,
   X,
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  BookOpen,
 } from 'lucide-react'
 import { runPythonCode, runHiddenTests, getCodeRunner } from '../services/codeRunner'
 import { api } from '../services/api'
@@ -51,6 +56,43 @@ interface EvaluationResult {
   model_used: string | null
 }
 
+// El editor tiene dos modos:
+//   - libre: `/editor`, el alumno escribe lo que quiera (contexto opcional
+//     desde localStorage cuando viene del tutor).
+//   - lección: `/editor?lesson=<id>&exercise=<id>`, con el ejercicio activo
+//     en la URL para que sea compartible y recargable. En este modo el
+//     editor conoce la lección entera y puede navegar entre ejercicios.
+interface LessonExercise {
+  id: number
+  lesson_id: number
+  title: string
+  description: string | null
+  instructions: string | null
+  starter_code: string | null
+  difficulty: string
+  points: number
+  order: number
+  hints: string[]
+  completed: boolean
+}
+
+interface LessonContext {
+  id: number
+  title: string
+  track: string
+  status: string
+  progress: number
+  exercises: LessonExercise[]
+}
+
+interface LessonSummary {
+  id: number
+  title: string
+  track: string
+}
+
+const EMPTY_SOLUTION = '# Escribe tu solucion aqui\n'
+
 const CodeEditor: React.FC = () => {
   const [code, setCode] = useState(INITIAL_CODE)
   const [output, setOutput] = useState('')
@@ -71,17 +113,134 @@ const CodeEditor: React.FC = () => {
   const [testsResult, setTestsResult] = useState<RunTestsResult | null>(null)
   const [testsError, setTestsError] = useState('')
   const [showHistory, setShowHistory] = useState(false)
+  const [lesson, setLesson] = useState<LessonContext | null>(null)
+  const [lessonError, setLessonError] = useState('')
+  const [nextLesson, setNextLesson] = useState<LessonSummary | null>(null)
+
+  const [searchParams, setSearchParams] = useSearchParams()
+  const lessonParam = searchParams.get('lesson')
+  const exerciseParam = searchParams.get('exercise')
 
   const monaco = useMonaco()
 
+  // Modo libre: recupera el contexto que dejó el tutor. En modo lección la
+  // URL manda, así que ignoramos el localStorage para no pisar el ejercicio.
   useEffect(() => {
+    if (lessonParam) return
     const ctx = loadTutorContext()
     if (!ctx) return
     if (ctx.student_code) setCode(ctx.student_code)
     if (ctx.problem_description) setProblemDescription(ctx.problem_description)
     if (ctx.expected_output) setExpectedOutput(ctx.expected_output)
     if (typeof ctx.exercise_id === 'number') setExerciseId(ctx.exercise_id)
+  }, [lessonParam])
+
+  const fetchLesson = useCallback(async (id: string) => {
+    const res = await api.get(`/lessons/${id}`)
+    if (!res.ok) throw new Error(`status ${res.status}`)
+    return (await res.json()) as LessonContext
   }, [])
+
+  // Carga la lección cuando la URL la referencia.
+  useEffect(() => {
+    if (!lessonParam) {
+      setLesson(null)
+      setLessonError('')
+      return
+    }
+    let cancelled = false
+    setLessonError('')
+    fetchLesson(lessonParam)
+      .then((data) => {
+        if (!cancelled) setLesson(data)
+      })
+      .catch((err) => {
+        console.error('No se pudo cargar la leccion:', err)
+        if (!cancelled) {
+          setLesson(null)
+          setLessonError('No pudimos cargar la leccion de este ejercicio.')
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [lessonParam, fetchLesson])
+
+  const exercises = useMemo(() => lesson?.exercises ?? [], [lesson])
+
+  // Índice del ejercicio activo: el de la URL si existe en la lección,
+  // si no el primero (así `/editor?lesson=3` abre el ejercicio 1).
+  const activeIndex = useMemo(() => {
+    if (exercises.length === 0) return -1
+    const fromUrl = exercises.findIndex((ex) => String(ex.id) === exerciseParam)
+    return fromUrl >= 0 ? fromUrl : 0
+  }, [exercises, exerciseParam])
+
+  const activeExercise = activeIndex >= 0 ? exercises[activeIndex] : null
+
+  // Solo reseteamos editor/salida/tests cuando cambia de verdad el ejercicio
+  // activo. Refrescar la lección (p.ej. tras aprobar los tests) no debe
+  // borrarle el código al alumno.
+  const loadedExerciseRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!lesson || !activeExercise) return
+    const key = `${lesson.id}:${activeExercise.id}`
+    if (loadedExerciseRef.current === key) return
+    loadedExerciseRef.current = key
+
+    setCode(activeExercise.starter_code || EMPTY_SOLUTION)
+    setProblemDescription(
+      `${lesson.title}\n\nEjercicio: ${activeExercise.title}\n${
+        activeExercise.instructions || activeExercise.description || ''
+      }`.trim()
+    )
+    setExpectedOutput('')
+    setExerciseId(activeExercise.id)
+    setOutput('')
+    setOutputImages([])
+    setTestsResult(null)
+    setTestsError('')
+    setEvaluation(null)
+    setEvaluationError('')
+  }, [lesson, activeExercise])
+
+  const isLastExercise = activeIndex >= 0 && activeIndex === exercises.length - 1
+  const lessonCompleted = lesson?.status === 'completed'
+
+  // La siguiente lección solo hace falta cuando el alumno terminó la actual
+  // y está en el último ejercicio: la pedimos ahí y no en cada carga.
+  useEffect(() => {
+    if (!lesson || !lessonCompleted || !isLastExercise || nextLesson) return
+    let cancelled = false
+    api
+      .get('/lessons')
+      .then(async (res) => {
+        if (!res.ok) return
+        const all = (await res.json()) as LessonSummary[]
+        const sameTrack = all.filter((item) => item.track === lesson.track)
+        const pool = sameTrack.length > 0 ? sameTrack : all
+        const idx = pool.findIndex((item) => item.id === lesson.id)
+        const candidate = idx >= 0 ? pool[idx + 1] : undefined
+        if (!cancelled && candidate) setNextLesson(candidate)
+      })
+      .catch((err) => console.error('No se pudo buscar la siguiente leccion:', err))
+    return () => {
+      cancelled = true
+    }
+  }, [lesson, lessonCompleted, isLastExercise, nextLesson])
+
+  const goToExercise = (index: number) => {
+    if (!lesson || index < 0 || index >= exercises.length) return
+    setSearchParams({
+      lesson: String(lesson.id),
+      exercise: String(exercises[index].id),
+    })
+  }
+
+  const goToLesson = (lessonId: number) => {
+    setNextLesson(null)
+    setSearchParams({ lesson: String(lessonId) })
+  }
 
   useEffect(() => {
     if (monaco) {
@@ -123,11 +282,17 @@ const CodeEditor: React.FC = () => {
   }
 
   const resetCode = () => {
-    setCode(INITIAL_CODE)
+    // En modo lección "reiniciar" vuelve al starter code del ejercicio, no
+    // al snippet genérico: el enunciado sigue siendo el mismo.
+    if (activeExercise) {
+      setCode(activeExercise.starter_code || EMPTY_SOLUTION)
+    } else {
+      setCode(INITIAL_CODE)
+      setProblemDescription('')
+      setExpectedOutput('')
+    }
     setOutput('')
     setOutputImages([])
-    setProblemDescription('')
-    setExpectedOutput('')
     setEvaluation(null)
     setEvaluationError('')
     setTestsResult(null)
@@ -189,6 +354,12 @@ const CodeEditor: React.FC = () => {
             passed_tests: result.passed,
             total_tests: result.total,
           })
+          // Refresca la lección para que el estado (ejercicio hecho, % de la
+          // lección) se vea sin recargar la página.
+          if (lessonParam) {
+            const refreshed = await fetchLesson(lessonParam)
+            setLesson(refreshed)
+          }
         } catch (submitErr) {
           console.error('No se pudo registrar la completitud:', submitErr)
         }
@@ -383,6 +554,78 @@ const CodeEditor: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {lessonError && (
+        <div className="bg-rose-50 border-b border-rose-200 px-4 py-2 text-sm text-rose-700">
+          {lessonError}
+        </div>
+      )}
+
+      {lesson && activeExercise && (
+        <div className="bg-white border-b border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <BookOpen className="h-3.5 w-3.5 text-primary-600 flex-shrink-0" />
+              <Link
+                to={`/lessons/${lesson.id}`}
+                className="truncate hover:text-primary-700 hover:underline"
+              >
+                {lesson.title}
+              </Link>
+              <span>·</span>
+              <span>{lesson.progress}% de la lección</span>
+            </div>
+            <div className="mt-1 flex items-center gap-2 flex-wrap">
+              <h2 className="text-base font-semibold text-slate-900">
+                Ejercicio {activeIndex + 1} de {exercises.length} — {activeExercise.title}
+              </h2>
+              <span className="text-xs px-2 py-1 rounded-full bg-primary-100 text-primary-700">
+                {activeExercise.difficulty} · {activeExercise.points} pts
+              </span>
+              {activeExercise.completed && (
+                <span className="text-[10px] uppercase tracking-wide text-emerald-700 bg-emerald-100 rounded px-1.5 py-0.5 font-semibold inline-flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  Hecho
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link to={`/lessons/${lesson.id}`} className="btn-secondary">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver a la lección
+            </Link>
+            <button
+              onClick={() => goToExercise(activeIndex - 1)}
+              disabled={activeIndex <= 0}
+              className="btn-secondary disabled:opacity-50"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Anterior
+            </button>
+            <button
+              onClick={() => goToExercise(activeIndex + 1)}
+              disabled={isLastExercise}
+              className="btn-secondary disabled:opacity-50"
+              title={
+                isLastExercise
+                  ? 'Es el último ejercicio de la lección'
+                  : 'Cargar el siguiente ejercicio'
+              }
+            >
+              Siguiente
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </button>
+            {isLastExercise && lessonCompleted && nextLesson && (
+              <button onClick={() => goToLesson(nextLesson.id)} className="btn-primary">
+                Ir a la siguiente lección
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-[1.4fr,1fr] gap-0 border-b border-slate-200 bg-slate-50">
         <div className="p-4 border-r border-slate-200">

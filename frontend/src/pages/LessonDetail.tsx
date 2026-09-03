@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { ArrowLeft, ArrowRight, BookOpen, Clock, Code2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Clock, Code2 } from 'lucide-react'
 import { api } from '../services/api'
 import { saveTutorContext } from '../services/tutorContext'
 
@@ -17,6 +17,7 @@ interface LessonExercise {
   points: number
   order: number
   hints: string[]
+  completed: boolean
 }
 
 interface LessonDetailPayload {
@@ -65,7 +66,9 @@ const LessonDetail: React.FC = () => {
     }
   }, [lessonId])
 
-  const practiceExercise = (exercise: LessonExercise) => {
+  // Guarda el contexto que consume la página del tutor. El editor ya no lo
+  // necesita: recibe la lección y el ejercicio activo por la URL.
+  const rememberForTutor = (exercise: LessonExercise) => {
     if (!lesson) return
     saveTutorContext({
       problem_description: `${lesson.title}\n\nEjercicio: ${exercise.title}\n${exercise.instructions}`,
@@ -76,7 +79,12 @@ const LessonDetail: React.FC = () => {
       source: `lesson:${lesson.id}:exercise:${exercise.id}`,
       exercise_id: exercise.id,
     })
-    navigate('/editor')
+  }
+
+  const practiceExercise = (exercise: LessonExercise) => {
+    if (!lesson) return
+    rememberForTutor(exercise)
+    navigate(`/editor?lesson=${lesson.id}&exercise=${exercise.id}`)
   }
 
   if (loading) {
@@ -138,9 +146,17 @@ const LessonDetail: React.FC = () => {
                     <BookOpen className="h-4 w-4 text-primary-600" />
                     {exercise.title}
                   </h3>
-                  <span className="text-xs px-2 py-1 rounded-full bg-primary-100 text-primary-700">
-                    {exercise.difficulty} · {exercise.points} pts
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {exercise.completed && (
+                      <span className="text-[10px] uppercase tracking-wide text-emerald-700 bg-emerald-100 rounded px-1.5 py-0.5 font-semibold inline-flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Hecho
+                      </span>
+                    )}
+                    <span className="text-xs px-2 py-1 rounded-full bg-primary-100 text-primary-700">
+                      {exercise.difficulty} · {exercise.points} pts
+                    </span>
+                  </div>
                 </div>
 
                 <p className="text-sm text-slate-600 mt-2">{exercise.description}</p>
@@ -159,7 +175,7 @@ const LessonDetail: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
-                      practiceExercise(exercise)
+                      rememberForTutor(exercise)
                       navigate('/tutor')
                     }}
                     className="btn-secondary"
