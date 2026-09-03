@@ -89,6 +89,9 @@ interface LessonSummary {
   id: number
   title: string
   track: string
+  // Orden curricular explícito (Lesson.order). No asumimos que el orden de
+  // la respuesta de la API sea el del temario.
+  order: number
 }
 
 const EMPTY_SOLUTION = '# Escribe tu solucion aqui\n'
@@ -224,7 +227,9 @@ const CodeEditor: React.FC = () => {
         if (!res.ok) return
         const all = (await res.json()) as LessonSummary[]
         const sameTrack = all.filter((item) => item.track === lesson.track)
-        const pool = sameTrack.length > 0 ? sameTrack : all
+        const pool = [...(sameTrack.length > 0 ? sameTrack : all)].sort(
+          (a, b) => (a.order ?? 0) - (b.order ?? 0)
+        )
         const idx = pool.findIndex((item) => item.id === lesson.id)
         const candidate = idx >= 0 ? pool[idx + 1] : undefined
         if (!cancelled && candidate) setNextLesson(candidate)

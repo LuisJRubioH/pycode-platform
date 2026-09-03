@@ -74,6 +74,9 @@ async def list_lessons(
                 "category": lesson.category,
                 "track": lesson.track,
                 "estimated_duration": lesson.estimated_duration,
+                # Orden curricular explícito: el cliente no debe asumir que
+                # el orden de la respuesta es el del temario.
+                "order": lesson.order or 0,
                 "progress": progress_value,
                 "status": progress.status if progress else "not_started",
             }

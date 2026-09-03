@@ -15,6 +15,8 @@ class LessonListResponse(BaseModel):
     category: Optional[str]
     track: str = "track-1"
     estimated_duration: int
+    # Orden curricular dentro del track (Lesson.order).
+    order: int = 0
     progress: int = 0
     status: str = "not_started"
 
