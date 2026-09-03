@@ -66,7 +66,7 @@ del alumno.
 | Paquete | Alertas | Sev. máx | Parche | Nota |
 |---|---|---|---|---|
 | `pillow` | 13 (#75, #79-#90) | high (8.2) | `12.3.0` | Un solo bump `12.2.0 → 12.3.0` cierra las 13. Sin entrada de imágenes no confiables, pero es el mejor ratio esfuerzo/ruido del repo. |
-| `dompurify` | 2 (#91, #98) | medium | `3.4.13` | Viaja al navegador. Un bypass del saneado sería self-XSS (el alumno contra su propio editor), no cross-user. |
+| ~~`dompurify`~~ | ~~2 (#91, #98)~~ | ~~medium~~ | ~~`3.4.13`~~ | **APLICADO 2026-09-03**: `^3.4.11 → ^3.4.13` en la dependencia directa y en `overrides` (resuelve a 3.4.14). El override es lo que arrastra la copia que trae `monaco-editor`; sin tocarlo el bump no sirve de nada. |
 
 ### P3 — higiene de build/CI (17 alertas)
 
@@ -103,7 +103,7 @@ un atacante ya controlase la entrada del build.
 
 1. `pillow` `12.2.0 → 12.3.0` en `requirements.txt` + regenerar `requirements.lock`.
    Cierra 13 de 35 alertas con un cambio de una línea.
-2. `dompurify` al `3.4.13` como dependencia directa.
+2. ~~`dompurify`~~ — hecho, ver arriba.
 3. Una tanda única de devDependencies (P3) con `npm audit fix` y `npm run build`
    + `npm run test` en verde. `vite` y `vitest` son los que más riesgo de rotura
    tienen: van en su propio commit.
