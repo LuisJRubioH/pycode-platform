@@ -39,6 +39,18 @@ interface LessonDetailPayload {
   status: string
 }
 
+// Las tablas de markdown no traen scroll propio: al estrechar la columna
+// pueden desbordar la tarjeta y hacer que scrollee la pagina entera. Se
+// envuelven para que scrollee solo la tabla.
+const MARKDOWN_COMPONENTS = {
+  pre: MarkdownCodeBlock,
+  table: ({ children, ...props }: React.HTMLAttributes<HTMLTableElement>) => (
+    <div className="overflow-x-auto">
+      <table {...props}>{children}</table>
+    </div>
+  ),
+}
+
 const LessonDetail: React.FC = () => {
   const { lessonId } = useParams()
   const navigate = useNavigate()
@@ -133,14 +145,19 @@ const LessonDetail: React.FC = () => {
         Volver al listado
       </Link>
 
-      <div className="card p-6 prose prose-slate max-w-none">
-        <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeHighlight]}
-          components={{ pre: MarkdownCodeBlock }}
-        >
-          {lesson.content || ''}
-        </ReactMarkdown>
+      {/* La tarjeta ocupa el ancho de la pagina; la columna de texto va dentro,
+          centrada y con la medida por defecto de `prose` (~65ch). Antes tenia
+          `max-w-none`, que la estiraba a 110-120 caracteres por linea. */}
+      <div className="card p-6">
+        <div className="prose prose-slate mx-auto">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeHighlight]}
+            components={MARKDOWN_COMPONENTS}
+          >
+            {lesson.content || ''}
+          </ReactMarkdown>
+        </div>
       </div>
 
       <div className="card p-6 space-y-4">
