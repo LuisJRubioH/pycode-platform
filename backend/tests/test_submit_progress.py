@@ -225,3 +225,49 @@ async def test_completed_flag_is_per_user(client, user_a, user_b):
         await client.get(f"/api/v1/lessons/{lesson_id}", headers=user_b["headers"])
     ).json()
     assert [ex["completed"] for ex in for_b["exercises"]] == [False, False]
+
+
+@pytest.mark.asyncio
+async def test_completed_survives_a_later_failed_attempt(client, user_a):
+    """Un intento fallido posterior a uno exitoso NO des-completa el ejercicio.
+
+    Los tres endpoints que exponen el flag comparten la misma regla
+    (``progress_service.completed_exercise_ids``), así que deben coincidir.
+    Antes, ``/exercises/lesson/{id}`` miraba solo la ÚLTIMA submission y
+    contestaba distinto que el progreso de la lección.
+    """
+    lesson_id, ex_ids = await _seed_lesson(1)
+
+    await client.post(
+        f"/api/v1/exercises/{ex_ids[0]}/submit",
+        json=_submit_payload(ex_ids[0]),
+        headers=user_a["headers"],
+    )
+    # ...y luego el alumno vuelve, rompe su solución y la envía fallida.
+    await client.post(
+        f"/api/v1/exercises/{ex_ids[0]}/submit",
+        json={
+            "exercise_id": ex_ids[0],
+            "code": "roto",
+            "success": False,
+            "passed_tests": 0,
+            "total_tests": 3,
+        },
+        headers=user_a["headers"],
+    )
+
+    detail = (
+        await client.get(f"/api/v1/lessons/{lesson_id}", headers=user_a["headers"])
+    ).json()
+    listado = (
+        await client.get(
+            f"/api/v1/exercises/lesson/{lesson_id}", headers=user_a["headers"]
+        )
+    ).json()
+    progress = await _get_progress(user_a["id"], lesson_id)
+
+    assert detail["exercises"][0]["completed"] is True
+    assert listado[0]["completed"] is True
+    assert listado[0]["attempts"] == 2
+    assert progress.status == "completed"
+    assert progress.progress == 100

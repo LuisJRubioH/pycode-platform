@@ -169,9 +169,12 @@ const LessonDetail: React.FC = () => {
                 )}
 
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <button onClick={() => practiceExercise(exercise)} className="btn-primary">
+                  <button
+                    onClick={() => practiceExercise(exercise)}
+                    className={exercise.completed ? 'btn-secondary' : 'btn-primary'}
+                  >
                     <Code2 className="h-4 w-4 mr-2" />
-                    Practicar en editor
+                    {exercise.completed ? 'Revisar' : 'Practicar en editor'}
                   </button>
                   <button
                     onClick={() => {

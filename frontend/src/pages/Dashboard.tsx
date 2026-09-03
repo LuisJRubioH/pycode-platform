@@ -183,7 +183,7 @@ const Dashboard: React.FC = () => {
                 <div key={index} className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
                   <div className="flex items-center gap-3">
                     <div className={`w-2 h-2 rounded-full ${
-                      activity.result === 'passed' ? 'bg-green-500' : 'bg-primary-500'
+                      activity.result === 'success' ? 'bg-green-500' : 'bg-primary-500'
                     }`} />
                     <div>
                       <p className="text-sm font-medium text-slate-900">{activity.title}</p>
@@ -191,11 +191,11 @@ const Dashboard: React.FC = () => {
                     </div>
                   </div>
                   <span className={`text-xs px-2 py-1 rounded-full ${
-                    activity.result === 'passed' 
+                    activity.result === 'success' 
                       ? 'bg-green-100 text-green-700' 
                       : 'bg-primary-100 text-primary-700'
                   }`}>
-                    {activity.result === 'passed' ? 'Completado' : 'Intentado'}
+                    {activity.result === 'success' ? 'Completado' : 'Intentado'}
                   </span>
                 </div>
               ))

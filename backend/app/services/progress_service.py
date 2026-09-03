@@ -6,7 +6,9 @@ lo consume. Regla:
 
 - Un ejercicio cuenta como *hecho* cuando el usuario tiene al menos una
   ``CodeSubmission`` con ``result == "success"`` para ese ejercicio (dedup por
-  ``exercise_id``: N submissions exitosas cuentan una sola vez).
+  ``exercise_id``: N submissions exitosas cuentan una sola vez). Esa regla vive
+  en ``completed_exercise_ids`` y **nadie la reimplementa**: la llaman este
+  módulo, ``GET /lessons/{id}`` y ``GET /exercises/lesson/{id}``.
 - ``progress`` (0-100) = ejercicios_hechos / ejercicios_totales de la lección.
 - ``status`` = ``"completed"`` cuando *todos* los ejercicios de la lección
   están hechos; ``"in_progress"`` en cualquier otro caso una vez que hay fila.
@@ -21,11 +23,43 @@ por lo que el cliente nunca puede reportar ``success`` y no se auto-completan
 """
 
 from datetime import datetime
+from typing import Iterable
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.learning import CodeSubmission, Exercise, UserProgress
+
+
+async def completed_exercise_ids(
+    db: AsyncSession, user_id: int, exercise_ids: Iterable[int]
+) -> set[int]:
+    """Cuáles de ``exercise_ids`` tiene *hechos* ``user_id``.
+
+    Fuente de verdad única de "ejercicio completado": al menos una
+    ``CodeSubmission`` con ``result == "success"``, deduplicado por
+    ``exercise_id``. Un intento fallido posterior a uno exitoso NO lo
+    des-completa.
+
+    Cualquier endpoint que necesite el flag debe llamar aquí en vez de
+    repetir la query: si la regla cambia (p. ej. ejercicios opcionales),
+    cambia en un solo sitio.
+    """
+    ids = list(exercise_ids)
+    if not ids:
+        return set()
+    rows = (
+        await db.execute(
+            select(CodeSubmission.exercise_id)
+            .where(
+                CodeSubmission.user_id == user_id,
+                CodeSubmission.exercise_id.in_(ids),
+                CodeSubmission.result == "success",
+            )
+            .distinct()
+        )
+    ).all()
+    return {row[0] for row in rows}
 
 
 async def recompute_lesson_progress(
@@ -45,20 +79,7 @@ async def recompute_lesson_progress(
     total = len(ex_rows)
     points_by_ex = {row[0]: (row[1] or 0) for row in ex_rows}
 
-    completed_ids: set[int] = set()
-    if ex_rows:
-        sub_rows = (
-            await db.execute(
-                select(CodeSubmission.exercise_id)
-                .where(
-                    CodeSubmission.user_id == user_id,
-                    CodeSubmission.exercise_id.in_(points_by_ex.keys()),
-                    CodeSubmission.result == "success",
-                )
-                .distinct()
-            )
-        ).all()
-        completed_ids = {row[0] for row in sub_rows}
+    completed_ids = await completed_exercise_ids(db, user_id, points_by_ex.keys())
 
     completed = len(completed_ids)
     score = sum(points_by_ex[eid] for eid in completed_ids)

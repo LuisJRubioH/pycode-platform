@@ -11,9 +11,16 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.user import User
-from app.models.learning import CodeSubmission, Lesson, UserProgress
-from app.schemas.learning import LessonResponse, LessonListResponse
-from app.services.progress_service import recompute_lesson_progress
+from app.models.learning import Lesson, UserProgress
+from app.schemas.learning import (
+    ExerciseResponse,
+    LessonResponse,
+    LessonListResponse,
+)
+from app.services.progress_service import (
+    completed_exercise_ids,
+    recompute_lesson_progress,
+)
 
 router = APIRouter()
 
@@ -115,39 +122,19 @@ async def get_lesson(
 
     sorted_exercises = sorted(lesson.exercises, key=lambda exercise: exercise.order)
 
-    # Qué ejercicios tiene ya aprobados el usuario. Misma regla que
-    # progress_service (>= 1 submission con result == "success", dedup por
-    # exercise_id); el editor la usa para marcar el ejercicio activo como
-    # hecho sin pedir un endpoint aparte.
-    completed_ids: set[int] = set()
-    if sorted_exercises:
-        rows = await db.execute(
-            select(CodeSubmission.exercise_id)
-            .where(
-                CodeSubmission.user_id == current_user.id,
-                CodeSubmission.exercise_id.in_(
-                    [exercise.id for exercise in sorted_exercises]
-                ),
-                CodeSubmission.result == "success",
-            )
-            .distinct()
-        )
-        completed_ids = {row[0] for row in rows.all()}
+    # Qué ejercicios tiene ya aprobados el usuario, con la regla única de
+    # progress_service. La UI la usa para el badge "Hecho" de cada tarjeta y
+    # para marcar el ejercicio activo del editor.
+    completed_ids = await completed_exercise_ids(
+        db, current_user.id, [exercise.id for exercise in sorted_exercises]
+    )
 
+    # El payload sale del propio schema, no de un dict campo por campo: así
+    # un campo nuevo en ExerciseResponse no se pierde en silencio aquí.
     exercises_payload = [
-        {
-            "id": exercise.id,
-            "lesson_id": exercise.lesson_id,
-            "title": exercise.title,
-            "description": exercise.description,
-            "instructions": exercise.instructions,
-            "starter_code": exercise.starter_code,
-            "difficulty": exercise.difficulty,
-            "points": exercise.points,
-            "order": exercise.order,
-            "hints": exercise.hints or [],
-            "completed": exercise.id in completed_ids,
-        }
+        ExerciseResponse.model_validate(exercise).model_copy(
+            update={"completed": exercise.id in completed_ids}
+        )
         for exercise in sorted_exercises
     ]
 

@@ -5,14 +5,17 @@ Exercises endpoints.
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.database import get_db
 from app.core.security import get_current_active_user
 from app.models.code_evaluation import CodeEvaluation
 from app.models.user import User
 from app.models.learning import Exercise, CodeSubmission
-from app.services.progress_service import recompute_lesson_progress
+from app.services.progress_service import (
+    completed_exercise_ids,
+    recompute_lesson_progress,
+)
 from app.schemas.evaluation import (
     EvaluationHistoryItem,
     EvaluationHistoryOut,
@@ -39,23 +42,26 @@ async def get_lesson_exercises(
     )
     exercises = result.scalars().all()
 
-    # Get submissions for these exercises
     exercise_ids = [ex.id for ex in exercises]
-    submissions_result = await db.execute(
-        select(CodeSubmission)
-        .where(
-            CodeSubmission.user_id == current_user.id,
-            CodeSubmission.exercise_id.in_(exercise_ids),
-        )
-        .order_by(CodeSubmission.created_at.desc())
-    )
-    submissions = submissions_result.scalars().all()
 
-    # Create submission map (exercise_id -> latest submission)
-    submission_map = {}
-    for sub in submissions:
-        if sub.exercise_id not in submission_map:
-            submission_map[sub.exercise_id] = sub
+    # `completed` sale de la regla única de progress_service. Antes se miraba
+    # solo la ÚLTIMA submission, así que un intento fallido posterior a uno
+    # exitoso des-completaba el ejercicio aquí pero no en el progreso: dos
+    # respuestas distintas para la misma pregunta.
+    completed_ids = await completed_exercise_ids(db, current_user.id, exercise_ids)
+
+    # Los intentos sí son un conteo bruto de submissions.
+    attempts_rows = (
+        await db.execute(
+            select(CodeSubmission.exercise_id, func.count(CodeSubmission.id))
+            .where(
+                CodeSubmission.user_id == current_user.id,
+                CodeSubmission.exercise_id.in_(exercise_ids),
+            )
+            .group_by(CodeSubmission.exercise_id)
+        )
+    ).all()
+    attempts_by_ex = {row[0]: row[1] for row in attempts_rows}
 
     return [
         {
@@ -66,9 +72,8 @@ async def get_lesson_exercises(
             "points": ex.points,
             "starter_code": ex.starter_code,
             "hints": ex.hints[:1] if ex.hints else [],
-            "completed": getattr(submission_map.get(ex.id), "result", None)
-            == "success",
-            "attempts": len([s for s in submissions if s.exercise_id == ex.id]),
+            "completed": ex.id in completed_ids,
+            "attempts": attempts_by_ex.get(ex.id, 0),
         }
         for ex in exercises
     ]
@@ -109,23 +114,28 @@ async def submit_exercise(
         total_tests == 0 or passed_tests == total_tests
     )
 
-    # ¿El usuario ya tenía este ejercicio aprobado?
-    prior_success = (
-        await db.execute(
-            select(CodeSubmission)
-            .where(
-                CodeSubmission.user_id == current_user.id,
-                CodeSubmission.exercise_id == exercise_id,
-                CodeSubmission.result == "success",
-            )
-            .order_by(CodeSubmission.created_at.desc())
-            .limit(1)
-        )
-    ).scalar_one_or_none()
+    # ¿El usuario ya tenía este ejercicio aprobado? La decisión la toma la
+    # regla única de progress_service; la query de abajo solo recupera la fila
+    # que hay que devolver.
+    already_passed = exercise_id in await completed_exercise_ids(
+        db, current_user.id, [exercise_id]
+    )
 
     # Reintento de un ejercicio ya aprobado: no dupliques submission/XP/intentos.
     # Igual recomputamos por si el progreso quedó desincronizado (legacy).
-    if prior_success is not None and is_success:
+    if already_passed and is_success:
+        prior_success = (
+            await db.execute(
+                select(CodeSubmission)
+                .where(
+                    CodeSubmission.user_id == current_user.id,
+                    CodeSubmission.exercise_id == exercise_id,
+                    CodeSubmission.result == "success",
+                )
+                .order_by(CodeSubmission.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
         await recompute_lesson_progress(db, current_user.id, exercise.lesson_id)
         await db.commit()
         return prior_success

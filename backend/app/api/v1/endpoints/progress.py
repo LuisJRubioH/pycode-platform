@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.core.database import get_db
+from app.services.progress_service import completed_exercise_ids
 from app.core.security import get_current_active_user
 from app.core.tracks import TRACK_TITLES
 from app.models.user import User
@@ -169,17 +170,11 @@ async def get_competencies(
     for lesson_id, ex_id in ex_rows:
         lesson_ex_ids.setdefault(lesson_id, []).append(ex_id)
 
-    sub_rows = (
-        await db.execute(
-            select(CodeSubmission.exercise_id)
-            .where(
-                CodeSubmission.user_id == current_user.id,
-                CodeSubmission.result == "success",
-            )
-            .distinct()
-        )
-    ).all()
-    successful_ex_ids = {row[0] for row in sub_rows}
+    successful_ex_ids = await completed_exercise_ids(
+        db,
+        current_user.id,
+        [ex_id for ids in lesson_ex_ids.values() for ex_id in ids],
+    )
 
     by_category: dict[str, dict] = {}
     for lesson in lessons:
@@ -292,20 +287,9 @@ async def get_track_status(
             exercise_ids = [row[0] for row in ex_rows]
         exercises_total = len(exercise_ids)
 
-        completed_exercises = 0
-        if exercise_ids:
-            sub_rows = (
-                await db.execute(
-                    select(CodeSubmission.exercise_id)
-                    .where(
-                        CodeSubmission.user_id == current_user.id,
-                        CodeSubmission.exercise_id.in_(exercise_ids),
-                        CodeSubmission.result == "success",
-                    )
-                    .distinct()
-                )
-            ).all()
-            completed_exercises = len({row[0] for row in sub_rows})
+        completed_exercises = len(
+            await completed_exercise_ids(db, current_user.id, exercise_ids)
+        )
 
         capstone_slug = None
         capstone_title = None
