@@ -39,9 +39,7 @@ async def recompute_lesson_progress(
     """
     ex_rows = (
         await db.execute(
-            select(Exercise.id, Exercise.points).where(
-                Exercise.lesson_id == lesson_id
-            )
+            select(Exercise.id, Exercise.points).where(Exercise.lesson_id == lesson_id)
         )
     ).all()
     total = len(ex_rows)
@@ -78,9 +76,7 @@ async def recompute_lesson_progress(
 
     now = datetime.utcnow()
     if progress is None:
-        progress = UserProgress(
-            user_id=user_id, lesson_id=lesson_id, started_at=now
-        )
+        progress = UserProgress(user_id=user_id, lesson_id=lesson_id, started_at=now)
         db.add(progress)
 
     progress.score = score

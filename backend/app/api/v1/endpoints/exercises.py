@@ -144,9 +144,7 @@ async def submit_exercise(
     db.add(code_submission)
     await db.flush()  # la submission entra en el cálculo de recompute
 
-    progress = await recompute_lesson_progress(
-        db, current_user.id, exercise.lesson_id
-    )
+    progress = await recompute_lesson_progress(db, current_user.id, exercise.lesson_id)
     progress.attempts = (progress.attempts or 0) + 1
 
     await db.commit()
