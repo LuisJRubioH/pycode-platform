@@ -258,9 +258,21 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             "    retiros = retiros + 1\n"
             "print(saldo, retiros)     # 10 3  (baja 30 tres veces: 70, 40, 10)\n"
             "```\n"
-            "La linea que cambia la condicion es obligatoria. Si `saldo` no bajara\n"
-            "nunca, el bucle no terminaria jamas: eso es un **bucle infinito**, y\n"
-            "en el editor te deja la pestana colgada hasta que salta el timeout.\n\n"
+            "La linea que cambia la condicion es **obligatoria**. Sin ella el bucle\n"
+            "no termina jamas:\n"
+            "```python\n"
+            "# ESTO NO LO EJECUTES: es un bucle infinito\n"
+            "saldo = 100\n"
+            "while saldo >= 30:\n"
+            "    print('retirando...')   # falta la linea que baja el saldo,\n"
+            "                            # asi que la condicion es True para siempre\n"
+            "```\n"
+            "En el editor de PyCode un bucle infinito **bloquea el sandbox**: tu\n"
+            "codigo corre en un worker que se queda dando vueltas sin soltar el\n"
+            "control, deja de responder a Ejecutar y a Ejecutar tests, y hay que\n"
+            "recargar la pagina para recuperarlo. Antes de ejecutar un `while`,\n"
+            "busca con el dedo la linea que acerca la condicion a ser falsa. Si no\n"
+            "la encuentras, es que no esta.\n\n"
             "## break: cortar el bucle\n"
             "`break` sale del bucle inmediatamente, sin mirar los elementos que\n"
             "quedaban:\n"
@@ -520,28 +532,24 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                     "del sensor. En UN solo recorrido con `for`:\n\n"
                     "- salta los -999 con `continue`;\n"
                     "- junta las validas en la lista `validas`;\n"
-                    "- deja en `maxima` la mayor y en `minima` la menor;\n"
-                    "- deja en `promedio` la media de las validas, redondeada a un "
-                    "decimal con `round(x, 1)`.\n\n"
-                    "No uses `max()`, `min()` ni `sum()`: la gracia es llevar los "
+                    "- deja en `maxima` la mayor y en `minima` la menor.\n\n"
+                    "No uses `max()` ni `min()`: la gracia es llevar los "
                     "acumuladores a mano."
                 ),
                 starter_code=(
                     "temperaturas = [18, -999, 24, 31, -999, 12, 27]\n"
                     "validas = []\n"
-                    "suma = 0\n"
                     "maxima = None\n"
-                    "minima = None\n"
-                    "promedio = 0\n\n"
+                    "minima = None\n\n"
                     "# TODO: un solo for sobre temperaturas\n"
                 ),
                 hints=[
                     "Primero el if t == -999: continue; asi el resto del cuerpo solo "
                     "ve lecturas validas.",
+                    "Arrancan en None porque todavia no sabes que valores hay: el "
+                    "primero valido sera a la vez el maximo y el minimo.",
                     "Para el maximo: if maxima is None or t > maxima: maxima = t",
-                    "La suma se acumula dentro del bucle; el promedio se calcula al "
-                    "final, fuera.",
-                    "promedio = round(suma / len(validas), 1)",
+                    "El minimo es el mismo patron cambiando > por <.",
                 ],
                 difficulty="hard",
                 points=25,
@@ -560,10 +568,10 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                         ),
                     },
                     {
-                        "name": "el promedio ignora los fallos del sensor",
+                        "name": "maxima y minima son lecturas reales, no inventadas",
                         "code": (
-                            "assert promedio == 22.4, "
-                            "f'promedio vale {promedio}, esperaba 22.4'"
+                            "assert maxima in validas, 'maxima no es ninguna de las lecturas'\n"
+                            "assert minima in validas, 'minima no es ninguna de las lecturas'"
                         ),
                     },
                     {
