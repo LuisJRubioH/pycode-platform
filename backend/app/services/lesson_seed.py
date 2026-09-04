@@ -194,44 +194,384 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
     ),
     LessonTemplate(
         title="Bucles for y while",
-        description="Iteraciones, range y control con break/continue.",
+        description=(
+            "Repetir trabajo con for y while, generar numeros con range, "
+            "acumular resultados y cortar o saltar vueltas con break y continue."
+        ),
         content=(
-            "## for\n"
-            "- Recorre elementos o rangos.\n"
-            "- `range(inicio, fin, paso)`\n\n"
-            "## while\n"
-            "- Repite mientras se cumpla una condicion.\n"
-            "- Evita bucles infinitos actualizando estado.\n"
+            "## Por que los bucles\n"
+            "Sin bucles, procesar 500 ventas significa escribir 500 lineas casi\n"
+            "identicas. Con un bucle escribes **una vez** la instruccion y le\n"
+            "dices a Python cuantas veces repetirla. Es la diferencia entre un\n"
+            "programa que sirve para un caso y uno que sirve para cualquier\n"
+            "cantidad de datos.\n\n"
+            "## for: recorrer una secuencia\n"
+            "`for` toma los elementos de algo que se puede recorrer (una lista,\n"
+            "un texto) y ejecuta el cuerpo una vez por elemento:\n"
+            "```python\n"
+            "notas = [7, 9, 4]\n"
+            "for nota in notas:       # 'nota' vale 7, luego 9, luego 4\n"
+            "    print(nota * 10)     # imprime 70, luego 90, luego 40\n\n"
+            "for letra in 'sol':      # un string se recorre caracter a caracter\n"
+            "    print(letra)         # imprime s, luego o, luego l\n"
+            "```\n"
+            "La variable del bucle (`nota`, `letra`) la creas tu ahi mismo y\n"
+            "cambia en cada vuelta. El cuerpo va **indentado**: la indentacion es\n"
+            "lo que marca que una linea esta dentro del bucle.\n\n"
+            "## range: fabricar numeros\n"
+            "Cuando quieres repetir N veces o recorrer numeros, `range` los\n"
+            "genera sin que tengas que escribirlos:\n"
+            "```python\n"
+            "range(5)          # 0, 1, 2, 3, 4  -> arranca en 0, NO incluye el 5\n"
+            "range(2, 6)       # 2, 3, 4, 5     -> desde 2 hasta 5\n"
+            "range(0, 10, 3)   # 0, 3, 6, 9     -> de 3 en 3\n"
+            "range(5, 0, -1)   # 5, 4, 3, 2, 1  -> paso negativo, cuenta al reves\n\n"
+            "for i in range(3):\n"
+            "    print(i)      # imprime 0, luego 1, luego 2\n"
+            "```\n"
+            "El final **nunca se incluye**. Los numeros del 1 al 10 son\n"
+            "`range(1, 11)`, no `range(1, 10)`.\n\n"
+            "## Acumuladores: el patron que mas vas a usar\n"
+            "Para sumar, contar o juntar cosas se usa siempre la misma forma: una\n"
+            "variable **antes** del bucle y una actualizacion **dentro**.\n"
+            "```python\n"
+            "total = 0                    # 1) arranca FUERA del bucle\n"
+            "for precio in [10, 25, 8]:\n"
+            "    total = total + precio   # 2) se actualiza en cada vuelta\n"
+            "print(total)                 # 43\n\n"
+            "pares = []                   # tambien sirve para juntar en una lista\n"
+            "for n in range(1, 7):\n"
+            "    if n % 2 == 0:           # solo los pares\n"
+            "        pares.append(n)      # append agrega al final\n"
+            "print(pares)                 # [2, 4, 6]\n"
+            "```\n"
+            "`total += precio` es una forma corta de escribir\n"
+            "`total = total + precio`.\n\n"
+            "## while: repetir mientras se cumpla una condicion\n"
+            "`for` sirve cuando sabes cuantas vueltas son. `while` sirve cuando lo\n"
+            "que sabes es la **condicion de parada**:\n"
+            "```python\n"
+            "saldo = 100\n"
+            "retiros = 0\n"
+            "while saldo >= 30:        # se comprueba ANTES de cada vuelta\n"
+            "    saldo = saldo - 30    # sin esta linea saldo nunca bajaria\n"
+            "    retiros = retiros + 1\n"
+            "print(saldo, retiros)     # 10 3  (baja 30 tres veces: 70, 40, 10)\n"
+            "```\n"
+            "La linea que cambia la condicion es obligatoria. Si `saldo` no bajara\n"
+            "nunca, el bucle no terminaria jamas: eso es un **bucle infinito**, y\n"
+            "en el editor te deja la pestana colgada hasta que salta el timeout.\n\n"
+            "## break: cortar el bucle\n"
+            "`break` sale del bucle inmediatamente, sin mirar los elementos que\n"
+            "quedaban:\n"
+            "```python\n"
+            "for n in [4, 7, -2, 9]:\n"
+            "    if n < 0:\n"
+            "        print('negativo encontrado')  # se imprime una sola vez\n"
+            "        break                         # corta aqui: el 9 no se mira\n"
+            "    print(n)                          # imprime 4, luego 7\n"
+            "```\n"
+            "Es el patron de 'busca el primero que cumpla X y para': en cuanto lo\n"
+            "encuentras no tiene sentido seguir recorriendo.\n\n"
+            "## continue: saltar a la siguiente vuelta\n"
+            "`continue` **no** sale del bucle: se salta el resto del cuerpo y pasa\n"
+            "al siguiente elemento.\n"
+            "```python\n"
+            "suma = 0\n"
+            "for n in [5, -1, 3, -8]:\n"
+            "    if n < 0:\n"
+            "        continue        # ignora este y sigue con el siguiente\n"
+            "    suma = suma + n     # NO se ejecuta para -1 ni para -8\n"
+            "print(suma)             # 8  (solo sumo 5 y 3)\n"
+            "```\n"
+            "Regla practica: `break` es 'ya termine'; `continue` es 'este no me\n"
+            "sirve, siguiente'.\n\n"
+            "## Errores comunes\n"
+            "- Esperar que `range(1, 5)` incluya el 5. No lo incluye: son 1, 2, 3\n"
+            "  y 4. Para llegar al 5 se escribe `range(1, 6)`.\n"
+            "- Poner el acumulador DENTRO del bucle (`total = 0` indentado). Se\n"
+            "  reinicia en cada vuelta y al final vale solo lo ultimo. Va fuera.\n"
+            "- `while` cuya condicion nunca cambia: bucle infinito. Antes de\n"
+            "  ejecutar, comprueba que en el cuerpo hay una linea que acerca la\n"
+            "  condicion a ser falsa.\n"
+            "- Usar `break` cuando querias `continue`. Con `break` descartas\n"
+            "  tambien todo lo que venia despues, no solo el elemento actual.\n"
+            "- Modificar una lista mientras la recorres con `for`. Los indices se\n"
+            "  desplazan y acabas saltandote elementos; construye una lista nueva.\n\n"
+            "## Resumen\n"
+            "- `for` recorre una secuencia elemento a elemento; `while` repite\n"
+            "  mientras una condicion sea verdadera.\n"
+            "- `range(inicio, fin, paso)` fabrica numeros y **nunca incluye** el\n"
+            "  final.\n"
+            "- Acumulador: variable fuera del bucle, actualizacion dentro.\n"
+            "- `break` corta el bucle entero; `continue` salta solo esta vuelta.\n"
+            "- Todo `while` necesita una linea que acerque la condicion al final.\n"
         ),
         difficulty="beginner",
         category="control-flujo",
         order=4,
-        estimated_duration=35,
+        estimated_duration=45,
         prerequisites_titles=["Condicionales y Logica"],
         exercises=[
             ExerciseTemplate(
-                title="Suma acumulada",
-                description="Acumula valores 1..n.",
-                instructions="Calcula la suma de 1 a `n` (10) usando for e imprime el resultado (55).",
-                starter_code="n = 10\n# TODO\n",
+                title="Tabla del 7",
+                description="Genera una tabla de multiplicar con for y range.",
+                instructions=(
+                    "Usando un `for` con `range`, construye la lista `tabla` con "
+                    "los diez primeros multiplos de 7: del 7x1 al 7x10. Debe "
+                    "quedar [7, 14, 21, ..., 70]."
+                ),
+                starter_code=(
+                    "tabla = []\n\n"
+                    "# TODO: recorre range(1, 11) y ve agregando cada multiplo\n"
+                ),
+                hints=[
+                    "range(1, 11) da los numeros del 1 al 10 (el 11 no entra).",
+                    "Dentro del bucle: tabla.append(7 * i)",
+                ],
+                difficulty="easy",
+                points=10,
                 hidden_tests=[
                     {
-                        "name": "suma 1..10 = 55",
-                        "code": "assert '55' in _salida, ('esperaba 55', _salida)",
+                        "name": "tabla tiene los 10 multiplos, en orden",
+                        "code": (
+                            "assert tabla == [7, 14, 21, 28, 35, 42, 49, 56, 63, 70], "
+                            "f'tabla vale {tabla}'"
+                        ),
+                    },
+                    {
+                        "name": "son numeros, no texto",
+                        "code": (
+                            "assert all(isinstance(x, int) for x in tabla), "
+                            "'los elementos deben ser enteros, no strings'"
+                        ),
                     },
                 ],
             ),
             ExerciseTemplate(
-                title="Contador while",
-                description="Cuenta hacia atras.",
-                instructions="Imprime de 5 a 1 (un numero por linea) usando while.",
-                starter_code="# TODO\n",
+                title="Cuenta atras con while",
+                description="Repite mientras se cumpla una condicion.",
+                instructions=(
+                    "Con un bucle `while` (no uses `for`), construye la lista "
+                    "`cuenta` con los numeros del 5 al 1 en ese orden: "
+                    "[5, 4, 3, 2, 1]. Empieza en 5 y ve bajando."
+                ),
+                starter_code=(
+                    "cuenta = []\n"
+                    "n = 5\n\n"
+                    "# TODO: mientras n sea mayor o igual que 1, agrega n y bajalo\n"
+                ),
+                hints=[
+                    "La condicion del while es n >= 1.",
+                    "Dentro del bucle, despues de agregar, resta: n = n - 1. Sin esa "
+                    "linea el bucle no termina nunca.",
+                ],
+                difficulty="easy",
+                points=10,
                 hidden_tests=[
                     {
-                        "name": "imprime 5,4,3,2,1 en orden",
+                        "name": "cuenta baja de 5 a 1",
+                        "code": "assert cuenta == [5, 4, 3, 2, 1], f'cuenta vale {cuenta}'",
+                    },
+                    {
+                        "name": "el bucle termino de verdad",
                         "code": (
-                            "nums = [x for x in _salida.split() if x.lstrip('-').isdigit()]\n"
-                            "assert nums[:5] == ['5', '4', '3', '2', '1'], nums"
+                            "assert n <= 0, 'n deberia haber bajado hasta salir del while'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Descartar lecturas invalidas",
+                description="Salta los elementos que no sirven con continue.",
+                instructions=(
+                    "El sensor guarda un -1 cuando falla la medicion. Recorre "
+                    "`lecturas` con un `for` y usa `continue` para saltarte los -1. "
+                    "Deja en `total` la suma de las lecturas validas y en "
+                    "`descartadas` cuantos -1 te encontraste."
+                ),
+                starter_code=(
+                    "lecturas = [12, -1, 8, 20, -1, 5]\n"
+                    "total = 0\n"
+                    "descartadas = 0\n\n"
+                    "# TODO: recorre lecturas; si vale -1, cuenta y salta con continue\n"
+                ),
+                hints=[
+                    "El if va dentro del for: if lectura == -1:",
+                    "Suma 1 a descartadas ANTES del continue, o no lo contaras.",
+                    "Tras el continue, la linea que suma a total ya no se ejecuta en "
+                    "esa vuelta.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "total suma solo las lecturas validas",
+                        "code": "assert total == 45, f'total vale {total}, esperaba 45'",
+                    },
+                    {
+                        "name": "cuenta bien las descartadas",
+                        "code": (
+                            "assert descartadas == 2, "
+                            "f'descartadas vale {descartadas}, esperaba 2'"
+                        ),
+                    },
+                    {
+                        "name": "no se colaron los -1 en la suma",
+                        "code": (
+                            "assert total != 43, "
+                            "'sumaste tambien los -1: revisa donde pones el continue'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Parar en el primer negativo",
+                description="Corta el recorrido en cuanto encuentras lo que buscas.",
+                instructions=(
+                    "Recorre `movimientos` sumando en `total`, pero para con `break` "
+                    "en cuanto encuentres un numero negativo. Guarda en `posicion` el "
+                    "indice de ese negativo. Si no hubiera ninguno, `posicion` se "
+                    "queda en -1."
+                ),
+                starter_code=(
+                    "movimientos = [10, 25, 8, -3, 40, 12]\n"
+                    "total = 0\n"
+                    "posicion = -1\n\n"
+                    "# TODO: recorre con range(len(movimientos)) para tener el indice\n"
+                ),
+                hints=[
+                    "range(len(movimientos)) te da 0, 1, 2, ... y con i accedes a "
+                    "movimientos[i].",
+                    "Comprueba si es negativo ANTES de sumarlo al total.",
+                    "Guarda posicion = i y justo despues break.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "total suma solo hasta antes del negativo",
+                        "code": "assert total == 43, f'total vale {total}, esperaba 43'",
+                    },
+                    {
+                        "name": "posicion apunta al negativo",
+                        "code": (
+                            "assert posicion == 3, f'posicion vale {posicion}, esperaba 3'"
+                        ),
+                    },
+                    {
+                        "name": "el break corto de verdad",
+                        "code": (
+                            "assert total != 92, "
+                            "'seguiste sumando despues del negativo: falta el break'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Buscar el primer multiplo comun",
+                description="Combina while con break para buscar sin saber cuantas vueltas son.",
+                instructions=(
+                    "Encuentra el primer numero mayor que 0 divisible a la vez por 6 "
+                    "y por 8. Usa un `while True` y sal con `break` cuando lo "
+                    "encuentres. Deja el numero en `encontrado` y en `intentos` "
+                    "cuantos numeros probaste, contando el bueno."
+                ),
+                starter_code=(
+                    "encontrado = 0\n"
+                    "intentos = 0\n"
+                    "n = 1\n\n"
+                    "# TODO: while True, prueba n; si cumple guarda y break, si no sube n\n"
+                ),
+                hints=[
+                    "Divisible por 6 y por 8 es: n % 6 == 0 and n % 8 == 0",
+                    "Suma 1 a intentos al principio del cuerpo, en cada vuelta.",
+                    "Si no cumple: n = n + 1 y el while vuelve a empezar.",
+                    "Sin el break, un while True no termina nunca.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "encuentra el 24",
+                        "code": "assert encontrado == 24, f'encontrado vale {encontrado}'",
+                    },
+                    {
+                        "name": "cuenta los intentos",
+                        "code": (
+                            "assert intentos == 24, "
+                            "f'intentos vale {intentos}: probaste del 1 al 24, son 24'"
+                        ),
+                    },
+                    {
+                        "name": "es divisible por los dos",
+                        "code": (
+                            "assert encontrado % 6 == 0 and encontrado % 8 == 0\n"
+                            "assert encontrado > 0"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Resumen de temperaturas",
+                description="Encadena for, continue y acumuladores en un solo recorrido.",
+                instructions=(
+                    "`temperaturas` trae mediciones y algunos -999, que son fallos "
+                    "del sensor. En UN solo recorrido con `for`:\n\n"
+                    "- salta los -999 con `continue`;\n"
+                    "- junta las validas en la lista `validas`;\n"
+                    "- deja en `maxima` la mayor y en `minima` la menor;\n"
+                    "- deja en `promedio` la media de las validas, redondeada a un "
+                    "decimal con `round(x, 1)`.\n\n"
+                    "No uses `max()`, `min()` ni `sum()`: la gracia es llevar los "
+                    "acumuladores a mano."
+                ),
+                starter_code=(
+                    "temperaturas = [18, -999, 24, 31, -999, 12, 27]\n"
+                    "validas = []\n"
+                    "suma = 0\n"
+                    "maxima = None\n"
+                    "minima = None\n"
+                    "promedio = 0\n\n"
+                    "# TODO: un solo for sobre temperaturas\n"
+                ),
+                hints=[
+                    "Primero el if t == -999: continue; asi el resto del cuerpo solo "
+                    "ve lecturas validas.",
+                    "Para el maximo: if maxima is None or t > maxima: maxima = t",
+                    "La suma se acumula dentro del bucle; el promedio se calcula al "
+                    "final, fuera.",
+                    "promedio = round(suma / len(validas), 1)",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "validas excluye los -999",
+                        "code": (
+                            "assert validas == [18, 24, 31, 12, 27], f'validas vale {validas}'"
+                        ),
+                    },
+                    {
+                        "name": "maxima y minima son correctas",
+                        "code": (
+                            "assert maxima == 31, f'maxima vale {maxima}'\n"
+                            "assert minima == 12, f'minima vale {minima}'"
+                        ),
+                    },
+                    {
+                        "name": "el promedio ignora los fallos del sensor",
+                        "code": (
+                            "assert promedio == 22.4, "
+                            "f'promedio vale {promedio}, esperaba 22.4'"
+                        ),
+                    },
+                    {
+                        "name": "los -999 no contaminaron ningun acumulador",
+                        "code": (
+                            "assert minima != -999, 'el -999 se colo en minima'\n"
+                            "assert len(validas) == 5, "
+                            "f'validas tiene {len(validas)} elementos, esperaba 5'"
                         ),
                     },
                 ],
