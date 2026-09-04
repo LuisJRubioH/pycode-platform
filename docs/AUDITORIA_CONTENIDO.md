@@ -165,7 +165,7 @@ no se explica en ninguna parte antes.
 
 | Lección | Concepto | Qué se le pide al alumno |
 |---|---|---|
-| **8 · POO en Python** | `class`, `self` | "Clase Producto" y "Cuenta bancaria" le piden **escribir una clase entera**. La palabra `class` y el parámetro `self` **no aparecen en ninguna lección de la plataforma**. El contenido dice *"Clase define estructura/comportamiento"* en prosa y menciona `__init__` en una viñeta, sin una sola línea de código. |
+| **8 · POO en Python** | `class`, `self` | El `starter_code` **sí trae la clase escrita**; el alumno añade métodos dentro. Pero el contenido de la lección no muestra `class` ni `self` ni un método: dice *"Clase define estructura/comportamiento"* en prosa y menciona `__init__` en una viñeta, sin una línea de código. Su única exposición a la sintaxis es el andamio que le piden extender. *(Corregido 2026-09-03: una versión anterior de este documento decía "escribir una clase entera", que era inexacto.)* |
 | **12 · Pandas esencial** | `groupby` | El ejercicio "Promedio por curso (groupby)" exige `groupby`, que se enseña en la lección **13**, la siguiente. Dependencia hacia adelante. |
 | **39 · AI 2 · Chunking** | `raise` | "Partir texto en chunks" pide *"Lanza `ValueError`"*. `raise` no se enseña en ninguna lección: la que le correspondería, "Comprensiones y Manejo de Errores" (id 7), tiene 243 caracteres y ningún ejemplo. |
 | **4 · Bucles for y while** | `break`, `continue` | Caso distinto y peor en un sentido: **la propia `description` de la lección los promete** y el `content` no los menciona. La lección anuncia algo que no entrega. |
