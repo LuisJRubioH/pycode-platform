@@ -37,7 +37,8 @@ en uno). **Estado a 2026-09-03**:
 | 2 — Navegación del editor | ✅ implementado (`6e82b1f`, `b694db2`) — se hizo **sin autorización previa** |
 | 3 — Warning de pyarrow | ✅ cerrado (`9e47395`) — se hizo fuera de turno, pero el usuario decidió mantenerlo |
 | 4 — Densidad de contenido | ⏳ pendiente. **Auditoría hecha**: [docs/AUDITORIA_CONTENIDO.md](docs/AUDITORIA_CONTENIDO.md) inventaría las 40 lecciones y demuestra que el problema no es la densidad de ejercicios sino que **las 10 lecciones de Track 1 no tienen contenido** (208 chars de media, 1 bloque de código entre las 10). Enunciados a revisión ANTES de seedear |
-| 5 — Presentación de la lección | ⏳ pendiente (piloto en UNA lección antes de propagar) |
+| 5 — Presentación de la lección | 🚧 typography + resaltado + copiar + ancho de línea hechos; queda decidir el índice con anclas |
+| **Contenido de Track 1** | 🚧 auditado ([AUDITORIA_CONTENIDO.md](docs/AUDITORIA_CONTENIDO.md)) + plantilla lista ([PLANTILLA_LECCION.md](docs/PLANTILLA_LECCION.md)). Siguiente: lección piloto "Bucles for y while" para aprobación, luego las otras nueve. El Bloque 4 queda fusionado aquí: los ejercicios se escriben con su lección, no aparte |
 | 6 — Documentación desalineada | ✅ cerrado (`docs/historico/`) |
 | 7 — Barrido de problemas | ⏳ pendiente (solo listar, no implementar) |
 
