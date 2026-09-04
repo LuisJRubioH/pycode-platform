@@ -116,3 +116,26 @@ async def test_async_session_visible_after_test():
     async with async_session_maker() as session:
         rows = (await session.execute(select(Exercise))).scalars().all()
         assert isinstance(rows, list)
+
+
+@pytest.mark.asyncio
+async def test_todos_los_ejercicios_del_seed_son_aprobables():
+    """Ningún ExerciseTemplate puede quedarse sin `hidden_tests`.
+
+    Sin tests ocultos el cliente Pyodide nunca puede reportar ``success``, así
+    que el ejercicio es imposible de aprobar y su lección se queda clavada
+    para siempre por debajo del 100%. Pasó con "Refactor a modulo" y "Prueba
+    de calculadora", y dejó Track 1 entero sin poder completarse.
+    """
+    from app.services.lesson_seed import LESSON_TEMPLATES
+
+    sin_tests = [
+        f"{leccion.title} -> {ejercicio.title}"
+        for leccion in LESSON_TEMPLATES
+        for ejercicio in leccion.exercises
+        if not ejercicio.hidden_tests
+    ]
+    assert not sin_tests, (
+        "estos ejercicios no se pueden aprobar por falta de hidden_tests: "
+        f"{sin_tests}"
+    )

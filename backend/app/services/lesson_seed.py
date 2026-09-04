@@ -460,6 +460,26 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             "## Modulos\n"
             "- Un archivo `.py` es un modulo.\n"
             "- Importa con `import` o `from ... import ...`.\n\n"
+            "## El guard `if __name__ == '__main__'`\n"
+            "Cuando Python ejecuta un archivo directamente le pone a la variable\n"
+            "`__name__` el valor `'__main__'`. Cuando ese mismo archivo se\n"
+            "importa desde otro, `__name__` pasa a ser el nombre del modulo\n"
+            "(`'utils'`). Por eso el codigo de prueba se protege:\n\n"
+            "```python\n"
+            "def normalizar(texto):\n"
+            "    return texto.strip().lower()\n\n"
+            "if __name__ == '__main__':\n"
+            "    # solo corre si ejecutas ESTE archivo, no al importarlo\n"
+            "    print(normalizar('  HOLA  '))\n"
+            "```\n"
+            "Sin el guard, importar `utils` ejecutaria tambien sus pruebas.\n\n"
+            "> **Nota honesta sobre el editor de PyCode**: este patron no lo\n"
+            "> puedes comprobar aqui. El editor ejecuta tu codigo en un namespace\n"
+            "> propio donde `__name__` vale `'builtins'`, asi que el bloque del\n"
+            "> guard nunca entra. Es una limitacion del sandbox del navegador, no\n"
+            "> de tu codigo: en un Python normal funciona como esta descrito.\n"
+            "> Preferimos decirtelo a que te vuelvas loco buscando por que no\n"
+            "> imprime nada.\n\n"
             "## Entornos virtuales\n"
             "- Aislan dependencias por proyecto.\n"
             "- Usa `python -m venv .venv` y activa antes de instalar paquetes.\n"
@@ -472,10 +492,74 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
         exercises=[
             ExerciseTemplate(
                 title="Refactor a modulo",
-                description="Separacion por archivos.",
-                instructions="Divide funciones en un modulo `utils.py` y consumelo desde `main.py`.",
-                starter_code="# main.py\n# TODO\n",
+                description="Saca las funciones a su propio modulo y consumelas importandolas.",
+                instructions=(
+                    "Crea un modulo `utils.py` con dos funciones y usalo desde "
+                    "este archivo:\n\n"
+                    "- `normalizar(texto)`: devuelve el texto sin espacios a los "
+                    "lados y en minusculas.\n"
+                    "- `es_valido(texto)`: devuelve True si el texto normalizado "
+                    "no esta vacio.\n\n"
+                    "Escribe el archivo con `Path('utils.py').write_text(...)`, "
+                    "anade `'.'` a `sys.path` e importalo con `import utils`. Las "
+                    "funciones deben vivir DENTRO de utils.py: aqui solo se "
+                    "importan, no se definen."
+                ),
+                starter_code=(
+                    "from pathlib import Path\n"
+                    "import sys\n\n"
+                    "# Python cachea en sys.modules los modulos ya importados. Sin\n"
+                    "# esta linea, si corriges utils.py y vuelves a ejecutar,\n"
+                    "# seguirias usando la version vieja.\n"
+                    "sys.modules.pop('utils', None)\n\n"
+                    "Path('utils.py').write_text(\n"
+                    "    # TODO: el contenido de utils.py, como texto\n"
+                    "    ''\n"
+                    ")\n\n"
+                    "if '.' not in sys.path:\n"
+                    "    sys.path.insert(0, '.')\n\n"
+                    "import utils\n"
+                ),
+                hints=[
+                    "El contenido de utils.py es un string; cuida los saltos de linea.",
+                    "sys.path.insert(0, '.') hace que Python busque modulos en el directorio actual.",
+                    "Si editas utils.py y no ves el cambio, es el cache: sys.modules.pop('utils', None).",
+                ],
                 difficulty="medium",
+                hidden_tests=[
+                    {
+                        "name": "utils.py existe en el sistema de archivos",
+                        "code": (
+                            "from pathlib import Path\n"
+                            "assert Path('utils.py').exists(), 'no creaste el archivo utils.py'"
+                        ),
+                    },
+                    {
+                        "name": "utils es un modulo de verdad, cargado desde tu archivo",
+                        "code": (
+                            "import types\n"
+                            "assert isinstance(utils, types.ModuleType), "
+                            "'utils deberia ser un modulo importado'\n"
+                            "assert utils.__file__.endswith('utils.py'), "
+                            "f'utils viene de {utils.__file__}'"
+                        ),
+                    },
+                    {
+                        "name": "normalizar y es_valido viven dentro del modulo",
+                        "code": (
+                            "assert utils.normalizar('  HOLA  ') == 'hola'\n"
+                            "assert utils.es_valido('x') is True\n"
+                            "assert utils.es_valido('   ') is False"
+                        ),
+                    },
+                    {
+                        "name": "las funciones NO estan sueltas en el archivo principal",
+                        "code": (
+                            "assert 'normalizar' not in globals(), "
+                            "'normalizar debe vivir en utils.py, no en el archivo principal'"
+                        ),
+                    },
+                ],
             ),
         ],
     ),
@@ -498,11 +582,103 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
         exercises=[
             ExerciseTemplate(
                 title="Prueba de calculadora",
-                description="Escribe tus primeros tests.",
-                instructions="Crea tests para suma, resta y division por cero.",
-                starter_code="# test_calculadora.py\n# TODO\n",
+                description="Escribe las funciones y los tests que las verifican.",
+                instructions=(
+                    "En el mismo archivo, define la calculadora y sus pruebas.\n\n"
+                    "Funciones: `sumar(a, b)`, `restar(a, b)` y `dividir(a, b)`. "
+                    "`dividir` debe lanzar `ValueError` si `b` es 0.\n\n"
+                    "Tests, con el nombre exacto: `test_sumar`, `test_restar` y "
+                    "`test_dividir_por_cero`. Cada uno comprueba su funcion con "
+                    "`assert`; para el error usa `pytest.raises(ValueError)`.\n\n"
+                    "Ojo: un test que pasa siempre no vale. Los tests ocultos "
+                    "rompen tus funciones a proposito y comprueban que TUS tests "
+                    "se dan cuenta."
+                ),
+                starter_code=(
+                    "import pytest\n\n\n"
+                    "def sumar(a, b):\n"
+                    "    ...\n\n\n"
+                    "def restar(a, b):\n"
+                    "    ...\n\n\n"
+                    "def dividir(a, b):\n"
+                    "    # lanza ValueError si b == 0\n"
+                    "    ...\n\n\n"
+                    "def test_sumar():\n"
+                    "    ...\n\n\n"
+                    "def test_restar():\n"
+                    "    ...\n\n\n"
+                    "def test_dividir_por_cero():\n"
+                    "    # with pytest.raises(ValueError):\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Un test es una funcion normal que empieza por test_ y usa assert.",
+                    "Para comprobar que algo lanza: with pytest.raises(ValueError): dividir(1, 0)",
+                    "Si tu test pasa aunque rompas la funcion, es que no comprueba nada.",
+                ],
                 difficulty="hard",
                 points=20,
+                hidden_tests=[
+                    {
+                        "name": "las tres funciones se comportan",
+                        "code": (
+                            "assert sumar(2, 3) == 5, 'sumar(2, 3) deberia dar 5'\n"
+                            "assert restar(5, 2) == 3, 'restar(5, 2) deberia dar 3'\n"
+                            "assert dividir(6, 3) == 2.0, 'dividir(6, 3) deberia dar 2.0'"
+                        ),
+                    },
+                    {
+                        "name": "dividir por cero lanza ValueError",
+                        "code": (
+                            "try:\n"
+                            "    dividir(1, 0)\n"
+                            "except ValueError:\n"
+                            "    pass\n"
+                            "else:\n"
+                            "    raise AssertionError('dividir(1, 0) deberia lanzar ValueError')"
+                        ),
+                    },
+                    {
+                        "name": "escribiste los tres tests con prefijo test_",
+                        "code": (
+                            "faltan = [n for n in ('test_sumar', 'test_restar', "
+                            "'test_dividir_por_cero') if not callable(globals().get(n))]\n"
+                            "assert not faltan, f'faltan estos tests: {faltan}'"
+                        ),
+                    },
+                    {
+                        "name": "tus tests pasan con tu implementacion",
+                        "code": "test_sumar()\ntest_restar()\ntest_dividir_por_cero()",
+                    },
+                    {
+                        "name": "tu test detecta un bug: sumar rota",
+                        "code": (
+                            "def sumar(a, b):\n"
+                            "    return 0\n"
+                            "try:\n"
+                            "    test_sumar()\n"
+                            "except BaseException:\n"
+                            "    pass\n"
+                            "else:\n"
+                            "    raise AssertionError('test_sumar pasa aunque sumar "
+                            "este rota: no comprueba nada')"
+                        ),
+                    },
+                    {
+                        "name": "tu test detecta un bug: dividir deja de lanzar",
+                        "code": (
+                            "def dividir(a, b):\n"
+                            "    return 0\n"
+                            "try:\n"
+                            "    test_dividir_por_cero()\n"
+                            "except BaseException:\n"
+                            "    pass\n"
+                            "else:\n"
+                            "    raise AssertionError('test_dividir_por_cero pasa aunque "
+                            "dividir ya no lance ValueError')"
+                        ),
+                    },
+                ],
             ),
         ],
     ),

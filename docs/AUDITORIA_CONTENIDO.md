@@ -214,6 +214,63 @@ El 3 fijo de los Tracks 2-5 no es casualidad: es la plantilla del piloto de
 Track 2, replicada 30 veces. Subir el listón a 6 no es "rellenar", es cambiar la
 plantilla.
 
+## Restricciones del runner que condicionan la reescritura
+
+Verificadas ejecutando Pyodide 0.26.4 con el mismo modelo que
+`Kernel.runTests` (namespace fresco por test, `studentCode` + test
+concatenados). **Condicionan qué se puede pedir en un ejercicio de Track 1**,
+así que hay que tenerlas delante al redactar.
+
+### `__name__` vale `'builtins'`, no `'__main__'`
+
+El runner ejecuta con `runPythonAsync(program, {globals: ns})` sobre un dict
+nuevo, así que **el bloque `if __name__ == "__main__":` nunca entra**.
+
+Consecuencia: el patrón del *main guard* —material estándar de fundamentos—
+**no se puede ejercitar ni verificar**. Un `hidden_test` sobre él pasaría por
+la razón equivocada (el cuerpo no se ejecuta nunca, escriba lo que escriba el
+alumno) y, peor, enseñaría un comportamiento distinto del de Python real.
+
+**Decisión tomada (2026-09-03): no se extiende el runner por un solo patrón.**
+Se explica como teoría en "Modulos, Paquetes y Entornos", con una nota
+explícita de que en el editor de PyCode no se puede ejecutar y por qué. Que el
+alumno conozca la diferencia es mejor que ocultársela.
+
+### `sys.modules` cachea entre ejecuciones de la misma sesión
+
+El intérprete de Pyodide vive mientras dure la pestaña, así que
+`sys.modules` **sobrevive de una ejecución a la siguiente** aunque el
+namespace sea nuevo.
+
+Efecto observado en un ejercicio que crea e importa un módulo: el alumno
+escribe `utils.py` con un bug, corrige el archivo, vuelve a ejecutar... y sigue
+viendo el comportamiento viejo, porque `import utils` devuelve el objeto
+cacheado. Sin saberlo es enloquecedor.
+
+**Mitigación obligatoria** en el starter code de cualquier ejercicio que
+importe un módulo escrito por el alumno:
+
+```python
+sys.modules.pop('utils', None)
+```
+
+Comprobado: sin esa línea gana el caché obsoleto; con ella, correcto. De paso
+es una buena excusa para explicar cómo funciona realmente el `import`.
+
+### Lo que sí se puede hacer, y no es obvio
+
+- **pytest 8.1.1 está disponible** en Pyodide (`loadPackage('pytest')`), así
+  que `pytest.raises` funciona en los ejercicios.
+- **El sistema de archivos es escribible**: el alumno puede
+  `Path('utils.py').write_text(...)`, meter `'.'` en `sys.path` e importarlo de
+  verdad. `utils` queda como un `types.ModuleType` con `__file__` real. Es la
+  única forma de ejercitar "módulos" sin tocar el runner, que solo soporta
+  multiarchivo en `runCapstoneTests`.
+- **Un `hidden_test` puede romper el código del alumno a propósito** y
+  comprobar que sus tests se dan cuenta: redefinir su función en el test y
+  verificar que su `test_*` falla. Sirve para que "escribe un test" no se
+  apruebe con `assert True`.
+
 ## Qué sale de aquí
 
 Ordenado por daño al estudiante, no por esfuerzo:
@@ -221,8 +278,10 @@ Ordenado por daño al estudiante, no por esfuerzo:
 1. **Track 1 completo (10 lecciones)**: reescritura, no ampliación. Es el 25%
    del temario, el primer contacto de alguien que entra sin saber programar, y
    la base de la que dependen los tracks siguientes vía referencias cruzadas.
-2. **Los 2 ejercicios sin `hidden_tests`** (ids 9, 10): mientras sigan así,
-   Track 1 es imposible de completar. Es el arreglo más barato de la lista.
+2. ~~**Los 2 ejercicios sin `hidden_tests`** (ids 9, 10)~~ — **RESUELTO
+   2026-09-03.** Ambos se rediseñaron (no bastaba con añadirles tests: sus
+   enunciados no eran ejecutables en el runner) y un test de regresión impide
+   que vuelva a colarse un ejercicio sin `hidden_tests`.
 3. **Los 4 huecos de concepto**, empezando por POO: un ejercicio que pide
    escribir una clase sin que la plataforma haya mostrado nunca `class`.
 4. **Densidad de ejercicios**: 132 nuevos para llegar a 6 por lección. El
