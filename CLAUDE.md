@@ -36,7 +36,7 @@ en uno). **Estado a 2026-09-03**:
 | 1 — Progreso que no se persiste | ✅ cerrado y **verificado en producción por el usuario** |
 | 2 — Navegación del editor | ✅ implementado (`6e82b1f`, `b694db2`) — se hizo **sin autorización previa** |
 | 3 — Warning de pyarrow | ✅ cerrado (`9e47395`) — se hizo fuera de turno, pero el usuario decidió mantenerlo |
-| 4 — Densidad de contenido | ⏳ pendiente (empezar por "Pandas esencial", enunciados a revisión ANTES de seedear) |
+| 4 — Densidad de contenido | ⏳ pendiente. **Auditoría hecha**: [docs/AUDITORIA_CONTENIDO.md](docs/AUDITORIA_CONTENIDO.md) inventaría las 40 lecciones y demuestra que el problema no es la densidad de ejercicios sino que **las 10 lecciones de Track 1 no tienen contenido** (208 chars de media, 1 bloque de código entre las 10). Enunciados a revisión ANTES de seedear |
 | 5 — Presentación de la lección | ⏳ pendiente (piloto en UNA lección antes de propagar) |
 | 6 — Documentación desalineada | ✅ cerrado (`docs/historico/`) |
 | 7 — Barrido de problemas | ⏳ pendiente (solo listar, no implementar) |
