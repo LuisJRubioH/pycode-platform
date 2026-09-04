@@ -588,54 +588,399 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
     ),
     LessonTemplate(
         title="Funciones y Parametros",
-        description="Definir funciones, retorno y argumentos por defecto.",
-        content=(
-            "## Funcion\n"
-            "Una funcion encapsula una tarea reutilizable.\n\n"
-            "## Reglas\n"
-            "- Usa `return` para devolver resultados.\n"
-            "- Prefiere funciones cortas con una responsabilidad.\n"
-            "- Documenta inputs/salidas en comentarios o docstring.\n"
+        description=(
+            "Definir funciones con def, devolver resultados con return, "
+            "parametros, argumentos por defecto y alcance de las variables."
         ),
-        difficulty="intermediate",
+        content=(
+            "## Por que las funciones\n"
+            "En la leccion anterior escribiste bucles que resolvian UN caso\n"
+            "concreto. Una **funcion** empaqueta esa logica bajo un nombre para\n"
+            "poder usarla con datos distintos, tantas veces como quieras, sin\n"
+            "copiar y pegar. Y si mañana cambia la regla, la cambias en un solo\n"
+            "sitio en vez de en las quince copias que habias repartido.\n\n"
+            "## def: definir y llamar\n"
+            "Definir una funcion es darle nombre a un bloque de codigo. Llamarla\n"
+            "es ejecutarlo:\n"
+            "```python\n"
+            "def saludar():              # def, nombre, parentesis y dos puntos\n"
+            "    print('Hola')           # el cuerpo va indentado, como en un bucle\n\n"
+            "saludar()                   # imprime Hola\n"
+            "saludar()                   # imprime Hola otra vez\n"
+            "```\n"
+            "Definir **no ejecuta nada**: Python solo toma nota de que la funcion\n"
+            "existe. El cuerpo corre cuando la llamas, y una sola definicion vale\n"
+            "para infinitas llamadas.\n\n"
+            "Justo debajo del `def` puedes poner un **docstring**, un texto entre\n"
+            "triples comillas que explica que hace la funcion:\n"
+            "```python\n"
+            "def saludar():\n"
+            "    '''Imprime un saludo por pantalla.'''   # docstring, para quien lea\n"
+            "    print('Hola')\n\n"
+            "print(saludar.__doc__)      # Imprime un saludo por pantalla.\n"
+            "```\n\n"
+            "## return: devolver no es imprimir\n"
+            "`print` muestra algo en pantalla. `return` **entrega un valor** a\n"
+            "quien llamo la funcion, para poder guardarlo y seguir operando:\n"
+            "```python\n"
+            "def doble_print(n):\n"
+            "    print(n * 2)            # muestra el resultado y no devuelve nada\n\n"
+            "def doble_return(n):\n"
+            "    return n * 2            # ENTREGA el resultado\n\n"
+            "x = doble_print(5)          # imprime 10\n"
+            "print(x)                    # None  <- la funcion no devolvio nada\n"
+            "y = doble_return(5)         # no imprime nada\n"
+            "print(y + 1)                # 11    <- y vale 10 y se puede operar\n"
+            "```\n"
+            "Una funcion sin `return` devuelve `None`. Confundir `print` con\n"
+            "`return` es **el** error numero uno al empezar con funciones.\n\n"
+            "`return` ademas **termina** la funcion: lo que venga despues no se\n"
+            "ejecuta.\n"
+            "```python\n"
+            "def primer_positivo(numeros):\n"
+            "    for n in numeros:\n"
+            "        if n > 0:\n"
+            "            return n        # sale en cuanto encuentra uno\n"
+            "    return 0                # solo llega aqui si no hubo ninguno\n\n"
+            "print(primer_positivo([-3, -1, 7, 9]))   # 7\n"
+            "print(primer_positivo([-3, -1]))         # 0\n"
+            "```\n\n"
+            "## Parametros: la entrada de la funcion\n"
+            "Los **parametros** son los nombres que la funcion usa para sus datos\n"
+            "de entrada. Los **argumentos** son los valores concretos con los que\n"
+            "la llamas:\n"
+            "```python\n"
+            "def area_rectangulo(base, altura):   # base y altura son PARAMETROS\n"
+            "    return base * altura\n\n"
+            "print(area_rectangulo(3, 4))         # 12  <- 3 y 4 son ARGUMENTOS\n"
+            "print(area_rectangulo(10, 2))        # 20  <- otros argumentos\n"
+            "```\n"
+            "El orden importa: el primer valor va al primer parametro.\n\n"
+            "## Argumentos por defecto y por nombre\n"
+            "Un parametro puede traer un valor por defecto, que se usa cuando no\n"
+            "pasas ese argumento:\n"
+            "```python\n"
+            "def saludar(nombre, prefijo='Hola'):       # prefijo tiene defecto\n"
+            "    return f'{prefijo}, {nombre}!'         # f-string: mete valores\n\n"
+            "print(saludar('Ana'))                      # Hola, Ana!\n"
+            "print(saludar('Ana', 'Buenas'))            # Buenas, Ana!\n"
+            "print(saludar(nombre='Ana', prefijo='Ey')) # Ey, Ana!  <- por nombre\n"
+            "```\n"
+            "Los parametros con valor por defecto van **siempre al final** de la\n"
+            "lista. Si no, Python no sabria a cual asignar cada argumento.\n\n"
+            "## Variables locales: lo de dentro se queda dentro\n"
+            "Las variables que creas dentro de una funcion existen solo mientras\n"
+            "la funcion se ejecuta:\n"
+            "```python\n"
+            "# FALLA A PROPOSITO en la ultima linea\n"
+            "def calcular():\n"
+            "    resultado = 42          # variable LOCAL de calcular\n"
+            "    return resultado\n\n"
+            "print(calcular())           # 42\n"
+            "print(resultado)            # NameError: aqui fuera no existe\n"
+            "```\n"
+            "Por eso una funcion se comunica con el exterior por dos sitios: los\n"
+            "parametros por donde entra la informacion, y el `return` por donde\n"
+            "sale.\n\n"
+            "## Errores comunes\n"
+            "- Usar `print` donde hacia falta `return`. La funcion muestra el\n"
+            "  numero pero devuelve `None`, y al operar con el resultado salta un\n"
+            "  `TypeError`. Si necesitas el valor para algo, devuelvelo.\n"
+            "- Olvidar los parentesis al llamar: `saludar` es la funcion como\n"
+            "  objeto; `saludar()` la ejecuta. Sin parentesis no pasa nada.\n"
+            "- Poner codigo despues de un `return` esperando que corra. En cuanto\n"
+            "  se ejecuta el `return`, la funcion termina ahi mismo.\n"
+            "- Escribir un parametro con defecto antes de uno normal, como\n"
+            "  `def f(a=1, b)`: es un SyntaxError. Los que tienen defecto al final.\n"
+            "- Intentar leer fuera una variable creada dentro: `NameError`. Si la\n"
+            "  necesitas fuera, sacala con `return`.\n\n"
+            "## Resumen\n"
+            "- `def nombre(parametros):` define la funcion; `nombre(argumentos)`\n"
+            "  la ejecuta.\n"
+            "- `return` entrega un valor y termina la funcion; sin `return` una\n"
+            "  funcion devuelve `None`.\n"
+            "- `print` muestra por pantalla, `return` devuelve: no son lo mismo.\n"
+            "- Los parametros con valor por defecto van al final y permiten\n"
+            "  llamadas mas cortas.\n"
+            "- Lo que se crea dentro de la funcion no existe fuera de ella.\n"
+        ),
+        difficulty="beginner",
         category="funciones",
         order=5,
-        estimated_duration=35,
+        estimated_duration=50,
         prerequisites_titles=["Bucles for y while"],
         exercises=[
             ExerciseTemplate(
                 title="Area de rectangulo",
-                description="Funcion con retorno.",
-                instructions="Implementa `area_rectangulo(base, altura)`.",
-                starter_code="def area_rectangulo(base: float, altura: float) -> float:\n    # TODO\n    pass\n",
+                description="Tu primera funcion que devuelve un valor.",
+                instructions=(
+                    "Define `area_rectangulo(base, altura)` que **devuelva** el "
+                    "area (base por altura). Cuidado: tiene que devolverla con "
+                    "`return`, no imprimirla."
+                ),
+                starter_code=(
+                    "def area_rectangulo(base, altura):\n"
+                    "    # TODO: devuelve el area\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "El area de un rectangulo es base * altura.",
+                    "Usa return, no print: los tests necesitan el valor de vuelta.",
+                ],
+                difficulty="easy",
+                points=10,
                 hidden_tests=[
                     {
-                        "name": "rectangulo 3x4 da 12",
-                        "code": "assert area_rectangulo(3, 4) == 12",
+                        "name": "calcula el area de varios rectangulos",
+                        "code": (
+                            "assert area_rectangulo(3, 4) == 12\n"
+                            "assert area_rectangulo(10, 2) == 20\n"
+                            "assert area_rectangulo(1, 1) == 1"
+                        ),
                     },
                     {
-                        "name": "soporta floats (2.5 x 4 = 10.0)",
-                        "code": "assert abs(area_rectangulo(2.5, 4) - 10.0) < 1e-9",
-                    },
-                    {
-                        "name": "altura 0 da 0",
-                        "code": "assert area_rectangulo(7, 0) == 0",
+                        "name": "devuelve el valor en vez de imprimirlo",
+                        "code": (
+                            "r = area_rectangulo(5, 5)\n"
+                            "assert r is not None, "
+                            "'la funcion devuelve None: usaste print en vez de return'\n"
+                            "assert r == 25"
+                        ),
                     },
                 ],
             ),
             ExerciseTemplate(
                 title="Saludo configurable",
-                description="Parametro por defecto.",
-                instructions="Implementa `saludar(nombre, prefijo='Hola')`.",
-                starter_code="def saludar(nombre: str, prefijo: str = 'Hola') -> str:\n    # TODO\n    pass\n",
+                description="Un parametro con valor por defecto.",
+                instructions=(
+                    "Define `saludar(nombre, prefijo='Hola')` que devuelva el texto "
+                    "formado por el prefijo, una coma, un espacio, el nombre y un "
+                    "signo de exclamacion. Por ejemplo `saludar('Ana')` devuelve "
+                    "`Hola, Ana!` y `saludar('Ana', 'Buenas')` devuelve `Buenas, Ana!`."
+                ),
+                starter_code=(
+                    "def saludar(nombre, prefijo='Hola'):\n"
+                    "    # TODO: devuelve el saludo completo\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Con f-string: f'{prefijo}, {nombre}!'",
+                    "Fijate en la coma, el espacio y el signo de exclamacion final.",
+                ],
+                difficulty="easy",
+                points=10,
                 hidden_tests=[
                     {
-                        "name": "prefijo por defecto",
-                        "code": "assert saludar('Ana') == 'Hola, Ana'",
+                        "name": "usa el prefijo por defecto",
+                        "code": (
+                            "obtenido = saludar('Ana')\n"
+                            "assert obtenido == 'Hola, Ana!', f'devolvio {obtenido!r}'"
+                        ),
                     },
                     {
-                        "name": "prefijo personalizado",
-                        "code": "assert saludar('Luis', prefijo='Hey') == 'Hey, Luis'",
+                        "name": "acepta un prefijo distinto",
+                        "code": (
+                            "assert saludar('Ana', 'Buenas') == 'Buenas, Ana!'\n"
+                            "assert saludar('Beto', 'Ey') == 'Ey, Beto!'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Precio con descuento",
+                description="Un valor por defecto que hace opcional el segundo argumento.",
+                instructions=(
+                    "Define `precio_final(precio, descuento=0)` que devuelva el "
+                    "precio tras aplicarle ese porcentaje de descuento, redondeado "
+                    "a dos decimales con `round(x, 2)`. Sin descuento devuelve el "
+                    "precio tal cual: `precio_final(100)` es 100.0, y "
+                    "`precio_final(100, 20)` es 80.0."
+                ),
+                starter_code=(
+                    "def precio_final(precio, descuento=0):\n"
+                    "    # TODO: aplica el descuento y redondea a 2 decimales\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Un 20% de descuento deja el 80%: precio * (100 - descuento) / 100",
+                    "Envuelve el resultado en round(..., 2).",
+                    "Con descuento=0 la formula ya devuelve el precio original: no "
+                    "necesitas un if.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "sin descuento devuelve el precio",
+                        "code": "assert precio_final(100) == 100.0",
+                    },
+                    {
+                        "name": "aplica el porcentaje",
+                        "code": (
+                            "assert precio_final(100, 20) == 80.0\n"
+                            "assert precio_final(50, 50) == 25.0"
+                        ),
+                    },
+                    {
+                        "name": "redondea a dos decimales",
+                        "code": (
+                            "obtenido = precio_final(59.99, 10)\n"
+                            "assert obtenido == 53.99, f'devolvio {obtenido}'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Contar palabras",
+                description="Una funcion que resuelve tambien el caso borde.",
+                instructions=(
+                    "Define `contar_palabras(texto)` que devuelva cuantas palabras "
+                    "tiene el texto. Las palabras van separadas por espacios y los "
+                    "espacios de sobra no cuentan. Un texto vacio tiene 0 palabras."
+                ),
+                starter_code=(
+                    "def contar_palabras(texto):\n"
+                    "    # TODO: devuelve el numero de palabras\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "texto.split() parte por espacios y descarta los sobrantes.",
+                    "len() de esa lista es el numero de palabras.",
+                    "Con el texto vacio, split() devuelve una lista vacia y su len "
+                    "ya es 0: no hace falta un caso especial.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "cuenta palabras normales",
+                        "code": (
+                            "assert contar_palabras('hola mundo') == 2\n"
+                            "assert contar_palabras('una sola frase de cinco') == 5"
+                        ),
+                    },
+                    {
+                        "name": "los espacios de sobra no cuentan",
+                        "code": (
+                            "obtenido = contar_palabras('   espacios    raros   ')\n"
+                            "assert obtenido == 2, f'devolvio {obtenido}'"
+                        ),
+                    },
+                    {
+                        "name": "el texto vacio tiene 0 palabras",
+                        "code": (
+                            "vacio = str()\n"
+                            "assert contar_palabras(vacio) == 0\n"
+                            "assert contar_palabras('    ') == 0"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Resumen de notas",
+                description="Recorre una lista dentro de una funcion y devuelve varios datos.",
+                instructions=(
+                    "Define `resumen(notas)` que recorra la lista y devuelva una "
+                    "tupla con tres valores en este orden: la nota **minima**, la "
+                    "**maxima** y cuantas notas estan **aprobadas** (5 o mas).\n\n"
+                    "Si la lista viene vacia, devuelve `(None, None, 0)`.\n\n"
+                    "No uses `max()`, `min()` ni `sum()`: llevalos a mano como en "
+                    "la leccion de bucles."
+                ),
+                starter_code=(
+                    "def resumen(notas):\n"
+                    "    # TODO: recorre notas y devuelve (minima, maxima, aprobadas)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Empieza con minima = None, maxima = None y aprobadas = 0.",
+                    "Si la lista esta vacia el bucle no da ni una vuelta, asi que "
+                    "esos valores iniciales ya son la respuesta correcta.",
+                    "Para el maximo: if maxima is None or n > maxima: maxima = n",
+                    "Devolver varios valores es return minima, maxima, aprobadas",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "devuelve minima, maxima y aprobadas",
+                        "code": (
+                            "obtenido = resumen([3, 7, 5, 9, 2])\n"
+                            "assert obtenido == (2, 9, 3), f'devolvio {obtenido}'"
+                        ),
+                    },
+                    {
+                        "name": "cuenta como aprobado el 5 justo",
+                        "code": (
+                            "assert resumen([5])[2] == 1, 'un 5 esta aprobado'\n"
+                            "assert resumen([4, 4, 4])[2] == 0"
+                        ),
+                    },
+                    {
+                        "name": "la lista vacia no rompe la funcion",
+                        "code": (
+                            "obtenido = resumen([])\n"
+                            "assert obtenido == (None, None, 0), f'devolvio {obtenido}'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Normalizar una lista de nombres",
+                description="Encadena parametro por defecto, bucle, continue y return.",
+                instructions=(
+                    "Define `normalizar(nombres, mayusculas=False)` que devuelva "
+                    "una lista NUEVA donde cada nombre:\n\n"
+                    "- pierde los espacios de los lados (`.strip()`);\n"
+                    "- se salta con `continue` si al quitarle los espacios no queda "
+                    "nada;\n"
+                    "- queda con la primera letra en mayuscula (`.title()`), o "
+                    "entero en mayusculas (`.upper()`) si `mayusculas` es True.\n\n"
+                    "La lista original no se toca."
+                ),
+                starter_code=(
+                    "def normalizar(nombres, mayusculas=False):\n"
+                    "    # TODO: construye y devuelve una lista nueva\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Crea la lista de salida dentro de la funcion, antes del bucle.",
+                    "limpio = nombre.strip(); si len(limpio) == 0, continue.",
+                    "El if de mayusculas decide entre limpio.upper() y limpio.title().",
+                    "Devuelve la lista nueva al final, fuera del bucle.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "limpia espacios y descarta los vacios",
+                        "code": (
+                            "obtenido = normalizar(['  ana ', '   ', 'BETO'])\n"
+                            "assert obtenido == ['Ana', 'Beto'], f'devolvio {obtenido}'"
+                        ),
+                    },
+                    {
+                        "name": "el parametro por defecto pone solo la inicial",
+                        "code": (
+                            "assert normalizar(['carla']) == ['Carla']\n"
+                            "assert normalizar(['DIEGO']) == ['Diego']"
+                        ),
+                    },
+                    {
+                        "name": "con mayusculas=True devuelve todo en mayusculas",
+                        "code": (
+                            "obtenido = normalizar(['  ana ', 'BETO'], mayusculas=True)\n"
+                            "assert obtenido == ['ANA', 'BETO'], f'devolvio {obtenido}'"
+                        ),
+                    },
+                    {
+                        "name": "no modifica la lista original",
+                        "code": (
+                            "original = ['  ana ', '   ', 'BETO']\n"
+                            "normalizar(original)\n"
+                            "assert original == ['  ana ', '   ', 'BETO'], "
+                            "'modificaste la lista que te pasaron; construye una nueva'"
+                        ),
                     },
                 ],
             ),

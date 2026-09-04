@@ -94,20 +94,18 @@ def detectar_huecos() -> set[tuple[str, str, str]]:
     return huecos
 
 
-# Congelado a 2026-09-03. Cada línea es deuda de contenido con dueño conocido:
-# las de Track 1 se cierran al reescribirlo (punto 3 del plan de contenido).
+# Deuda de contenido viva. Se encoge segun avanza la reescritura de Track 1
+# (plan en docs/PLANTILLA_LECCION.md): 13 huecos el 2026-09-03, 8 tras
+# reescribir "Funciones y Parametros".
 HUECOS_CONOCIDOS: set[tuple[str, str, str]] = {
-    # "Funciones y Parametros" no muestra una sola definición de función.
-    ("Funciones y Parametros", "Area de rectangulo", "def"),
-    ("Funciones y Parametros", "Saludo configurable", "def"),
-    ("Comprensiones y Manejo de Errores", "Division segura", "def"),
+    # Los 5 huecos de `def` se cerraron el 2026-09-03 al reescribir
+    # "Funciones y Parametros", que ahora lo ensena con ejemplos ejecutables.
     # POO: el starter trae la clase hecha, pero la lección no muestra
-    # ni `class`, ni `self`, ni un método. Solo prosa y una viñeta.
-    ("POO en Python", "Clase Producto", "def"),
+    # ni `class`, ni `self`, ni `__init__` en un bloque de código. Se cierra
+    # al reescribirla (paso 3 del plan de Track 1).
     ("POO en Python", "Clase Producto", "class"),
     ("POO en Python", "Clase Producto", "self"),
     ("POO en Python", "Clase Producto", "__init__"),
-    ("POO en Python", "Cuenta bancaria", "def"),
     ("POO en Python", "Cuenta bancaria", "class"),
     ("POO en Python", "Cuenta bancaria", "self"),
     ("POO en Python", "Cuenta bancaria", "__init__"),
