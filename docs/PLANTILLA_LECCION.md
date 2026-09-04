@@ -194,6 +194,13 @@ correcto —esos temas existen aunque flojos—, pero al reescribir 1-3 hay que 
 la 5 y comprobar que los ejemplos encajan con lo que para entonces se enseñe de
 verdad. Se acepta a cambio de cerrar `def` cuanto antes.
 
+**Las f-strings se enseñan en "Funciones y Parámetros" (lección 5), fuera de su
+sitio.** Se usaban en varios ejemplos sin haberse enseñado nunca, así que la 5 las
+introduce sobre la marcha para no dejar el agujero. Por temario pertenecen a
+"Variables y Tipos" (lección 2). Al reescribir la 2 hay que decidir si se mueven allí
+y la 5 pasa a darlas por sabidas, o si se quedan donde están y la 2 solo las repasa.
+El test de prerequisitos **no** cubre esto: las f-strings no están en `CONCEPTOS`.
+
 **No rehacer los ejercicios ya validados de las lecciones 8, 9 y 10.** "Refactor a
 modulo" (lección 9) y "Prueba de calculadora" (lección 10) se rediseñaron y se
 validaron en Pyodide real; los de POO (lección 8) siguen siendo los originales pero

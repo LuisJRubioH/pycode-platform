@@ -278,7 +278,7 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             "quedaban:\n"
             "```python\n"
             "for n in [4, 7, -2, 9]:\n"
-            "    if n < 0:\n"
+            "    if n < 0:                   # dato invalido para esta funcion\n"
             "        print('negativo encontrado')  # se imprime una sola vez\n"
             "        break                         # corta aqui: el 9 no se mira\n"
             "    print(n)                          # imprime 4, luego 7\n"
@@ -1034,52 +1034,430 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
     ),
     LessonTemplate(
         title="Comprensiones y Manejo de Errores",
-        description="List comprehensions y try/except para codigo robusto.",
+        description=(
+            "Comprensiones de lista para construir colecciones en una linea, y "
+            "try/except, raise y with para que el programa aguante los datos malos."
+        ),
         content=(
-            "## Comprensiones\n"
-            "- Sintaxis compacta para transformar colecciones.\n"
-            "- Ejemplo: `[x * 2 for x in numeros if x % 2 == 0]`\n\n"
-            "## Errores\n"
-            "- Usa `try/except` para capturar fallos esperables.\n"
-            "- No captures excepciones demasiado generales sin contexto.\n"
+            "## Por que estas dos herramientas\n"
+            "Esta leccion trae dos cosas que vas a usar a diario y que no se\n"
+            "parecen en nada. Las **comprensiones** te dejan escribir en una\n"
+            "linea el bucle que construye una lista. El **manejo de errores** es\n"
+            "lo que separa un script que se cae con el primer dato raro de un\n"
+            "programa que sigue funcionando y te dice que paso.\n\n"
+            "## Comprensiones de lista: un bucle en una linea\n"
+            "Ya sabes construir listas con un bucle y un acumulador. Una\n"
+            "comprension hace lo mismo en una linea:\n"
+            "```python\n"
+            "dobles = []                     # la forma que ya conoces\n"
+            "for n in [1, 2, 3]:            # el for da los elementos, uno a uno\n"
+            "    dobles.append(n * 2)       # y tu decides en que se convierte\n"
+            "print(dobles)                   # [2, 4, 6]\n\n"
+            "dobles = [n * 2 for n in [1, 2, 3]]   # exactamente lo mismo\n"
+            "print(dobles)                   # [2, 4, 6]\n"
+            "```\n"
+            "Se lee de dentro hacia fuera: primero el `for`, que da los\n"
+            "elementos, y despues la expresion de la izquierda, que dice en que\n"
+            "se convierte cada uno.\n\n"
+            "## Comprensiones con filtro\n"
+            "Anadiendo un `if` al final te quedas solo con los que cumplen algo:\n"
+            "```python\n"
+            "numeros = [4, 7, 10, 3, 8]                     # datos de partida\n"
+            "pares = [n for n in numeros if n % 2 == 0]     # solo los pares\n"
+            "print(pares)                                   # [4, 10, 8]\n\n"
+            "cuadrados = [n * n for n in range(1, 6)]       # transforma\n"
+            "print(cuadrados)                               # [1, 4, 9, 16, 25]\n\n"
+            "largos = [p for p in ['ana', 'bernardo'] if len(p) > 4]   # filtra\n"
+            "print(largos)                                  # ['bernardo']\n"
+            "```\n"
+            "Regla practica: si la comprension no te cabe comoda en una linea,\n"
+            "escribe el bucle normal. Compacto no es lo mismo que legible.\n\n"
+            "## try/except: capturar lo que puede fallar\n"
+            "Algunas operaciones fallan por causas que no controlas: un dato mal\n"
+            "escrito, una division por cero. `try/except` te deja intentarlo y\n"
+            "decidir que hacer si sale mal, en vez de que el programa se corte:\n"
+            "```python\n"
+            "try:                            # intenta ejecutar este bloque\n"
+            "    resultado = 10 / 0          # esto lanza ZeroDivisionError\n"
+            "except ZeroDivisionError:       # y si falla POR ESTA razon...\n"
+            "    resultado = None            # plan B\n"
+            "print(resultado)                # None, y el programa sigue vivo\n\n"
+            "try:                            # el try rodea SOLO lo que puede fallar\n"
+            "    numero = int('cuarenta')    # int() no sabe leer eso\n"
+            "except ValueError:              # asi avisa int() con un texto no numerico\n"
+            "    numero = 0                  # valor de respaldo\n"
+            "print(numero)                   # 0\n"
+            "```\n"
+            "Captura **el error concreto** que esperas (`ValueError`,\n"
+            "`ZeroDivisionError`). Un `except:` a secas se traga tambien los\n"
+            "errores que no habias previsto, incluidos tus propios fallos de\n"
+            "escritura, y te deja sin pistas para depurar.\n\n"
+            "## raise: lanzar tu propio error\n"
+            "A veces el que detecta que algo esta mal eres tu. `raise` levanta un\n"
+            "error para avisar a quien llamo tu funcion:\n"
+            "```python\n"
+            "def raiz(n):                    # tu decides que entradas aceptas\n"
+            "    if n < 0:\n"
+            "        raise ValueError('no hay raiz real de un negativo')  # y lo dices\n"
+            "    return n ** 0.5             # solo llega aqui si el dato valia\n\n"
+            "print(raiz(9))                  # 3.0\n\n"
+            "try:                            # asi lo captura quien te llama\n"
+            "    raiz(-4)                    # lanza el ValueError de arriba\n"
+            "except ValueError as e:         # `as e` guarda el error para leerlo\n"
+            "    print('fallo:', e)          # fallo: no hay raiz real de un negativo\n"
+            "```\n"
+            "Devolver `None` ante un dato invalido lo esconde: quien te llama\n"
+            "sigue como si nada y el fallo aparece diez lineas mas abajo.\n"
+            "`raise` para el problema donde se origina y explica por que.\n\n"
+            "## with: cerrar siempre, pase lo que pase\n"
+            "Cuando abres un archivo hay que cerrarlo. Si en medio salta un\n"
+            "error, el `close()` no llega a ejecutarse. `with` lo cierra por ti\n"
+            "aunque el bloque falle:\n"
+            "```python\n"
+            "with open('notas.txt', 'w') as f:   # 'w' crea o sobrescribe\n"
+            "    f.write('8\\n')                  # dentro del bloque, f esta abierto\n"
+            "    f.write('6\\n')                  # una segunda linea\n"
+            "# al salir del with, el archivo queda cerrado y guardado\n\n"
+            "with open('notas.txt') as f:        # sin modo, abre para leer\n"
+            "    contenido = f.read()            # lee todo el archivo de una vez\n"
+            "print(contenido.split())            # ['8', '6']\n"
+            "```\n"
+            "La variable de despues del `as` solo tiene sentido dentro del\n"
+            "bloque. Fuera, el archivo ya esta cerrado.\n\n"
+            "## Errores comunes\n"
+            "- Usar `except:` sin decir que error esperas. Se traga tambien los\n"
+            "  `NameError` por escribir mal un nombre, y te pasas la tarde\n"
+            "  buscando un bug que el `except` estaba ocultando.\n"
+            "- Meter dentro del `try` mucho mas codigo del que puede fallar. El\n"
+            "  `try` rodea la linea arriesgada, no la funcion entera.\n"
+            "- Devolver `None` cuando el dato es invalido en vez de lanzar un\n"
+            "  error. El programa sigue con un `None` dentro y revienta despues,\n"
+            "  lejos de donde estaba el problema real.\n"
+            "- Escribir comprensiones de tres pisos con dos `for` y dos `if`.\n"
+            "  Si no se lee de un vistazo, el bucle normal es mejor codigo.\n"
+            "- Abrir un archivo sin `with` y confiar en llamar a `close()`. Si\n"
+            "  algo falla antes, el archivo se queda abierto.\n\n"
+            "## Resumen\n"
+            "- `[expresion for x in coleccion]` construye una lista; con un `if`\n"
+            "  al final, filtra.\n"
+            "- `try/except ErrorConcreto` captura fallos esperables y deja el\n"
+            "  programa vivo.\n"
+            "- `raise ValueError('motivo')` avisa de un dato invalido donde se\n"
+            "  detecta, en vez de esconderlo.\n"
+            "- `with open(...) as f:` cierra el archivo siempre, incluso si el\n"
+            "  bloque lanza un error.\n"
         ),
         difficulty="intermediate",
         category="python-moderno",
         order=7,
-        estimated_duration=35,
+        estimated_duration=50,
         prerequisites_titles=["Listas, Tuplas y Diccionarios"],
         exercises=[
             ExerciseTemplate(
                 title="Filtrado par",
-                description="Practica comprehension.",
-                instructions="Guarda en `resultado` la lista con los cuadrados de los numeros pares de 1 a 20.",
-                starter_code="# TODO: resultado = [...]\n",
+                description="Tu primera comprension con filtro.",
+                instructions=(
+                    "Con UNA comprension de lista, guarda en `resultado` los "
+                    "cuadrados de los numeros pares del 1 al 20. Debe empezar por "
+                    "4, 16, 36 y terminar en 400."
+                ),
+                starter_code=(
+                    "# TODO: resultado = [ ... for n in range(1, 21) if ... ]\n"
+                    "resultado = []\n"
+                ),
+                hints=[
+                    "range(1, 21) llega hasta el 20 incluido.",
+                    "El cuadrado es n * n, y el filtro es if n % 2 == 0.",
+                ],
+                difficulty="easy",
+                points=10,
                 hidden_tests=[
                     {
-                        "name": "cuadrados de pares 1..20",
+                        "name": "son los cuadrados de los pares del 1 al 20",
                         "code": (
-                            "assert resultado == [4, 16, 36, 64, 100, 144, 196, 256, 324, 400], resultado"
+                            "esperado = [4, 16, 36, 64, 100, 144, 196, 256, 324, 400]\n"
+                            "assert resultado == esperado, f'resultado vale {resultado}'"
+                        ),
+                    },
+                    {
+                        "name": "no se colo ningun impar",
+                        "code": (
+                            "assert len(resultado) == 10, "
+                            "f'esperaba 10 valores y hay {len(resultado)}'\n"
+                            "assert 1 not in resultado and 9 not in resultado, "
+                            "'hay cuadrados de numeros impares'"
                         ),
                     },
                 ],
             ),
             ExerciseTemplate(
                 title="Division segura",
-                description="Captura errores comunes.",
-                instructions="Implementa `division_segura(a, b)` que retorne None si b es 0.",
-                starter_code="def division_segura(a: float, b: float):\n    # TODO\n    pass\n",
+                description="Captura el error en vez de dejar que rompa el programa.",
+                instructions=(
+                    "Define `division_segura(a, b)` que devuelva `a / b`, pero que "
+                    "devuelva `None` si `b` es 0. Hazlo con `try/except "
+                    "ZeroDivisionError`, no con un `if`: la idea es practicar la "
+                    "captura del error."
+                ),
+                starter_code=(
+                    "def division_segura(a, b):\n"
+                    "    # TODO: intenta dividir y captura ZeroDivisionError\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Dentro del try va el return a / b.",
+                    "En el except ZeroDivisionError, devuelve None.",
+                ],
+                difficulty="easy",
+                points=10,
                 hidden_tests=[
                     {
-                        "name": "10 / 2 da 5",
-                        "code": "assert division_segura(10, 2) == 5",
+                        "name": "divide normalmente",
+                        "code": (
+                            "assert division_segura(10, 2) == 5.0\n"
+                            "assert division_segura(9, 3) == 3.0"
+                        ),
                     },
                     {
-                        "name": "5 / 0 retorna None",
-                        "code": "assert division_segura(5, 0) is None",
+                        "name": "dividir por cero devuelve None y no revienta",
+                        "code": (
+                            "obtenido = division_segura(1, 0)\n"
+                            "assert obtenido is None, f'devolvio {obtenido!r}'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Convertir lo que se pueda",
+                description="Un try/except dentro de un bucle.",
+                instructions=(
+                    "Define `a_enteros(textos)` que recorra la lista y devuelva "
+                    "otra lista solo con los que se pueden convertir a entero con "
+                    "`int()`. Los que fallan se descartan.\n\n"
+                    "Por ejemplo, con `['3', 'x', '7', '4.5']` devuelve `[3, 7]`: "
+                    "ni la letra ni el decimal sobreviven a `int()`."
+                ),
+                starter_code=(
+                    "def a_enteros(textos):\n"
+                    "    # TODO: recorre, intenta convertir y descarta lo que falle\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "El try/except va DENTRO del bucle, rodeando solo el int().",
+                    "int() sobre algo que no es numero lanza ValueError.",
+                    "En el except no hagas nada: continue, y sigue con el siguiente.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "conserva solo lo convertible",
+                        "code": (
+                            "obtenido = a_enteros(['3', 'x', '7', '4.5'])\n"
+                            "assert obtenido == [3, 7], f'devolvio {obtenido}'"
+                        ),
                     },
                     {
-                        "name": "negativos: -8 / 4 da -2",
-                        "code": "assert division_segura(-8, 4) == -2",
+                        "name": "devuelve enteros de verdad, no textos",
+                        "code": (
+                            "obtenido = a_enteros(['10', '20'])\n"
+                            "assert obtenido == [10, 20]\n"
+                            "assert all(isinstance(x, int) for x in obtenido), "
+                            "'te falto convertir: siguen siendo strings'"
+                        ),
+                    },
+                    {
+                        "name": "si no se puede convertir nada, lista vacia",
+                        "code": (
+                            "assert a_enteros(['a', 'b']) == []\n"
+                            "assert a_enteros([]) == []"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Validar edad",
+                description="Lanza tu propio error cuando el dato no tiene sentido.",
+                instructions=(
+                    "Define `validar_edad(edad)` que devuelva la edad si esta entre "
+                    "0 y 120 incluidos. Si no lo esta, **lanza** un `ValueError` "
+                    "cuyo mensaje contenga la palabra rango.\n\n"
+                    "No devuelvas None ni imprimas nada: el aviso tiene que ser el "
+                    "error."
+                ),
+                starter_code=(
+                    "def validar_edad(edad):\n"
+                    "    # TODO: si esta fuera de rango, raise ValueError(...)\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "El if comprueba edad < 0 or edad > 120.",
+                    "raise ValueError('edad fuera de rango')",
+                    "Si pasa la comprobacion, devuelve la edad tal cual.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "deja pasar las edades validas",
+                        "code": (
+                            "assert validar_edad(30) == 30\n"
+                            "assert validar_edad(0) == 0\n"
+                            "assert validar_edad(120) == 120"
+                        ),
+                    },
+                    {
+                        "name": "lanza ValueError con las invalidas",
+                        "code": (
+                            "for mala in (-1, 121, 500):\n"
+                            "    try:\n"
+                            "        validar_edad(mala)\n"
+                            "    except ValueError:\n"
+                            "        pass\n"
+                            "    else:\n"
+                            "        raise AssertionError(str(mala) + ' deberia lanzar ValueError')"
+                        ),
+                    },
+                    {
+                        "name": "el mensaje del error explica el motivo",
+                        "code": (
+                            "try:\n"
+                            "    validar_edad(-5)\n"
+                            "except ValueError as e:\n"
+                            "    assert 'rango' in str(e), 'el mensaje no menciona el rango'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Promedio de aprobados",
+                description="Combina una comprension con filtro y un raise.",
+                instructions=(
+                    "Define `promedio_aprobados(notas)` que calcule el promedio de "
+                    "las notas mayores o iguales a 5.\n\n"
+                    "- Usa una comprension con filtro para quedarte con las "
+                    "aprobadas.\n"
+                    "- Si no hay ninguna aprobada, **lanza** un `ValueError` cuyo "
+                    "mensaje contenga la palabra aprobadas.\n"
+                    "- Devuelve el promedio redondeado a un decimal con "
+                    "`round(x, 1)`."
+                ),
+                starter_code=(
+                    "def promedio_aprobados(notas):\n"
+                    "    # TODO: filtra con una comprension, valida y promedia\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "aprobadas = [n for n in notas if n >= 5]",
+                    "Si len(aprobadas) == 0, raise ValueError con tu mensaje.",
+                    "El promedio es sum(aprobadas) / len(aprobadas).",
+                    "El raise va ANTES de dividir: si no, revientas con "
+                    "ZeroDivisionError en vez de con tu mensaje.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "promedia solo las aprobadas",
+                        "code": (
+                            "obtenido = promedio_aprobados([5, 3, 7, 9, 2])\n"
+                            "assert obtenido == 7.0, f'devolvio {obtenido}'"
+                        ),
+                    },
+                    {
+                        "name": "redondea a un decimal",
+                        "code": (
+                            "obtenido = promedio_aprobados([5, 6, 8])\n"
+                            "assert obtenido == 6.3, f'devolvio {obtenido}'"
+                        ),
+                    },
+                    {
+                        "name": "sin aprobadas lanza ValueError, no ZeroDivisionError",
+                        "code": (
+                            "try:\n"
+                            "    promedio_aprobados([1, 2, 3])\n"
+                            "except ValueError as e:\n"
+                            "    assert 'aprobadas' in str(e), 'el mensaje no lo explica'\n"
+                            "except ZeroDivisionError:\n"
+                            "    raise AssertionError('valida ANTES de dividir')\n"
+                            "else:\n"
+                            "    raise AssertionError('deberia haber lanzado ValueError')"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Guardar un informe",
+                description="Encadena comprension, validacion con raise y escritura con with.",
+                instructions=(
+                    "Define `guardar_informe(ruta, lineas)` que:\n\n"
+                    "- se quede solo con las lineas que tienen algo escrito, usando "
+                    "una comprension y `.strip()` (las que son solo espacios se "
+                    "descartan);\n"
+                    "- si no queda ninguna, **lanza** un `ValueError` cuyo mensaje "
+                    "contenga la palabra vacio;\n"
+                    "- escriba cada linea limpia en el archivo `ruta` usando "
+                    "`with open(ruta, 'w')`, una por linea;\n"
+                    "- devuelva cuantas lineas escribio."
+                ),
+                starter_code=(
+                    "def guardar_informe(ruta, lineas):\n"
+                    "    # TODO: limpiar, validar, escribir con with y devolver el total\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "limpias = [l.strip() for l in lineas if len(l.strip()) > 0]",
+                    "Valida con el raise antes de abrir el archivo.",
+                    "Dentro del with, un for que haga f.write(linea + chr(10)).",
+                    "Devuelve len(limpias) al final, fuera del with.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "escribe las lineas limpias y devuelve cuantas",
+                        "code": (
+                            "n = guardar_informe('informe_test.txt', "
+                            "['  hola ', '   ', 'mundo'])\n"
+                            "assert n == 2, f'devolvio {n}'\n"
+                            "with open('informe_test.txt') as f:\n"
+                            "    contenido = f.read()\n"
+                            "assert contenido.split() == ['hola', 'mundo'], "
+                            "f'el archivo contiene {contenido!r}'"
+                        ),
+                    },
+                    {
+                        "name": "cada linea va en su propia linea del archivo",
+                        "code": (
+                            "guardar_informe('informe_test2.txt', ['a', 'b', 'c'])\n"
+                            "with open('informe_test2.txt') as f:\n"
+                            "    lineas = f.read().splitlines()\n"
+                            "assert lineas == ['a', 'b', 'c'], f'quedo {lineas}'"
+                        ),
+                    },
+                    {
+                        "name": "sin lineas utiles lanza ValueError",
+                        "code": (
+                            "try:\n"
+                            "    guardar_informe('no_deberia.txt', ['  ', '   '])\n"
+                            "except ValueError as e:\n"
+                            "    assert 'vacio' in str(e), 'el mensaje no lo explica'\n"
+                            "else:\n"
+                            "    raise AssertionError('deberia haber lanzado ValueError')"
+                        ),
+                    },
+                    {
+                        "name": "no crea el archivo cuando no hay nada que escribir",
+                        "code": (
+                            "from pathlib import Path\n"
+                            "Path('no_deberia.txt').unlink(missing_ok=True)\n"
+                            "try:\n"
+                            "    guardar_informe('no_deberia.txt', ['   '])\n"
+                            "except ValueError:\n"
+                            "    pass\n"
+                            "assert not Path('no_deberia.txt').exists(), "
+                            "'validaste despues de abrir el archivo'"
+                        ),
                     },
                 ],
             ),

@@ -96,7 +96,8 @@ def detectar_huecos() -> set[tuple[str, str, str]]:
 
 # Deuda de contenido viva. Se encoge segun avanza la reescritura de Track 1
 # (plan en docs/PLANTILLA_LECCION.md): 13 huecos el 2026-09-03, 8 tras
-# reescribir "Funciones y Parametros".
+# "Funciones y Parametros" y 6 tras "Comprensiones y Manejo de Errores",
+# que cerro el `raise` de AI 2 y el `with` del ejercicio de pytest.
 HUECOS_CONOCIDOS: set[tuple[str, str, str]] = {
     # Los 5 huecos de `def` se cerraron el 2026-09-03 al reescribir
     # "Funciones y Parametros", que ahora lo ensena con ejemplos ejecutables.
@@ -109,11 +110,6 @@ HUECOS_CONOCIDOS: set[tuple[str, str, str]] = {
     ("POO en Python", "Cuenta bancaria", "class"),
     ("POO en Python", "Cuenta bancaria", "self"),
     ("POO en Python", "Cuenta bancaria", "__init__"),
-    # Introducido al rediseñar el ejercicio de pytest: `pytest.raises` necesita
-    # el `with`, y ninguna lección de Track 1 enseña context managers todavía.
-    ("Testing con pytest", "Prueba de calculadora", "with"),
-    # Track 5 se apoya en un `raise` que Track 1 nunca llegó a enseñar.
-    ("AI 2 · Chunking e indexacion de documentos", "Partir texto en chunks", "raise"),
 }
 
 
