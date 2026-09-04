@@ -163,6 +163,50 @@ propósito el código del alumno** para comprobar que sus tests lo detectan — 
       huecos cerrados borrados de `HUECOS_CONOCIDOS`.
 - [ ] Los ejemplos se han **ejecutado**, no solo escrito.
 
+## Plan de reescritura de Track 1
+
+Orden **por gravedad de hueco**, no por número de lección. Las tres primeras cierran
+los 13 huecos que quedan en `HUECOS_CONOCIDOS`; a partir de ahí el test de
+prerequisitos pasa a ser un guard rail puro.
+
+| # | Lección | Orden curric. | Qué cubre | Hueco que cierra |
+|---|---|---|---|---|
+| ✅ | Bucles for y while | 4 | for, range, acumuladores, while, break, continue | `break`/`continue`, prometidos en la description y ausentes del contenido |
+| **1** | **Funciones y Parámetros** | 5 | `def`, parámetros, `return`, argumentos por defecto, docstring | **`def` ×3** (Área de rectángulo, Saludo configurable, División segura) |
+| **2** | **Comprensiones y Manejo de Errores** | 7 | comprensiones, `try`/`except`, `raise`, `with` como garantía de limpieza | **`raise` ×2** (AI 2, Cuenta bancaria) · **`with` ×1** (Prueba de calculadora) |
+| **3** | **POO en Python** | 8 | `class`, `self`, `__init__`, métodos, encapsulación | **`class`/`self`/`__init__`/`def` ×8** (Clase Producto, Cuenta bancaria) |
+| 4 | Python desde Cero | 1 | `print`, ejecutar código, sintaxis, indentación, errores de novato | — |
+| 5 | Variables y Tipos | 2 | int/float/str/bool, conversión, f-strings, mutabilidad | — |
+| 6 | Condicionales y Lógica | 3 | `if`/`elif`/`else`, comparadores, `and`/`or`/`not`, truthiness | — |
+| 7 | Listas, Tuplas y Diccionarios | 6 | listas, tuplas, dicts, indexado, slicing, métodos | — (hoy 148 caracteres: la peor del temario) |
+| 8 | Módulos, Paquetes y Entornos | 9 | módulos, `import`, `__name__`, venv, pip | — |
+| 9 | Testing con pytest | 10 | tests, `assert`, `pytest.raises`, casos borde | — |
+
+Con 6 ejercicios por lección, Track 1 pasa de 18 a 60: **42 ejercicios nuevos**, que
+se escriben junto a su lección y no como tarea aparte.
+
+### Dos deudas que deja este orden
+
+**Releer "Funciones y Parámetros" después de reescribir las lecciones 1-3.** Se
+escribe la 5 antes que la 1, 2 y 3, así que sus ejemplos se apoyan en variables,
+tipos y condicionales que todavía estarán en su versión pobre. El contenido es
+correcto —esos temas existen aunque flojos—, pero al reescribir 1-3 hay que volver a
+la 5 y comprobar que los ejemplos encajan con lo que para entonces se enseñe de
+verdad. Se acepta a cambio de cerrar `def` cuanto antes.
+
+**No rehacer los ejercicios ya validados de las lecciones 8, 9 y 10.** "Refactor a
+modulo" (lección 9) y "Prueba de calculadora" (lección 10) se rediseñaron y se
+validaron en Pyodide real; los de POO (lección 8) siguen siendo los originales pero
+funcionan. Al reescribir el **contenido** de esas tres lecciones hay que respetar los
+ejercicios existentes y limitarse a añadir los que falten hasta seis.
+
+### Limitación de plataforma pendiente
+
+Un bucle infinito bloquea el sandbox de forma permanente: el timeout del runner no
+puede interrumpir código Python síncrono. Está documentado con el diagnóstico y las
+mediciones en el **issue #32**, y se aborda **después** de Track 1. Mientras tanto la
+lección 4 lo avisa en el contenido.
+
 ## Cómo llega a producción
 
 Editar `backend/app/services/lesson_seed.py` y desplegar. El seeder hace
