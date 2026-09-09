@@ -117,9 +117,11 @@ escribir un método.
 Esto **no es una recomendación, es un test**:
 `backend/tests/test_prerequisitos_conceptos.py` recorre el temario en orden,
 acumula lo que se ha mostrado dentro de bloques ``` y falla si un ejercicio
-pide algo que nadie enseñó. Hoy tiene congelados 13 huecos conocidos (todos de
-Track 1 salvo uno); según se reescriban las lecciones, se van borrando de
-`HUECOS_CONOCIDOS`.
+pide algo que nadie enseñó. Empezó con 13 huecos congelados en
+`HUECOS_CONOCIDOS`; las tres primeras reescrituras los cerraron todos y **hoy
+la lista está vacía**: el test ya no protege deuda, es un guard rail puro. Si
+al escribir una lección aparece un hueco, la respuesta por defecto es enseñar
+el concepto con un ejemplo, no anotarlo en la lista.
 
 Su límite: detecta *tokens de Python*, no paráfrasis. "Cuenta bancaria" pide
 "lanza ValueError" sin escribir `raise`, y eso se le escapa. Es un suelo, no un
@@ -165,34 +167,44 @@ propósito el código del alumno** para comprobar que sus tests lo detectan — 
 
 ## Plan de reescritura de Track 1
 
-Orden **por gravedad de hueco**, no por número de lección. Las tres primeras cierran
-los 13 huecos que quedan en `HUECOS_CONOCIDOS`; a partir de ahí el test de
-prerequisitos pasa a ser un guard rail puro.
+Orden **por gravedad de hueco**, no por número de lección. Las tres primeras cerraron
+los 13 huecos de `HUECOS_CONOCIDOS`, que ya está vacío; de aquí en adelante el test
+de prerequisitos es un guard rail puro y el orden lo marca la calidad del contenido.
 
-| # | Lección | Orden curric. | Qué cubre | Hueco que cierra |
+| # | Lección | Orden curric. | Qué cubre | Hueco que cerraba |
 |---|---|---|---|---|
 | ✅ | Bucles for y while | 4 | for, range, acumuladores, while, break, continue | `break`/`continue`, prometidos en la description y ausentes del contenido |
-| **1** | **Funciones y Parámetros** | 5 | `def`, parámetros, `return`, argumentos por defecto, docstring | **`def` ×3** (Área de rectángulo, Saludo configurable, División segura) |
-| **2** | **Comprensiones y Manejo de Errores** | 7 | comprensiones, `try`/`except`, `raise`, `with` como garantía de limpieza | **`raise` ×2** (AI 2, Cuenta bancaria) · **`with` ×1** (Prueba de calculadora) |
-| **3** | **POO en Python** | 8 | `class`, `self`, `__init__`, métodos, encapsulación | **`class`/`self`/`__init__`/`def` ×8** (Clase Producto, Cuenta bancaria) |
-| 4 | Python desde Cero | 1 | `print`, ejecutar código, sintaxis, indentación, errores de novato | — |
-| 5 | Variables y Tipos | 2 | int/float/str/bool, conversión, f-strings, mutabilidad | — |
-| 6 | Condicionales y Lógica | 3 | `if`/`elif`/`else`, comparadores, `and`/`or`/`not`, truthiness | — |
-| 7 | Listas, Tuplas y Diccionarios | 6 | listas, tuplas, dicts, indexado, slicing, métodos | — (hoy 148 caracteres: la peor del temario) |
-| 8 | Módulos, Paquetes y Entornos | 9 | módulos, `import`, `__name__`, venv, pip | — |
-| 9 | Testing con pytest | 10 | tests, `assert`, `pytest.raises`, casos borde | — |
+| ✅ | Funciones y Parámetros | 5 | `def`, parámetros, `return`, argumentos por defecto, docstring | **`def` ×3** (Área de rectángulo, Saludo configurable, División segura) |
+| ✅ | Comprensiones y Manejo de Errores | 7 | comprensiones, `try`/`except`, `raise`, `with` como garantía de limpieza | **`raise` ×2** (AI 2, Cuenta bancaria) · **`with` ×1** (Prueba de calculadora) |
+| ✅ | POO en Python | 8 | `class`, `self`, `__init__`, métodos, colecciones como estado, encapsulación, `__str__` | **`class`/`self`/`__init__` ×6** (Clase Producto, Cuenta bancaria) — los 6 últimos |
+| **1** | **Listas, Tuplas y Diccionarios** | 6 | listas, tuplas, dicts, indexado, slicing, métodos | — (148 caracteres: la peor del temario, y POO ya se apoya en ella) |
+| **2** | **Python desde Cero** | 1 | `print`, ejecutar código, sintaxis, indentación, errores de novato | — |
+| **3** | **Variables y Tipos** | 2 | int/float/str/bool, conversión, f-strings, mutabilidad | — |
+| **4** | **Condicionales y Lógica** | 3 | `if`/`elif`/`else`, comparadores, `and`/`or`/`not`, truthiness | — |
+| 5 | Módulos, Paquetes y Entornos | 9 | módulos, `import`, `__name__`, venv, pip | — |
+| 6 | Testing con pytest | 10 | tests, `assert`, `pytest.raises`, casos borde | — |
 
 Con 6 ejercicios por lección, Track 1 pasa de 18 a 60: **42 ejercicios nuevos**, que
-se escriben junto a su lección y no como tarea aparte.
+se escriben junto a su lección y no como tarea aparte. Llevamos 4 lecciones y 24
+ejercicios.
 
-### Dos deudas que deja este orden
+### Deudas que deja este orden
 
-**Releer "Funciones y Parámetros" después de reescribir las lecciones 1-3.** Se
-escribe la 5 antes que la 1, 2 y 3, así que sus ejemplos se apoyan en variables,
+**Releer las lecciones 5, 7 y 8 después de reescribir las lecciones 1-3.** Se
+escriben antes que la 1, 2 y 3, así que sus ejemplos se apoyan en variables,
 tipos y condicionales que todavía estarán en su versión pobre. El contenido es
 correcto —esos temas existen aunque flojos—, pero al reescribir 1-3 hay que volver a
-la 5 y comprobar que los ejemplos encajan con lo que para entonces se enseñe de
-verdad. Se acepta a cambio de cerrar `def` cuanto antes.
+las tres y comprobar que los ejemplos encajan con lo que para entonces se enseñe de
+verdad. Se acepta a cambio de cerrar `def`, `raise` y `class` cuanto antes.
+
+**"POO en Python" (lección 8) enseña tuplas y `dict.get()` sobre la marcha.** Su
+sección de colecciones como estado guarda pares `(nombre, precio)` en una lista y
+usa `self.unidades.get(nombre, 0)`, y los dos ejercicios finales los piden. Por
+temario eso es de "Listas, Tuplas y Diccionarios" (lección 6), que hoy tiene 148
+caracteres y no enseña ninguna de las dos cosas — por eso la 6 pasa a ser la
+siguiente de la lista. Al reescribirla hay que decidir si la 8 sigue explicándolas
+o pasa a darlas por sabidas y solo las usa. El test de prerequisitos **no** cubre
+esto: ni las tuplas ni `.get` están en `CONCEPTOS`.
 
 **Las f-strings se enseñan en "Funciones y Parámetros" (lección 5), fuera de su
 sitio.** Se usaban en varios ejemplos sin haberse enseñado nunca, así que la 5 las
@@ -201,11 +213,13 @@ introduce sobre la marcha para no dejar el agujero. Por temario pertenecen a
 y la 5 pasa a darlas por sabidas, o si se quedan donde están y la 2 solo las repasa.
 El test de prerequisitos **no** cubre esto: las f-strings no están en `CONCEPTOS`.
 
-**No rehacer los ejercicios ya validados de las lecciones 8, 9 y 10.** "Refactor a
+**No rehacer los ejercicios ya validados de las lecciones 9 y 10.** "Refactor a
 modulo" (lección 9) y "Prueba de calculadora" (lección 10) se rediseñaron y se
-validaron en Pyodide real; los de POO (lección 8) siguen siendo los originales pero
-funcionan. Al reescribir el **contenido** de esas tres lecciones hay que respetar los
-ejercicios existentes y limitarse a añadir los que falten hasta seis.
+validaron en Pyodide real. Al reescribir el **contenido** de esas dos lecciones hay
+que respetar los ejercicios existentes y limitarse a añadir los que falten hasta
+seis. Es lo que se hizo en POO: "Clase Producto" y "Cuenta bancaria" conservan su
+título y su contrato (y por tanto su id y el progreso de quien los aprobó), solo se
+les añadieron enunciado, pistas y tests, y los otros cuatro son nuevos.
 
 ### Limitación de plataforma pendiente
 

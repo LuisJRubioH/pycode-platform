@@ -1465,26 +1465,303 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
     ),
     LessonTemplate(
         title="POO en Python",
-        description="Clases, objetos, metodos y encapsulacion basica.",
+        description=(
+            "Clases y objetos: juntar los datos con las funciones que los cuidan, "
+            "con self, __init__, metodos y encapsulacion basica."
+        ),
         content=(
-            "## Clase y objeto\n"
-            "- Clase define estructura/comportamiento.\n"
-            "- Objeto es una instancia de clase.\n\n"
-            "## Buenas practicas\n"
-            "- Usa `__init__` para estado inicial.\n"
-            "- Manten metodos pequenos y enfocados.\n"
+            "## Por que las clases\n"
+            "Hasta ahora tus datos van por un lado y las funciones que los tocan\n"
+            "por otro: una lista de saldos aqui, una funcion\n"
+            "`retirar(saldos, i, monto)` alla. Con tres datos se aguanta; con\n"
+            "treinta ya nadie recuerda que funcion puede tocar que dato ni quien\n"
+            "comprobo que el saldo no quedara negativo. Una **clase** junta los\n"
+            "datos y las funciones que los cuidan en una sola pieza, y deja una\n"
+            "unica puerta para cambiarlos.\n\n"
+            "## class e __init__: el molde y las copias\n"
+            "La clase es el molde y se escribe una vez. Cada objeto que creas con\n"
+            "ese molde tiene sus propios datos:\n"
+            "```python\n"
+            "class Perro:                     # el molde: se escribe una sola vez\n"
+            "    def __init__(self, nombre):  # corre al crear CADA perro\n"
+            "        self.nombre = nombre     # guarda el dato dentro del objeto\n\n"
+            "firulais = Perro('Firulais')     # aqui corre __init__ con 'Firulais'\n"
+            "laika = Perro('Laika')           # otro objeto, con su propio nombre\n"
+            "print(firulais.nombre)           # Firulais\n"
+            "print(laika.nombre)              # Laika\n"
+            "```\n"
+            "`Perro` es la clase; `firulais` y `laika` son **objetos** (o\n"
+            "instancias) de esa clase. `__init__` no lo llamas tu: Python lo\n"
+            "ejecuta solo al escribir `Perro('Firulais')`, y su trabajo es dejar\n"
+            "el objeto listo para usarse.\n\n"
+            "## self: el objeto que esta hablando\n"
+            "`self` es el primer parametro de todo metodo y representa al objeto\n"
+            "concreto sobre el que lo llamas:\n"
+            "```python\n"
+            "class Contador:\n"
+            "    def __init__(self):\n"
+            "        self.valor = 0           # cada contador arranca en SU cero\n\n"
+            "    def sumar(self):             # self va siempre primero\n"
+            "        self.valor = self.valor + 1   # cambia el estado de ESTE objeto\n"
+            "        return self.valor        # y devuelve como quedo\n\n"
+            "a = Contador()                   # dos objetos independientes\n"
+            "b = Contador()                   # cada uno con su propio valor\n"
+            "a.sumar()                        # Python pasa `a` como self; tu no lo escribes\n"
+            "print(a.sumar())                 # 2\n"
+            "print(b.valor)                   # 0  -> b ni se entero\n"
+            "```\n"
+            "`self` no es una palabra reservada, es una convencion: se llama asi\n"
+            "en todo el Python del mundo y cambiarle el nombre solo consigue que\n"
+            "nadie entienda tu codigo. Lo que escribes como `a.sumar()` Python lo\n"
+            "traduce a `Contador.sumar(a)`, y por eso el metodo recibe un\n"
+            "parametro que tu no pusiste en la llamada.\n\n"
+            "## Metodos con parametros: el objeto se defiende\n"
+            "Despues de `self` van tus propios parametros. Y como el metodo es la\n"
+            "unica puerta al estado, es el sitio natural para validar:\n"
+            "```python\n"
+            "class Termostato:\n"
+            "    def __init__(self, grados):\n"
+            "        self.grados = grados     # el estado inicial llega por parametro\n\n"
+            "    def subir(self, cuanto):     # self primero, tus parametros despues\n"
+            "        if cuanto <= 0:          # el metodo cuida su propio estado\n"
+            "            raise ValueError('cuanto debe ser positivo')   # corta aqui\n"
+            "        self.grados = self.grados + cuanto   # solo si paso la validacion\n"
+            "        return self.grados       # el metodo dice como quedo el objeto\n\n"
+            "t = Termostato(18)\n"
+            "print(t.subir(3))                # 21\n"
+            "print(t.grados)                  # 21, el objeto se quedo asi\n"
+            "```\n"
+            "Fijate en el orden: primero valida, y solo despues toca\n"
+            "`self.grados`. Al reves dejarias el objeto ya modificado y ademas\n"
+            "lanzarias el error, que es la peor combinacion posible.\n\n"
+            "## Un objeto puede guardar una coleccion\n"
+            "Un atributo no tiene por que ser un numero suelto. Puede ser una\n"
+            "lista que el objeto va llenando:\n"
+            "```python\n"
+            "class Cesta:\n"
+            "    def __init__(self):\n"
+            "        self.items = []                  # cada cesta con SU lista vacia\n\n"
+            "    def agregar(self, nombre, precio):   # dos parametros ademas de self\n"
+            "        self.items.append((nombre, precio))   # guarda el par como tupla\n\n"
+            "    def total(self):\n"
+            "        precios = [precio for nombre, precio in self.items]  # desempaqueta cada par\n"
+            "        return sum(precios)              # y los suma\n\n"
+            "c = Cesta()\n"
+            "c.agregar('pan', 2)                      # se acumulan en la lista del objeto\n"
+            "c.agregar('leche', 3)\n"
+            "print(c.items)                           # [('pan', 2), ('leche', 3)]\n"
+            "print(c.total())                         # 5\n"
+            "```\n"
+            "O un diccionario, cuando lo que necesitas es buscar por nombre:\n"
+            "```python\n"
+            "class Stock:\n"
+            "    def __init__(self):\n"
+            "        self.unidades = {}                     # nombre -> cantidad\n\n"
+            "    def agregar(self, nombre, cantidad):\n"
+            "        actual = self.unidades.get(nombre, 0)  # 0 si aun no existe\n"
+            "        self.unidades[nombre] = actual + cantidad   # guarda la suma\n\n"
+            "s = Stock()\n"
+            "s.agregar('lapiz', 3)                          # la clave aun no existia\n"
+            "s.agregar('lapiz', 2)                          # suma sobre lo que habia\n"
+            "print(s.unidades)                              # {'lapiz': 5}\n"
+            "print(s.unidades.get('goma', 0))               # 0, sin reventar\n"
+            "```\n"
+            "La lista sirve para acumular en orden; el diccionario, para llegar a\n"
+            "un dato por su nombre sin recorrer nada. `.get(clave, 0)` te da un\n"
+            "valor por defecto en vez del `KeyError` que darias con\n"
+            "`self.unidades[clave]`.\n\n"
+            "## Encapsulacion: una sola puerta\n"
+            "Si cualquiera puede escribir `cuenta.saldo = -999`, tus validaciones\n"
+            "no valen nada. La convencion de Python es un guion bajo delante:\n"
+            "```python\n"
+            "class Cuenta:\n"
+            "    def __init__(self):\n"
+            "        self._saldo = 0                  # el _ dice: no me toques desde fuera\n\n"
+            "    def depositar(self, monto):\n"
+            "        if monto <= 0:                   # la validacion vive en el metodo\n"
+            "            raise ValueError('el deposito debe ser positivo')\n"
+            "        self._saldo = self._saldo + monto   # la unica forma de moverlo\n\n"
+            "    def consultar(self):                 # la puerta de lectura\n"
+            "        return self._saldo\n\n"
+            "c = Cuenta()\n"
+            "c.depositar(50)                          # se pasa por la puerta\n"
+            "print(c.consultar())                     # 50\n"
+            "```\n"
+            "Python no tiene atributos privados de verdad: `c._saldo = -999`\n"
+            "funciona igual. El guion bajo es una senal, no un candado, y sirve\n"
+            "para lo mismo que sirve una puerta con un cartel: quien la salta ya\n"
+            "sabe que va por su cuenta.\n\n"
+            "## __str__: como se ve tu objeto al imprimirlo\n"
+            "Si imprimes un objeto sin mas, Python te ensena algo tan util como\n"
+            "`<Punto object at 0x7f3a...>`. `__str__` decide que se ve:\n"
+            "```python\n"
+            "class Punto:\n"
+            "    def __init__(self, x, y):\n"
+            "        self.x = x                       # un atributo por coordenada\n"
+            "        self.y = y\n\n"
+            "    def __str__(self):                   # Python lo llama al hacer print()\n"
+            "        return f'Punto({self.x}, {self.y})'   # devuelve un texto, no imprime\n\n"
+            "p = Punto(2, 5)                          # sin __str__ veras <Punto object at 0x...>\n"
+            "print(p)                                 # Punto(2, 5)\n"
+            "print(str(p) + ' listo')                 # Punto(2, 5) listo\n"
+            "```\n"
+            "`__str__` **devuelve** el texto con `return`; el `print` lo hace\n"
+            "quien te llama. Si dentro pones un `print` en vez de un `return`,\n"
+            "veras la linea y ademas un `None`.\n\n"
+            "## Errores comunes\n"
+            "- Olvidar `self` al definir el metodo (`def subir(cuanto):`). Al\n"
+            "  llamar `t.subir(3)` Python pasa el objeto como primer argumento y\n"
+            "  salta `TypeError: Termostato.subir() takes 1 positional argument\n"
+            "  but 2 were given`. El primer parametro de un metodo es siempre\n"
+            "  `self`, y el objeto va ahi.\n"
+            "- Guardar el resultado en una variable local en vez de en `self.`:\n"
+            "  `grados = self.grados + cuanto` dentro de `subir` calcula bien y\n"
+            "  **no lanza ningun error**, pero la variable muere al terminar el\n"
+            "  metodo y el objeto se queda como estaba. Si el estado no cambia y\n"
+            "  no hay error, mira si te falta el `self.` de la izquierda.\n"
+            "- Crear la lista fuera de `__init__`, pegada a la clase\n"
+            "  (`class Cesta:` y debajo `items = []`). Esa lista es **una sola\n"
+            "  para todas las instancias**, y lo que agregas en una cesta aparece\n"
+            "  en la otra. Las colecciones se crean dentro de `__init__`.\n"
+            "- Llamar al metodo sin parentesis: `c.consultar` te devuelve el\n"
+            "  metodo (`<bound method ...>`), `c.consultar()` te devuelve el\n"
+            "  saldo. Si al imprimir sale algo raro con la palabra `method`, te\n"
+            "  faltan los parentesis.\n"
+            "- Poner un `return` con valor dentro de `__init__`. Su trabajo es\n"
+            "  rellenar el objeto, no devolverlo; devolver algo distinto de\n"
+            "  `None` lanza `TypeError`.\n\n"
+            "## Resumen\n"
+            "- `class Nombre:` define el molde; `Nombre(...)` crea un objeto y\n"
+            "  ejecuta su `__init__`.\n"
+            "- `__init__(self, ...)` guarda el estado inicial en `self.atributo`.\n"
+            "- `self` es el objeto sobre el que llamas el metodo; va siempre como\n"
+            "  primer parametro y nunca se pasa en la llamada.\n"
+            "- Un metodo valida antes de tocar el estado: `raise` primero,\n"
+            "  `self.x = ...` despues.\n"
+            "- Un atributo puede ser una lista (acumular en orden) o un\n"
+            "  diccionario (buscar por nombre, con `.get(clave, 0)`).\n"
+            "- El guion bajo (`self._saldo`) marca lo que no se toca desde fuera;\n"
+            "  los metodos son la unica puerta.\n"
+            "- `__str__` devuelve el texto que se ve al imprimir el objeto.\n"
         ),
         difficulty="advanced",
         category="oop",
         order=8,
-        estimated_duration=45,
+        estimated_duration=55,
         prerequisites_titles=["Comprensiones y Manejo de Errores"],
         exercises=[
             ExerciseTemplate(
+                title="Tu primera clase",
+                description="Un molde con __init__ y dos atributos.",
+                instructions=(
+                    "Define una clase `Libro` cuyo `__init__` reciba `titulo` y "
+                    "`paginas` y los guarde en `self.titulo` y `self.paginas`.\n\n"
+                    "No necesita ningun metodo mas: con crear `Libro('Rayuela', 600)` "
+                    "y poder leer `.titulo` y `.paginas` esta resuelto."
+                ),
+                starter_code=(
+                    "# TODO: define la clase Libro con su __init__\n"
+                    "class Libro:\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Debajo de `class Libro:`, indentado, va `def __init__(self, titulo, paginas):`.",
+                    "Dentro del __init__: self.titulo = titulo y self.paginas = paginas.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "guarda titulo y paginas",
+                        "code": (
+                            "libro = Libro('Rayuela', 600)\n"
+                            "assert libro.titulo == 'Rayuela', f'titulo vale {libro.titulo!r}'\n"
+                            "assert libro.paginas == 600, f'paginas vale {libro.paginas!r}'"
+                        ),
+                    },
+                    {
+                        "name": "cada libro tiene sus propios datos",
+                        "code": (
+                            "uno = Libro('Rayuela', 600)\n"
+                            "otro = Libro('Ficciones', 200)\n"
+                            "assert uno.titulo == 'Rayuela' and otro.titulo == 'Ficciones', "
+                            "'los dos libros comparten el mismo titulo'\n"
+                            "assert uno.paginas == 600 and otro.paginas == 200"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Metodo area",
+                description="Anade un metodo que calcula a partir del estado.",
+                instructions=(
+                    "La clase `Rectangulo` ya guarda `base` y `altura`. Anade el "
+                    "metodo `area(self)` que **devuelva** base por altura.\n\n"
+                    "Devolver, no imprimir: quien llame `r.area()` tiene que "
+                    "recibir el numero."
+                ),
+                starter_code=(
+                    "class Rectangulo:\n"
+                    "    def __init__(self, base, altura):\n"
+                    "        self.base = base\n"
+                    "        self.altura = altura\n\n"
+                    "    # TODO: def area(self): ...\n"
+                ),
+                hints=[
+                    "El metodo va indentado dentro de la clase, al mismo nivel que __init__.",
+                    "No lleva parametros ademas de self: los datos ya estan en el objeto.",
+                    "return self.base * self.altura",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "devuelve el area",
+                        "code": (
+                            "r = Rectangulo(3, 4)\n"
+                            "obtenido = r.area()\n"
+                            "assert obtenido == 12, f'devolvio {obtenido!r}'"
+                        ),
+                    },
+                    {
+                        "name": "funciona con decimales y con otras medidas",
+                        "code": (
+                            "assert Rectangulo(2.5, 2).area() == 5.0\n"
+                            "assert Rectangulo(10, 7).area() == 70"
+                        ),
+                    },
+                    {
+                        "name": "devuelve el numero, no lo imprime",
+                        "code": (
+                            "obtenido = Rectangulo(1, 1).area()\n"
+                            "assert obtenido is not None, "
+                            "'area() no devuelve nada: te falta el return'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
                 title="Clase Producto",
-                description="Modela entidad simple.",
-                instructions="Agrega a Producto el metodo `aplicar_descuento(pct)` que reduce `self.precio` en `pct` por ciento.",
-                starter_code="class Producto:\n    def __init__(self, nombre: str, precio: float):\n        self.nombre = nombre\n        self.precio = precio\n\n    # TODO: def aplicar_descuento(self, pct): ...\n",
+                description="Un metodo que modifica el estado del objeto.",
+                instructions=(
+                    "Agrega a `Producto` el metodo `aplicar_descuento(pct)` que "
+                    "reduzca `self.precio` en `pct` por ciento.\n\n"
+                    "Modifica el precio del objeto; no hace falta que devuelva "
+                    "nada. Con un producto de 100 y `aplicar_descuento(20)`, "
+                    "`precio` queda en 80."
+                ),
+                starter_code=(
+                    "class Producto:\n"
+                    "    def __init__(self, nombre: str, precio: float):\n"
+                    "        self.nombre = nombre\n"
+                    "        self.precio = precio\n\n"
+                    "    # TODO: def aplicar_descuento(self, pct): ...\n"
+                ),
+                hints=[
+                    "El metodo recibe self y pct: def aplicar_descuento(self, pct):",
+                    "Quitar un 20% es quedarse con el 80%: precio * (100 - pct) / 100.",
+                    "Guarda el resultado en self.precio, si no el objeto no cambia.",
+                ],
                 difficulty="medium",
                 points=15,
                 hidden_tests=[
@@ -1496,13 +1773,59 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                             "assert abs(p.precio - 80) < 1e-9, p.precio"
                         ),
                     },
+                    {
+                        "name": "descuento 50% sobre 200 -> 100",
+                        "code": (
+                            "p = Producto('mochila', 200)\n"
+                            "p.aplicar_descuento(50)\n"
+                            "assert abs(p.precio - 100) < 1e-9, p.precio"
+                        ),
+                    },
+                    {
+                        "name": "dos descuentos se aplican sobre el precio ya rebajado",
+                        "code": (
+                            "p = Producto('silla', 100)\n"
+                            "p.aplicar_descuento(10)\n"
+                            "p.aplicar_descuento(10)\n"
+                            "assert abs(p.precio - 81) < 1e-9, "
+                            "f'esperaba 81 y quedo {p.precio}'"
+                        ),
+                    },
+                    {
+                        "name": "rebajar uno no toca al otro",
+                        "code": (
+                            "a = Producto('a', 100)\n"
+                            "b = Producto('b', 100)\n"
+                            "a.aplicar_descuento(25)\n"
+                            "assert abs(b.precio - 100) < 1e-9, "
+                            "'el descuento afecto a los dos productos'"
+                        ),
+                    },
                 ],
             ),
             ExerciseTemplate(
                 title="Cuenta bancaria",
-                description="Mutacion de estado.",
-                instructions="Implementa `depositar(monto)` (suma al saldo) y `retirar(monto)` (resta si hay saldo; si no, lanza ValueError).",
-                starter_code="class Cuenta:\n    def __init__(self):\n        self.saldo = 0\n\n    # TODO: depositar y retirar\n",
+                description="Estado que se mueve y un metodo que lo defiende.",
+                instructions=(
+                    "Implementa en `Cuenta` dos metodos:\n\n"
+                    "- `depositar(monto)`: suma `monto` a `self.saldo`.\n"
+                    "- `retirar(monto)`: resta `monto` si hay saldo suficiente; si "
+                    "no lo hay, **lanza** un `ValueError`.\n\n"
+                    "Cuando el retiro no se puede hacer, el saldo tiene que quedar "
+                    "como estaba: valida antes de restar."
+                ),
+                starter_code=(
+                    "class Cuenta:\n"
+                    "    def __init__(self):\n"
+                    "        self.saldo = 0\n\n"
+                    "    # TODO: depositar y retirar\n"
+                ),
+                hints=[
+                    "Los dos metodos empiezan por self: def depositar(self, monto):",
+                    "Depositar es self.saldo = self.saldo + monto.",
+                    "En retirar, primero: if monto > self.saldo: raise ValueError('saldo insuficiente').",
+                    "La resta va despues del if, no antes: si no, dejas la cuenta en negativo y ademas lanzas el error.",
+                ],
                 difficulty="medium",
                 points=15,
                 hidden_tests=[
@@ -1518,6 +1841,244 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                             "    raise AssertionError('retiro > saldo debio lanzar ValueError')\n"
                             "except ValueError:\n"
                             "    pass"
+                        ),
+                    },
+                    {
+                        "name": "se puede retirar todo y queda en cero",
+                        "code": (
+                            "c = Cuenta()\n"
+                            "c.depositar(50)\n"
+                            "c.retirar(50)\n"
+                            "assert c.saldo == 0, f'quedo en {c.saldo}'"
+                        ),
+                    },
+                    {
+                        "name": "el retiro fallido no toca el saldo",
+                        "code": (
+                            "c = Cuenta()\n"
+                            "c.depositar(40)\n"
+                            "try:\n"
+                            "    c.retirar(41)\n"
+                            "except ValueError:\n"
+                            "    pass\n"
+                            "assert c.saldo == 40, "
+                            "f'restaste antes de validar: el saldo quedo en {c.saldo}'"
+                        ),
+                    },
+                    {
+                        "name": "cada cuenta lleva su propio saldo",
+                        "code": (
+                            "a = Cuenta()\n"
+                            "b = Cuenta()\n"
+                            "a.depositar(10)\n"
+                            "assert b.saldo == 0, 'las dos cuentas comparten el saldo'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Cesta de la compra",
+                description="Un objeto que acumula en una lista y valida lo que entra.",
+                instructions=(
+                    "Define la clase `Cesta`, que se crea vacia (`Cesta()`, sin "
+                    "argumentos) y guarda lo que le agregan en `self.items`.\n\n"
+                    "- `agregar(nombre, precio)`: si `precio` es 0 o negativo, "
+                    "**lanza** un `ValueError` cuyo mensaje contenga la palabra "
+                    "precio y no guarda nada. Si es valido, guarda el par "
+                    "`(nombre, precio)` en la lista.\n"
+                    "- `total()`: devuelve la suma de los precios (0 si la cesta "
+                    "esta vacia).\n"
+                    "- `nombres()`: devuelve la lista de los nombres, en el orden "
+                    "en que se agregaron. Usa una comprension."
+                ),
+                starter_code=(
+                    "class Cesta:\n"
+                    "    def __init__(self):\n"
+                    "        # TODO: arranca con la lista vacia\n"
+                    "        ...\n\n"
+                    "    # TODO: agregar, total y nombres\n"
+                ),
+                hints=[
+                    "self.items = [] va DENTRO de __init__, nunca pegado a la clase.",
+                    "Guardar el par: self.items.append((nombre, precio)).",
+                    "total: precios = [p for n, p in self.items] y devuelve sum(precios).",
+                    "En agregar, el raise va antes del append: si validas despues, el dato malo ya entro.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "una cesta nueva esta vacia",
+                        "code": (
+                            "c = Cesta()\n"
+                            "assert c.total() == 0, f'total() devolvio {c.total()!r}'\n"
+                            "assert c.nombres() == [], f'nombres() devolvio {c.nombres()!r}'"
+                        ),
+                    },
+                    {
+                        "name": "suma los precios y conserva el orden de los nombres",
+                        "code": (
+                            "c = Cesta()\n"
+                            "c.agregar('pan', 2)\n"
+                            "c.agregar('leche', 3)\n"
+                            "c.agregar('cafe', 5)\n"
+                            "assert c.total() == 10, f'total() devolvio {c.total()!r}'\n"
+                            "assert c.nombres() == ['pan', 'leche', 'cafe'], "
+                            "f'nombres() devolvio {c.nombres()!r}'"
+                        ),
+                    },
+                    {
+                        "name": "un precio invalido lanza ValueError",
+                        "code": (
+                            "c = Cesta()\n"
+                            "for malo in (0, -5):\n"
+                            "    try:\n"
+                            "        c.agregar('gratis', malo)\n"
+                            "    except ValueError as e:\n"
+                            "        assert 'precio' in str(e), "
+                            "'el mensaje no menciona el precio'\n"
+                            "    else:\n"
+                            "        raise AssertionError(str(malo) + ' deberia lanzar ValueError')"
+                        ),
+                    },
+                    {
+                        "name": "el item invalido no se guarda",
+                        "code": (
+                            "c = Cesta()\n"
+                            "c.agregar('pan', 2)\n"
+                            "try:\n"
+                            "    c.agregar('gratis', -1)\n"
+                            "except ValueError:\n"
+                            "    pass\n"
+                            "assert c.total() == 2, "
+                            "f'el item invalido entro en la cesta: total() = {c.total()}'\n"
+                            "assert c.nombres() == ['pan'], f'nombres() devolvio {c.nombres()!r}'"
+                        ),
+                    },
+                    {
+                        "name": "dos cestas no comparten los items",
+                        "code": (
+                            "a = Cesta()\n"
+                            "b = Cesta()\n"
+                            "a.agregar('pan', 2)\n"
+                            "assert b.total() == 0, "
+                            "'las dos cestas comparten la lista: creala dentro de __init__'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Inventario de la tienda",
+                description="El pipeline: diccionario interno, dos validaciones, comprension y __str__.",
+                instructions=(
+                    "Define la clase `Inventario`, que se crea vacia "
+                    "(`Inventario()`) y guarda las unidades de cada producto en un "
+                    "diccionario interno `self._stock` (el guion bajo avisa de que "
+                    "nadie lo toca desde fuera).\n\n"
+                    "- `agregar(nombre, cantidad)`: si `cantidad` es 0 o negativa, "
+                    "**lanza** `ValueError` con la palabra cantidad en el mensaje. "
+                    "Si ya habia unidades de ese producto, se suman.\n"
+                    "- `consultar(nombre)`: devuelve las unidades que hay, o 0 si "
+                    "ese producto no esta.\n"
+                    "- `retirar(nombre, cantidad)`: resta las unidades; si no hay "
+                    "suficientes, **lanza** `ValueError` con la palabra suficiente "
+                    "en el mensaje y deja el stock como estaba.\n"
+                    "- `total_unidades()`: devuelve la suma de todas las unidades "
+                    "del inventario. Usa una comprension.\n"
+                    "- `__str__`: devuelve el texto `Inventario: N unidades`, con "
+                    "`N` igual a `total_unidades()`."
+                ),
+                starter_code=(
+                    "class Inventario:\n"
+                    "    def __init__(self):\n"
+                    "        # TODO: arranca con el diccionario vacio\n"
+                    "        ...\n\n"
+                    "    # TODO: agregar, consultar, retirar, total_unidades y __str__\n"
+                ),
+                hints=[
+                    "self._stock = {} dentro de __init__.",
+                    "consultar es una linea: return self._stock.get(nombre, 0), que da 0 si no existe.",
+                    "Usa consultar dentro de agregar y retirar en vez de repetir el .get: "
+                    "self._stock[nombre] = self.consultar(nombre) + cantidad.",
+                    "total_unidades: sum([u for u in self._stock.values()]). "
+                    "Y __str__ devuelve f'Inventario: {self.total_unidades()} unidades'.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "agregar acumula y consultar lee",
+                        "code": (
+                            "inv = Inventario()\n"
+                            "inv.agregar('lapiz', 3)\n"
+                            "inv.agregar('lapiz', 2)\n"
+                            "inv.agregar('goma', 1)\n"
+                            "assert inv.consultar('lapiz') == 5, "
+                            "f\"consultar('lapiz') devolvio {inv.consultar('lapiz')!r}\"\n"
+                            "assert inv.consultar('goma') == 1"
+                        ),
+                    },
+                    {
+                        "name": "consultar algo que no esta devuelve 0",
+                        "code": (
+                            "inv = Inventario()\n"
+                            "assert inv.consultar('fantasma') == 0, "
+                            "'usa .get(nombre, 0) para no reventar con un KeyError'"
+                        ),
+                    },
+                    {
+                        "name": "cantidad invalida al agregar lanza ValueError",
+                        "code": (
+                            "inv = Inventario()\n"
+                            "for mala in (0, -3):\n"
+                            "    try:\n"
+                            "        inv.agregar('lapiz', mala)\n"
+                            "    except ValueError as e:\n"
+                            "        assert 'cantidad' in str(e), "
+                            "'el mensaje no menciona la cantidad'\n"
+                            "    else:\n"
+                            "        raise AssertionError(str(mala) + ' deberia lanzar ValueError')\n"
+                            "assert inv.consultar('lapiz') == 0, 'la cantidad invalida entro igual'"
+                        ),
+                    },
+                    {
+                        "name": "retirar resta, y si no alcanza lanza ValueError sin tocar el stock",
+                        "code": (
+                            "inv = Inventario()\n"
+                            "inv.agregar('lapiz', 10)\n"
+                            "inv.retirar('lapiz', 4)\n"
+                            "assert inv.consultar('lapiz') == 6, "
+                            "f\"quedaron {inv.consultar('lapiz')} lapices\"\n"
+                            "try:\n"
+                            "    inv.retirar('lapiz', 7)\n"
+                            "except ValueError as e:\n"
+                            "    assert 'suficiente' in str(e), 'el mensaje no lo explica'\n"
+                            "else:\n"
+                            "    raise AssertionError('retirar de mas deberia lanzar ValueError')\n"
+                            "assert inv.consultar('lapiz') == 6, "
+                            "'restaste antes de validar: el stock cambio igual'"
+                        ),
+                    },
+                    {
+                        "name": "total_unidades suma todo el inventario",
+                        "code": (
+                            "inv = Inventario()\n"
+                            "assert inv.total_unidades() == 0, 'un inventario vacio suma 0'\n"
+                            "inv.agregar('lapiz', 3)\n"
+                            "inv.agregar('goma', 4)\n"
+                            "inv.agregar('regla', 1)\n"
+                            "assert inv.total_unidades() == 8, "
+                            "f'devolvio {inv.total_unidades()!r}'"
+                        ),
+                    },
+                    {
+                        "name": "__str__ muestra el total",
+                        "code": (
+                            "inv = Inventario()\n"
+                            "inv.agregar('lapiz', 3)\n"
+                            "inv.agregar('goma', 4)\n"
+                            "assert str(inv) == 'Inventario: 7 unidades', "
+                            "f'str(inv) devolvio {str(inv)!r}'"
                         ),
                     },
                 ],

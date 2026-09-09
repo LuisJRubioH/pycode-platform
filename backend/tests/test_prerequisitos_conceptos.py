@@ -10,18 +10,20 @@ Por qué esto es un test y no una buena intención: en la auditoría de contenid
 lección de Track 1, y aun así cinco ejercicios lo exigen desde la lección 5. El
 alumno escribe su primera función sin haber visto nunca una definición.
 
-## Cómo se maneja mientras Track 1 siga vacío
+## Cómo se manejó la deuda
 
 En vez de marcar el test como ``xfail`` —que lo dejaría dormido y sin proteger
-nada— se congela la lista exacta de huecos conocidos en ``HUECOS_CONOCIDOS`` y
-se compara por igualdad. Así el test está **activo desde hoy**:
+nada— se congeló la lista exacta de huecos conocidos en ``HUECOS_CONOCIDOS`` y
+se comparó por igualdad. Así el test estuvo **activo desde el primer día**:
 
 - si aparece un hueco nuevo, falla (protege contra regresiones ya);
 - si se cierra uno de los conocidos, también falla, pidiendo que se borre de la
   lista (impide que la deuda se quede escrita para siempre).
 
-Cuando se reescriba Track 1, la lista se vacía y el test queda como guard rail
-permanente sin tocar una línea de lógica.
+Los 13 huecos se cerraron entre el 2026-09-03 y el 2026-09-09 reescribiendo
+"Funciones y Parametros", "Comprensiones y Manejo de Errores" y "POO en
+Python". La lista está vacía y el test es ya un guard rail permanente, sin
+haber tocado una línea de su lógica.
 
 ## Límite conocido
 
@@ -32,8 +34,13 @@ es un suelo, no un techo.
 """
 
 import re
+import sys
 
-from app.services.lesson_seed import LESSON_TEMPLATES
+from app.services.lesson_seed import (
+    LESSON_TEMPLATES,
+    ExerciseTemplate,
+    LessonTemplate,
+)
 
 # Tokens que un principiante no puede deducir: o los ha visto escritos, o no.
 CONCEPTOS = {
@@ -94,23 +101,17 @@ def detectar_huecos() -> set[tuple[str, str, str]]:
     return huecos
 
 
-# Deuda de contenido viva. Se encoge segun avanza la reescritura de Track 1
-# (plan en docs/PLANTILLA_LECCION.md): 13 huecos el 2026-09-03, 8 tras
-# "Funciones y Parametros" y 6 tras "Comprensiones y Manejo de Errores",
-# que cerro el `raise` de AI 2 y el `with` del ejercicio de pytest.
-HUECOS_CONOCIDOS: set[tuple[str, str, str]] = {
-    # Los 5 huecos de `def` se cerraron el 2026-09-03 al reescribir
-    # "Funciones y Parametros", que ahora lo ensena con ejemplos ejecutables.
-    # POO: el starter trae la clase hecha, pero la lección no muestra
-    # ni `class`, ni `self`, ni `__init__` en un bloque de código. Se cierra
-    # al reescribirla (paso 3 del plan de Track 1).
-    ("POO en Python", "Clase Producto", "class"),
-    ("POO en Python", "Clase Producto", "self"),
-    ("POO en Python", "Clase Producto", "__init__"),
-    ("POO en Python", "Cuenta bancaria", "class"),
-    ("POO en Python", "Cuenta bancaria", "self"),
-    ("POO en Python", "Cuenta bancaria", "__init__"),
-}
+# Deuda de contenido saldada. Empezo con 13 huecos el 2026-09-03 y se fue
+# encogiendo con la reescritura de Track 1 (plan en docs/PLANTILLA_LECCION.md):
+# 8 tras "Funciones y Parametros" (cerro los 5 de `def`), 6 tras "Comprensiones
+# y Manejo de Errores" (`raise` de AI 2 y `with` del ejercicio de pytest) y 0
+# tras "POO en Python" (`class`, `self` e `__init__`, que hasta entonces solo
+# aparecian en la prosa y en el starter).
+#
+# Vacio no significa muerto: el test deja de proteger deuda y pasa a ser un
+# guard rail puro. Si al escribir una leccion nueva sale un hueco, la respuesta
+# por defecto es ensenar el concepto con un ejemplo, no anotarlo aqui.
+HUECOS_CONOCIDOS: set[tuple[str, str, str]] = set()
 
 
 def test_la_prosa_no_cuenta_como_ejemplo():
@@ -150,13 +151,37 @@ def test_ningun_ejercicio_pide_lo_que_no_se_ha_ensenado():
     )
 
 
-def test_el_detector_no_es_vacuo():
-    """Si HUECOS_CONOCIDOS se vacía por accidente, este test lo delata.
+def test_el_detector_no_es_vacuo(monkeypatch):
+    """Un detector que nunca encuentra nada aprueba cualquier temario.
 
-    Mientras Track 1 siga sin contenido tiene que haber huecos: un detector que
-    hoy no encuentre nada está roto, no es que el temario esté sano.
+    Antes esto se comprobaba contra el temario real ("si no ve huecos es que
+    está roto"), que valía mientras Track 1 estuviera sin contenido. Cerrados
+    los 13, se le da un temario de mentira con un hueco evidente: una lección
+    que explica `__init__` **solo en prosa** y un ejercicio que pide escribir
+    una clase. Si tampoco lo ve, el guard rail no protege nada.
     """
-    assert detectar_huecos(), (
-        "El detector no encuentra ningún hueco. O se reescribió Track 1 (en "
-        "cuyo caso borra este test), o el detector dejó de funcionar."
-    )
+    temario_con_hueco = [
+        LessonTemplate(
+            title="Clases sin ejemplos",
+            description="",
+            content="## Clases\n- Usa `__init__` para el estado inicial.\n",
+            difficulty="beginner",
+            category="fundamentos",
+            order=1,
+            estimated_duration=10,
+            exercises=[
+                ExerciseTemplate(
+                    title="Pide una clase",
+                    description="",
+                    instructions="Define `class Punto` con su `__init__`.",
+                    starter_code="",
+                )
+            ],
+        )
+    ]
+    monkeypatch.setattr(sys.modules[__name__], "LESSON_TEMPLATES", temario_con_hueco)
+
+    assert detectar_huecos() == {
+        ("Clases sin ejemplos", "Pide una clase", "class"),
+        ("Clases sin ejemplos", "Pide una clase", "__init__"),
+    }
