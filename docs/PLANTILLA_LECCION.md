@@ -185,15 +185,15 @@ de prerequisitos es un guard rail puro y el orden lo marca la calidad del conten
 | ✅ | Comprensiones y Manejo de Errores | 7 | comprensiones, `try`/`except`, `raise`, `with` como garantía de limpieza | **`raise` ×2** (AI 2, Cuenta bancaria) · **`with` ×1** (Prueba de calculadora) |
 | ✅ | POO en Python | 8 | `class`, `self`, `__init__`, métodos, colecciones como estado, encapsulación, `__str__` | **`class`/`self`/`__init__` ×6** (Clase Producto, Cuenta bancaria) — los 6 últimos |
 | ✅ | Listas, Tuplas y Diccionarios | 6 | listas, indexado y slicing, métodos, tuplas y desempaquetado, dicts con `.get` e `.items` | — (era la peor del temario con 148 caracteres, y POO se apoyaba en ella) |
-| **1** | **Python desde Cero** | 1 | `print`, ejecutar código, sintaxis, indentación, errores de novato | — |
-| **2** | **Variables y Tipos** | 2 | int/float/str/bool, conversión, f-strings, mutabilidad | — |
-| **3** | **Condicionales y Lógica** | 3 | `if`/`elif`/`else`, comparadores, `and`/`or`/`not`, truthiness | — |
-| 4 | Módulos, Paquetes y Entornos | 9 | módulos, `import`, `__name__`, venv, pip | — |
-| 5 | Testing con pytest | 10 | tests, `assert`, `pytest.raises`, casos borde | — |
+| ✅ | Python desde Cero | 1 | `print`, orden de ejecución, primera variable, f-strings, comentarios, leer un error | — |
+| **1** | **Variables y Tipos** | 2 | int/float/str/bool, conversión, f-strings, mutabilidad | — |
+| **2** | **Condicionales y Lógica** | 3 | `if`/`elif`/`else`, comparadores, `and`/`or`/`not`, truthiness | — |
+| 3 | Módulos, Paquetes y Entornos | 9 | módulos, `import`, `__name__`, venv, pip | — |
+| 4 | Testing con pytest | 10 | tests, `assert`, `pytest.raises`, casos borde | — |
 
 Con 6 ejercicios por lección, Track 1 pasa de 18 a 60: **42 ejercicios nuevos**, que
-se escriben junto a su lección y no como tarea aparte. Llevamos **5 lecciones y 30
-ejercicios**; quedan cinco lecciones, todas sin hueco que cerrar.
+se escriben junto a su lección y no como tarea aparte. Llevamos **6 lecciones y 36
+ejercicios**; quedan cuatro lecciones, todas sin hueco que cerrar.
 
 ### Deudas que deja este orden
 
@@ -218,12 +218,11 @@ siguiente de la lista. Al reescribirla hay que decidir si la 8 sigue explicándo
 o pasa a darlas por sabidas y solo las usa. El test de prerequisitos **no** cubre
 esto: ni las tuplas ni `.get` están en `CONCEPTOS`.
 
-**Las f-strings se enseñan en "Funciones y Parámetros" (lección 5), fuera de su
-sitio.** Se usaban en varios ejemplos sin haberse enseñado nunca, así que la 5 las
-introduce sobre la marcha para no dejar el agujero. Por temario pertenecen a
-"Variables y Tipos" (lección 2). Al reescribir la 2 hay que decidir si se mueven allí
-y la 5 pasa a darlas por sabidas, o si se quedan donde están y la 2 solo las repasa.
-El test de prerequisitos **no** cubre esto: las f-strings no están en `CONCEPTOS`.
+**Las f-strings ya tienen sitio: la lección 1.** Estuvieron sueltas mucho tiempo
+-la 5 las introducía sobre la marcha y el ejercicio "Hola Python" las pedía desde el
+primer día sin que nadie las hubiera enseñado-. Al reescribir "Python desde Cero" se
+metieron ahí, que es donde el alumno las necesita por primera vez. La 2 y la 5 las dan
+por sabidas; la 2, como mucho, las repasa con el resto del formato de texto.
 
 **No rehacer los ejercicios ya validados de las lecciones 9 y 10.** "Refactor a
 modulo" (lección 9) y "Prueba de calculadora" (lección 10) se rediseñaron y se
@@ -239,6 +238,20 @@ Un bucle infinito bloquea el sandbox de forma permanente: el timeout del runner 
 puede interrumpir código Python síncrono. Está documentado con el diagnóstico y las
 mediciones en el **issue #32**, y se aborda **después** de Track 1. Mientras tanto la
 lección 4 lo avisa en el contenido.
+
+## Los enunciados se muestran en texto plano
+
+`instructions` **no se renderiza como Markdown** en ninguna de las dos vistas: la
+lección lo pinta con `whitespace-pre-wrap`
+([LessonDetail.tsx](../frontend/src/pages/LessonDetail.tsx)) y el editor lo mete en
+un `textarea` de cuatro filas
+([CodeEditor.tsx](../frontend/src/pages/CodeEditor.tsx)), donde además es editable
+porque el mismo campo alimenta al evaluador.
+
+Consecuencia al escribir: los backticks y los `**` salen literales, y un bloque
+con triples backticks se ve como tres backticks. Para mostrar una salida esperada,
+indéntala cuatro espacios en vez de usar un bloque de código. El contenido de la
+**lección** sí es Markdown con resaltado de sintaxis: ahí no hay limitación.
 
 ## Cómo llega a producción
 

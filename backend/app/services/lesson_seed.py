@@ -43,33 +43,160 @@ class LessonTemplate:
 LESSON_TEMPLATES: list[LessonTemplate] = [
     LessonTemplate(
         title="Python desde Cero",
-        description="Que es Python, como ejecutar scripts y estructura minima de un programa.",
+        description=(
+            "Tu primer programa: print, variables, f-strings y como se lee un "
+            "error. No hace falta saber nada de programacion."
+        ),
         content=(
-            "## Objetivo\n"
-            "Entender que es Python y como correr tu primer script.\n\n"
-            "## Teoria\n"
-            "- Python es un lenguaje interpretado y multiparadigma.\n"
-            "- `print()` muestra informacion en consola.\n"
-            "- Un archivo `.py` se ejecuta de arriba hacia abajo.\n\n"
-            "## Buenas practicas\n"
-            "- Usa nombres claros.\n"
-            "- Comenta solo cuando aporta contexto.\n"
-            "- Prueba cambios pequeños y frecuentes.\n"
+            "## Por que empezar por aqui\n"
+            "Esta es la primera leccion del camino, y esta escrita para alguien\n"
+            "que no ha programado nunca. Al terminarla vas a haber escrito y\n"
+            "ejecutado programas de verdad: cosas que guardan datos, los\n"
+            "combinan y los muestran. Lo que viene despues -bucles, funciones,\n"
+            "datos, machine learning- son variaciones sobre lo que aprendes hoy.\n\n"
+            "El codigo lo escribes en el editor y lo corres con el boton de\n"
+            "ejecutar: se ejecuta **dentro de tu navegador**, asi que no tienes\n"
+            "que instalar nada ni puedes romper nada.\n\n"
+            "## print: hacer que el programa hable\n"
+            "Un programa que no muestra nada parece un programa que no funciona.\n"
+            "`print` es como le pides que te ensene algo:\n"
+            "```python\n"
+            "print('Hola')            # Hola\n"
+            "print('Hola', 'mundo')   # Hola mundo  -> la coma mete un espacio\n"
+            "print(3 + 4)             # 7   -> sin comillas es una cuenta, no un texto\n"
+            "print('3 + 4')           # 3 + 4  -> con comillas es texto tal cual\n"
+            "print()                  # una linea en blanco\n"
+            "```\n"
+            "Lo que va entre comillas es **texto** y sale tal cual. Lo que va sin\n"
+            "comillas, Python intenta entenderlo: `3 + 4` lo resuelve antes de\n"
+            "imprimirlo. Las comillas pueden ser simples o dobles, pero la que\n"
+            "abre y la que cierra tienen que ser la misma.\n\n"
+            "## Un programa se lee de arriba abajo\n"
+            "Cada linea es una instruccion, y se ejecutan en orden, una detras de\n"
+            "otra:\n"
+            "```python\n"
+            "print('primero')     # esto sale antes\n"
+            "print('segundo')     # y esto despues\n"
+            "print('tercero')     # el orden lo decides tu escribiendo\n"
+            "```\n"
+            "Parece obvio, pero es la regla que explica la mitad de los errores\n"
+            "del principio: si usas algo antes de la linea donde lo creas, para\n"
+            "Python todavia no existe.\n\n"
+            "## Variables: ponerle nombre a un dato\n"
+            "Una variable es un nombre para un dato, para no repetirlo cada vez:\n"
+            "```python\n"
+            "nombre = 'Ana'       # el = guarda lo de la derecha con el nombre de la izquierda\n"
+            "print(nombre)        # Ana     -> sin comillas: imprime lo GUARDADO\n"
+            "print('nombre')      # nombre  -> con comillas: el texto literal\n\n"
+            "nombre = 'Luis'      # se puede reasignar: ahora vale otra cosa\n"
+            "print(nombre)        # Luis    -> se quedo con lo ultimo\n\n"
+            "precio = 3           # los numeros van sin comillas\n"
+            "total = precio * 4   # y se pueden operar: * es multiplicar\n"
+            "print(total)         # 12\n"
+            "```\n"
+            "El `=` no es el de las matematicas: no dice que las dos partes sean\n"
+            "iguales, dice **guarda esto ahi**. Por eso `total = precio * 4`\n"
+            "primero hace la cuenta y despues guarda el resultado.\n\n"
+            "En la proxima leccion vas a ver los tipos de dato en serio (texto,\n"
+            "enteros, decimales); por ahora basta con distinguir lo que lleva\n"
+            "comillas de lo que no.\n\n"
+            "## f-strings: meter un dato dentro de un texto\n"
+            "Casi nunca quieres imprimir el dato solo, sino dentro de una frase.\n"
+            "Para eso se pone una `f` delante de la comilla y el dato entre\n"
+            "llaves:\n"
+            "```python\n"
+            "nombre = 'Ana'\n"
+            "edad = 30\n"
+            "print(f'Hola, {nombre}')            # Hola, Ana\n"
+            "print(f'{nombre} tiene {edad}')     # Ana tiene 30  -> puedes meter varios\n"
+            "print(f'El ano que viene, {edad + 1}')   # El ano que viene, 31\n"
+            "print('Hola, {nombre}')             # Hola, {nombre}  -> sin la f no sustituye\n"
+            "```\n"
+            "Dentro de las llaves va lo que quieras que Python resuelva: una\n"
+            "variable o una cuenta. Fuera de las llaves, todo es texto.\n\n"
+            "## Comentarios: notas para el que lee\n"
+            "```python\n"
+            "# Esta linea entera la ignora Python.\n"
+            "print('hola')   # y esto tambien, desde la almohadilla hasta el final\n"
+            "```\n"
+            "Los comentarios no cambian lo que hace el programa. Sirven para\n"
+            "explicar **por que** haces algo, no para repetir lo que ya dice el\n"
+            "codigo: `precio = 3  # asigna 3 a precio` no le aporta nada a nadie.\n\n"
+            "## Los espacios del principio de la linea importan\n"
+            "En muchos lenguajes la sangria es decoracion. En Python es sintaxis:\n"
+            "```python\n"
+            "print('linea uno')\n"
+            "print('linea dos')   # las dos empiezan pegadas al margen: sin espacios\n"
+            "```\n"
+            "Si le pones un espacio delante a la segunda linea, Python corta con\n"
+            "`IndentationError: unexpected indent`. Mas adelante habra sitios\n"
+            "donde la sangria es obligatoria (dentro de un `if`, de un bucle);\n"
+            "por ahora la regla es: todo pegado al margen izquierdo.\n\n"
+            "## Cuando algo falla, leelo de abajo hacia arriba\n"
+            "Los errores de Python asustan porque son varias lineas, pero **la\n"
+            "ultima es la que dice que paso** y las de arriba dicen donde:\n"
+            "```python\n"
+            "print('antes del error')      # esto SI se ejecuta\n"
+            "# print(nombre_que_no_existe) # esto daria NameError\n"
+            "print('el programa sigue')    # porque la linea de arriba es un comentario\n"
+            "```\n"
+            "Los tres que vas a ver mil veces:\n\n"
+            "- `NameError: name 'x' is not defined` -> usaste un nombre que no\n"
+            "  existe todavia, o lo escribiste distinto al crearlo.\n"
+            "- `SyntaxError` -> la frase no es Python valido: casi siempre una\n"
+            "  comilla o un parentesis sin cerrar.\n"
+            "- `IndentationError` -> espacios de mas o de menos al principio de\n"
+            "  una linea.\n\n"
+            "Un error no es un castigo: es el interprete diciendote donde mirar.\n\n"
+            "## Errores comunes\n"
+            "- Escribir `Print` o `PRINT`. Python distingue mayusculas de\n"
+            "  minusculas: solo existe `print`, y lo demas es `NameError`.\n"
+            "- Olvidar una comilla o un parentesis. `print('hola)` no llega ni a\n"
+            "  ejecutarse: `SyntaxError`. Cuenta que cada cosa que abres se\n"
+            "  cierra.\n"
+            "- Olvidar la `f` delante del texto: `print('Hola, {nombre}')`\n"
+            "  imprime las llaves tal cual en vez del valor. Si ves llaves en la\n"
+            "  salida, te falta la `f`.\n"
+            "- Usar una variable antes de crearla. El programa se lee de arriba\n"
+            "  abajo: si el `print(total)` esta encima de la linea que calcula\n"
+            "  `total`, es `NameError`.\n"
+            "- Confundir el nombre con el texto: `print(nombre)` imprime el dato\n"
+            "  guardado, `print('nombre')` imprime la palabra nombre.\n\n"
+            "## Resumen\n"
+            "- `print(...)` muestra cosas; con comillas es texto literal, sin\n"
+            "  comillas Python lo resuelve primero.\n"
+            "- El programa se ejecuta de arriba abajo, una linea por instruccion.\n"
+            "- `nombre = valor` guarda un dato con un nombre, y se puede\n"
+            "  reasignar.\n"
+            "- `f'Hola, {nombre}'` mete el valor dentro del texto; sin la `f` no\n"
+            "  sustituye nada.\n"
+            "- `#` empieza un comentario, que Python ignora.\n"
+            "- Las lineas van pegadas al margen mientras no estemos dentro de un\n"
+            "  bloque.\n"
+            "- El mensaje de error se lee por la ultima linea: `NameError`,\n"
+            "  `SyntaxError` e `IndentationError` son los tres del principio.\n"
         ),
         difficulty="beginner",
         category="fundamentos",
         order=1,
-        estimated_duration=20,
+        estimated_duration=40,
         exercises=[
             ExerciseTemplate(
                 title="Hola Python",
-                description="Imprime un saludo y tu nombre.",
-                instructions="Crea una variable `nombre` y muestra `Hola, <nombre>` usando f-string.",
+                description="Tu primer programa: una variable y un saludo.",
+                instructions=(
+                    "Guarda tu nombre en la variable `nombre` y muestra "
+                    "`Hola, <tu nombre>` usando una f-string.\n\n"
+                    "Con `nombre = 'Ana'` la salida tiene que ser exactamente "
+                    "`Hola, Ana`: una sola linea, con la coma y el espacio."
+                ),
                 starter_code="nombre = ''\n# TODO\n",
                 hints=[
-                    "Usa print(f'Hola, {nombre}')",
-                    "Asigna primero un string a nombre",
+                    "Primero pon tu nombre entre comillas: nombre = 'Ana'.",
+                    "Despues: print(f'Hola, {nombre}')  -- la f va pegada a la comilla.",
                 ],
+                difficulty="easy",
+                points=10,
                 hidden_tests=[
                     {
                         "name": "imprime 'Hola, <nombre>' con f-string",
@@ -78,13 +205,34 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                             "assert _salida.strip() == f'Hola, {nombre}', _salida"
                         ),
                     },
+                    {
+                        "name": "es una sola linea",
+                        "code": (
+                            "lineas = [l for l in _salida.strip().split(chr(10)) if l.strip()]\n"
+                            "assert len(lineas) == 1, ('esperaba una sola linea', lineas)"
+                        ),
+                    },
                 ],
             ),
             ExerciseTemplate(
                 title="Mini presentación",
-                description="Muestra dos lineas con informacion personal.",
-                instructions="Imprime `ciudad` y `lenguaje` en dos lineas separadas (una por print).",
+                description="Dos prints, dos lineas, en orden.",
+                instructions=(
+                    "Pon tu ciudad en `ciudad` e imprime **dos lineas**: primero "
+                    "la ciudad y despues el lenguaje.\n\n"
+                    "Cada `print` muestra solo el valor de la variable, sin texto "
+                    "alrededor. Con `ciudad = 'Lima'` la salida es `Lima` y debajo "
+                    "`Python`."
+                ),
                 starter_code="ciudad = ''\nlenguaje = 'Python'\n# TODO\n",
+                hints=[
+                    "Pon tu ciudad entre comillas: ciudad = 'Lima'.",
+                    "Dos prints, uno debajo del otro: print(ciudad) y print(lenguaje).",
+                    "Sin comillas dentro del print: print(ciudad) imprime el dato, "
+                    "print('ciudad') imprime la palabra.",
+                ],
+                difficulty="easy",
+                points=10,
                 hidden_tests=[
                     {
                         "name": "imprime dos lineas (incluye 'Python')",
@@ -92,6 +240,241 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                             "lineas = [l for l in _salida.strip().split(chr(10)) if l.strip()]\n"
                             "assert len(lineas) == 2, ('esperaba 2 lineas', lineas)\n"
                             "assert 'Python' in _salida, _salida"
+                        ),
+                    },
+                    {
+                        "name": "primero la ciudad, despues el lenguaje, y sin texto de adorno",
+                        "code": (
+                            "assert ciudad, 'define ciudad con tu ciudad'\n"
+                            "lineas = [l for l in _salida.strip().split(chr(10)) if l.strip()]\n"
+                            "assert lineas == [ciudad, lenguaje], "
+                            "f'esperaba [{ciudad!r}, {lenguaje!r}] y salio {lineas}'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="La cuenta del kiosco",
+                description="Una variable que sale de otras dos.",
+                instructions=(
+                    "Con el precio y la cantidad que ya estan en el starter, "
+                    "calcula el total y guardalo en una variable llamada `total`.\n\n"
+                    "Despues imprime exactamente `Total: 12 euros` usando una "
+                    "f-string con `total` dentro. La cuenta la hace Python, no tu: "
+                    "no escribas el 12 a mano."
+                ),
+                starter_code=(
+                    "precio_unitario = 3\n"
+                    "cantidad = 4\n"
+                    "# TODO: calcula total y luego imprimelo\n"
+                ),
+                hints=[
+                    "Multiplicar es *: total = precio_unitario * cantidad.",
+                    "La linea del total va ANTES del print que lo usa.",
+                    "print(f'Total: {total} euros')",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "la variable total vale 12",
+                        "code": (
+                            "assert 'total' in dir() or True\n"
+                            "assert total == 12, f'total vale {total!r}'"
+                        ),
+                    },
+                    {
+                        "name": "imprime la linea exacta",
+                        "code": (
+                            "assert _salida.strip() == 'Total: 12 euros', "
+                            "f'salio {_salida.strip()!r}'"
+                        ),
+                    },
+                    {
+                        "name": "el total sale de la multiplicacion, no escrito a mano",
+                        "code": (
+                            "assert total == precio_unitario * cantidad, "
+                            "'total no coincide con precio_unitario * cantidad'\n"
+                            "assert precio_unitario == 3 and cantidad == 4, "
+                            "'no cambies el precio ni la cantidad del starter'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Intercambio",
+                description="Reasignar es pisar lo que habia.",
+                instructions=(
+                    "`a` vale `'sol'` y `b` vale `'luna'`. Intercambia sus valores "
+                    "para que al final `a` valga `'luna'` y `b` valga `'sol'`.\n\n"
+                    "Usa una tercera variable llamada `temporal` para no perder "
+                    "ninguno por el camino, y al final imprime una linea con "
+                    "`a` y `b` separados por un espacio."
+                ),
+                starter_code=(
+                    "a = 'sol'\n"
+                    "b = 'luna'\n"
+                    "# TODO: intercambia usando temporal, despues imprime\n"
+                ),
+                hints=[
+                    "Si escribes a = b lo primero, el valor viejo de a se pierde "
+                    "para siempre: por eso hace falta guardarlo antes.",
+                    "temporal = a  -> ahora 'sol' esta a salvo.",
+                    "Despues a = b, y por ultimo b = temporal.",
+                    "Para imprimir: print(f'{a} {b}') o print(a, b).",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "los valores quedaron intercambiados",
+                        "code": (
+                            "assert a == 'luna', f'a vale {a!r}'\n"
+                            "assert b == 'sol', f'b vale {b!r}'"
+                        ),
+                    },
+                    {
+                        "name": "no se perdio ninguno por el camino",
+                        "code": (
+                            "assert temporal == 'sol', "
+                            "f'temporal vale {temporal!r}: guarda en el la copia de a antes de pisarla'"
+                        ),
+                    },
+                    {
+                        "name": "imprime los dos en una linea",
+                        "code": (
+                            "assert _salida.strip() == 'luna sol', "
+                            "f'salio {_salida.strip()!r} y se esperaba luna sol'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Tarjeta de presentacion",
+                description="Varias variables, una cuenta y tres lineas con formato.",
+                instructions=(
+                    "Rellena `nombre`, `ciudad` y `edad` con tus datos (la edad es "
+                    "un numero, sin comillas). Calcula en `anio_nacimiento` el ano "
+                    "aproximado en que naciste restandole tu edad a 2026, y "
+                    "imprime estas tres lineas, en este orden:\n\n"
+                    "```\n"
+                    "Nombre: Ana\n"
+                    "Ciudad: Lima\n"
+                    "Nacio en 1996\n"
+                    "```\n\n"
+                    "Con tus datos, claro. Usa f-strings."
+                ),
+                starter_code=(
+                    "nombre = ''\n"
+                    "ciudad = ''\n"
+                    "edad = 0\n"
+                    "# TODO: calcula anio_nacimiento y imprime las tres lineas\n"
+                ),
+                hints=[
+                    "La edad va sin comillas: edad = 30, no edad = '30'.",
+                    "anio_nacimiento = 2026 - edad",
+                    "La primera linea es print(f'Nombre: {nombre}').",
+                    "La tercera lleva la cuenta ya hecha: print(f'Nacio en {anio_nacimiento}').",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "los datos estan rellenados",
+                        "code": (
+                            "assert nombre and ciudad, 'rellena nombre y ciudad'\n"
+                            "assert edad > 0, 'pon tu edad como numero, sin comillas'"
+                        ),
+                    },
+                    {
+                        "name": "el ano de nacimiento sale de la resta",
+                        "code": (
+                            "assert anio_nacimiento == 2026 - edad, "
+                            "f'anio_nacimiento vale {anio_nacimiento!r} y con tu edad deberia ser "
+                            "{2026 - edad}'"
+                        ),
+                    },
+                    {
+                        "name": "las tres lineas, en orden y con su etiqueta",
+                        "code": (
+                            "lineas = [l for l in _salida.strip().split(chr(10)) if l.strip()]\n"
+                            "esperado = [f'Nombre: {nombre}', f'Ciudad: {ciudad}', "
+                            "f'Nacio en {anio_nacimiento}']\n"
+                            "assert lineas == esperado, f'esperaba {esperado} y salio {lineas}'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="El recibo del kiosco",
+                description="El pipeline: varias variables, varias cuentas y una salida con formato.",
+                instructions=(
+                    "El starter trae el precio y la cantidad de tres productos. "
+                    "Calcula el total de cada uno y el total general, y guardalos "
+                    "en las variables `total_cuaderno`, `total_lapiz`, "
+                    "`total_goma` y `total`.\n\n"
+                    "Despues imprime exactamente estas cuatro lineas:\n\n"
+                    "```\n"
+                    "cuaderno x3 = 12\n"
+                    "lapiz x5 = 5\n"
+                    "goma x2 = 4\n"
+                    "TOTAL = 21\n"
+                    "```\n\n"
+                    "Todos los numeros salen de las variables del starter: no "
+                    "escribas ninguno a mano."
+                ),
+                starter_code=(
+                    "cuaderno_precio = 4\n"
+                    "cuaderno_cantidad = 3\n"
+                    "lapiz_precio = 1\n"
+                    "lapiz_cantidad = 5\n"
+                    "goma_precio = 2\n"
+                    "goma_cantidad = 2\n"
+                    "# TODO: los tres totales, el total general y las cuatro lineas\n"
+                ),
+                hints=[
+                    "Cada total es su precio por su cantidad: "
+                    "total_cuaderno = cuaderno_precio * cuaderno_cantidad.",
+                    "El total general es la suma de los tres, y va DESPUES de ellos.",
+                    "La primera linea: print(f'cuaderno x{cuaderno_cantidad} = {total_cuaderno}').",
+                    "La ultima lleva TOTAL en mayusculas: print(f'TOTAL = {total}').",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "los tres totales por producto",
+                        "code": (
+                            "assert total_cuaderno == 12, f'total_cuaderno vale {total_cuaderno!r}'\n"
+                            "assert total_lapiz == 5, f'total_lapiz vale {total_lapiz!r}'\n"
+                            "assert total_goma == 4, f'total_goma vale {total_goma!r}'"
+                        ),
+                    },
+                    {
+                        "name": "el total general es la suma de los tres",
+                        "code": (
+                            "assert total == 21, f'total vale {total!r}'\n"
+                            "assert total == total_cuaderno + total_lapiz + total_goma, "
+                            "'el total no coincide con la suma de los tres'"
+                        ),
+                    },
+                    {
+                        "name": "las cuatro lineas exactas",
+                        "code": (
+                            "lineas = [l for l in _salida.strip().split(chr(10)) if l.strip()]\n"
+                            "esperado = ['cuaderno x3 = 12', 'lapiz x5 = 5', 'goma x2 = 4', "
+                            "'TOTAL = 21']\n"
+                            "assert lineas == esperado, f'esperaba {esperado} y salio {lineas}'"
+                        ),
+                    },
+                    {
+                        "name": "las cuentas salen de las variables del starter",
+                        "code": (
+                            "assert total_cuaderno == cuaderno_precio * cuaderno_cantidad\n"
+                            "assert total_lapiz == lapiz_precio * lapiz_cantidad\n"
+                            "assert total_goma == goma_precio * goma_cantidad\n"
+                            "assert cuaderno_precio == 4 and lapiz_cantidad == 5, "
+                            "'no cambies los datos del starter'"
                         ),
                     },
                 ],
