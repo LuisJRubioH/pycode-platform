@@ -988,44 +988,480 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
     ),
     LessonTemplate(
         title="Listas, Tuplas y Diccionarios",
-        description="Estructuras de datos base para colecciones.",
+        description=(
+            "Las tres estructuras que guardan muchos datos a la vez: listas para "
+            "lo que cambia, tuplas para lo que no, diccionarios para buscar por nombre."
+        ),
         content=(
-            "## Listas\n"
-            "- Mutables, indexadas y ordenadas.\n\n"
-            "## Tuplas\n"
-            "- Inmutables, utiles para pares fijos.\n\n"
-            "## Diccionarios\n"
-            "- Clave-valor para busqueda rapida.\n"
+            "## Por que estas tres estructuras\n"
+            "Una variable guarda un dato. Treinta alumnos no caben en treinta\n"
+            "variables: caben en **una** lista. Y una vez que tienes muchos datos\n"
+            "juntos, la pregunta deja de ser como guardarlos y pasa a ser como\n"
+            "llegar a uno concreto. Esta leccion son las tres respuestas de\n"
+            "Python, y elegir bien entre ellas te ahorra la mitad del codigo.\n\n"
+            "## Listas: la coleccion que cambia\n"
+            "Ya las viste en los bucles. Una lista guarda cosas en orden y se\n"
+            "puede modificar despues de creada:\n"
+            "```python\n"
+            "notas = [7, 9, 4]        # los corchetes son la lista\n"
+            "print(len(notas))        # 3   -> cuantos elementos tiene\n"
+            "notas.append(10)         # agrega al final\n"
+            "print(notas)             # [7, 9, 4, 10]\n"
+            "notas[0] = 8             # se puede cambiar un elemento\n"
+            "print(notas)             # [8, 9, 4, 10]\n"
+            "```\n"
+            "Los elementos no tienen que ser numeros, ni siquiera del mismo tipo,\n"
+            "pero una lista donde cada posicion significa una cosa distinta suele\n"
+            "ser una senal de que ahi hacia falta un diccionario.\n\n"
+            "## Indexado y slicing: llegar a un trozo\n"
+            "Cada elemento tiene una posicion, y **se empieza a contar en 0**:\n"
+            "```python\n"
+            "dias = ['lun', 'mar', 'mie', 'jue', 'vie']\n"
+            "print(dias[0])           # lun   -> el primero es el 0, no el 1\n"
+            "print(dias[2])           # mie\n"
+            "print(dias[-1])          # vie   -> negativo cuenta desde el final\n"
+            "print(dias[1:3])         # ['mar', 'mie']  -> desde 1 hasta ANTES de 3\n"
+            "print(dias[:2])          # ['lun', 'mar']  -> sin inicio: desde el principio\n"
+            "print(dias[3:])          # ['jue', 'vie']  -> sin fin: hasta el final\n"
+            "```\n"
+            "El corte `[a:b]` incluye `a` y **excluye** `b`, igual que `range`. Un\n"
+            "corte siempre devuelve una lista nueva: `dias[:2]` no toca `dias`.\n\n"
+            "## Metodos de lista que vas a usar\n"
+            "```python\n"
+            "cola = ['ana', 'luis']\n"
+            "cola.append('eva')       # agrega al final -> ['ana', 'luis', 'eva']\n"
+            "cola.remove('luis')      # quita por VALOR -> ['ana', 'eva']\n"
+            "print(cola.pop(0))       # ana   -> saca por POSICION y lo devuelve\n"
+            "print(cola)              # ['eva']\n"
+            "print('eva' in cola)     # True  -> `in` pregunta si esta\n\n"
+            "precios = [30, 10, 20]\n"
+            "print(sorted(precios))               # [10, 20, 30]  -> lista NUEVA ordenada\n"
+            "print(sorted(precios, reverse=True)) # [30, 20, 10]  -> de mayor a menor\n"
+            "print(precios)                       # [30, 10, 20]  -> el original intacto\n"
+            "```\n"
+            "`sorted(...)` devuelve una lista nueva; `precios.sort()` ordena la\n"
+            "original y devuelve `None`. Confundirlas es el clasico\n"
+            "`precios = precios.sort()` que deja `precios` valiendo `None`.\n\n"
+            "## Tuplas: el par que no se toca\n"
+            "Una tupla es como una lista, pero **inmutable**: una vez creada no se\n"
+            "le cambia nada. Se escribe con parentesis:\n"
+            "```python\n"
+            "punto = (3, 8)           # una tupla de dos elementos\n"
+            "print(punto[0])          # 3    -> se indexa igual que una lista\n"
+            "print(len(punto))        # 2\n\n"
+            "x, y = punto             # desempaquetado: cada valor a su variable\n"
+            "print(x, y)              # 3 8\n\n"
+            "ventas = [('pan', 2), ('leche', 3)]   # lista de pares\n"
+            "for nombre, precio in ventas:         # desempaqueta en cada vuelta\n"
+            "    print(nombre, precio)             # pan 2, luego leche 3\n"
+            "```\n"
+            "La usas cuando el numero de elementos es fijo y cada posicion\n"
+            "significa siempre lo mismo: un par `(nombre, precio)`, una coordenada\n"
+            "`(x, y)`. Que no se pueda modificar es la ventaja, no el defecto:\n"
+            "nadie te va a meter un tercer elemento a medio programa.\n\n"
+            "## Diccionarios: buscar por nombre\n"
+            "En una lista buscas por posicion; en un diccionario, por **clave**:\n"
+            "```python\n"
+            "edades = {'ana': 30, 'luis': 25}   # llaves, y clave: valor\n"
+            "print(edades['ana'])               # 30\n"
+            "edades['eva'] = 41                 # agregar es asignar una clave nueva\n"
+            "edades['ana'] = 31                 # y con una que ya existe, la pisa\n"
+            "print(edades)                      # {'ana': 31, 'luis': 25, 'eva': 41}\n"
+            "print(len(edades))                 # 3\n"
+            "print('luis' in edades)            # True  -> `in` mira las CLAVES\n"
+            "```\n"
+            "Pedir una clave que no existe con `edades['nadie']` revienta con\n"
+            "`KeyError`. Casi siempre quieres `.get`, que devuelve un valor por\n"
+            "defecto en vez de romper:\n"
+            "```python\n"
+            "edades = {'ana': 31, 'luis': 25}   # el mismo diccionario de arriba\n"
+            "print(edades.get('nadie'))         # None  -> sin valor por defecto\n"
+            "print(edades.get('nadie', 0))      # 0     -> el que tu elijas\n\n"
+            "conteo = {}                        # el patron de contar\n"
+            "for letra in 'banana':\n"
+            "    conteo[letra] = conteo.get(letra, 0) + 1   # 0 la primera vez\n"
+            "print(conteo)                      # {'b': 1, 'a': 3, 'n': 2}\n"
+            "```\n"
+            "Ese `conteo.get(letra, 0) + 1` es de los patrones que mas vas a\n"
+            "escribir en tu vida: contar cuantas veces aparece cada cosa.\n\n"
+            "## Recorrer un diccionario\n"
+            "El `for` a secas te da las claves; `.items()` te da los pares:\n"
+            "```python\n"
+            "edades = {'ana': 31, 'luis': 25}\n"
+            "for clave in edades:                 # el for da las CLAVES\n"
+            "    print(clave)                     # ana, luego luis\n\n"
+            "for nombre, edad in edades.items():  # .items() da pares (clave, valor)\n"
+            "    print(nombre, edad)              # ana 31, luego luis 25\n\n"
+            "print(list(edades.keys()))           # ['ana', 'luis']\n"
+            "print(list(edades.values()))         # [31, 25]\n"
+            "print(sum(edades.values()))          # 56  -> los valores se suman\n"
+            "```\n"
+            "`.items()` devuelve tuplas, por eso funciona el desempaquetado\n"
+            "`for nombre, edad in ...`: es el mismo de la seccion anterior.\n\n"
+            "## Cual elijo\n"
+            "- **Lista**: muchos datos del mismo tipo, en orden, y la cosa cambia.\n"
+            "  Recorrer, agregar, ordenar.\n"
+            "- **Tupla**: un grupo fijo de datos donde cada posicion significa\n"
+            "  algo. Un registro que viaja junto y no se toca.\n"
+            "- **Diccionario**: cuando lo que tienes para buscar es un nombre y no\n"
+            "  una posicion. Contar, agrupar, configurar.\n\n"
+            "## Errores comunes\n"
+            "- Contar desde 1. El primer elemento es `lista[0]`, y el ultimo de\n"
+            "  una lista de 5 es `lista[4]`: `lista[5]` lanza `IndexError`.\n"
+            "- Esperar que `[a:b]` incluya `b`. `dias[1:3]` devuelve dos\n"
+            "  elementos, no tres. Igual que `range`, el final se excluye.\n"
+            "- `precios = precios.sort()`. `.sort()` ordena la lista y devuelve\n"
+            "  `None`, asi que te quedas sin lista. O usas `precios.sort()` sola,\n"
+            "  o `precios = sorted(precios)`.\n"
+            "- Leer una clave que puede no estar con `d['clave']` y comerte un\n"
+            "  `KeyError`. Si no estas seguro de que exista, `d.get('clave', 0)`.\n"
+            "- Intentar modificar una tupla (`punto[0] = 5`): `TypeError`. Si el\n"
+            "  dato tiene que cambiar, ahi hacia falta una lista.\n"
+            "- Usar una lista de listas para lo que es un diccionario. Si te\n"
+            "  descubres recorriendo la lista entera para encontrar 'ana', esa\n"
+            "  busqueda es la que hace un diccionario en un paso.\n\n"
+            "## Resumen\n"
+            "- Lista `[...]`: ordenada y mutable. `len`, `append`, `remove`,\n"
+            "  `pop`, `in`, `sorted`.\n"
+            "- Indexado desde 0, negativo desde el final, y `[a:b]` corta\n"
+            "  incluyendo `a` y excluyendo `b`.\n"
+            "- Tupla `(...)`: inmutable, de longitud fija, y se desempaqueta con\n"
+            "  `x, y = punto` o en el propio `for`.\n"
+            "- Diccionario `{clave: valor}`: acceso por nombre. `d[c]` revienta si\n"
+            "  no esta, `d.get(c, 0)` no.\n"
+            "- `conteo[x] = conteo.get(x, 0) + 1` es el patron para contar.\n"
+            "- Se recorre con `for clave in d` o con `for k, v in d.items()`.\n"
         ),
         difficulty="intermediate",
         category="estructuras-datos",
         order=6,
-        estimated_duration=40,
+        estimated_duration=50,
         prerequisites_titles=["Funciones y Parametros"],
         exercises=[
             ExerciseTemplate(
                 title="Promedio de notas",
-                description="Recorre listas.",
-                instructions="Calcula el promedio de `notas` redondeado a 2 decimales e imprimelo (~4.38).",
+                description="Recorre una lista y saca su promedio.",
+                instructions=(
+                    "Calcula el promedio de la lista `notas` redondeado a 2 "
+                    "decimales e imprimelo. Tiene que salir `4.38`.\n\n"
+                    "Puedes sumar con un bucle acumulador o con `sum(notas)`, y "
+                    "`len(notas)` te da cuantas son."
+                ),
                 starter_code="notas = [4.5, 3.8, 5.0, 4.2]\n# TODO\n",
+                hints=[
+                    "El promedio es la suma dividida entre la cantidad: sum(notas) / len(notas).",
+                    "round(valor, 2) redondea a dos decimales.",
+                    "No olvides el print del resultado.",
+                ],
+                difficulty="easy",
+                points=10,
                 hidden_tests=[
                     {
                         "name": "imprime el promedio (~4.38)",
                         "code": "assert '4.3' in _salida, ('esperaba ~4.38', _salida)",
                     },
+                    {
+                        "name": "esta redondeado a 2 decimales",
+                        "code": (
+                            "assert '4.38' in _salida, "
+                            "('esperaba 4.38 redondeado, y salio', _salida)"
+                        ),
+                    },
+                    {
+                        "name": "no toca la lista original",
+                        "code": (
+                            "assert _salida.strip(), 'no imprimiste nada'\n"
+                            "assert notas == [4.5, 3.8, 5.0, 4.2], "
+                            "f'la lista quedo como {notas}'"
+                        ),
+                    },
                 ],
             ),
             ExerciseTemplate(
                 title="Agenda minima",
-                description="Uso de diccionario.",
-                instructions="Agrega a `agenda` el contacto 'ana' con numero '123' e imprime su numero.",
+                description="Tu primer diccionario: agregar y leer.",
+                instructions=(
+                    "Agrega a `agenda` el contacto `'ana'` con el numero `'123'` e "
+                    "imprime su numero.\n\n"
+                    "El numero va como texto, con comillas: `'123'`, no `123`."
+                ),
                 starter_code="agenda = {}\n# TODO\n",
+                hints=[
+                    "Agregar una clave es asignarla: agenda['ana'] = '123'.",
+                    "Para leerla, agenda['ana'] entre el print.",
+                ],
+                difficulty="easy",
+                points=10,
                 hidden_tests=[
                     {
                         "name": "agrega 'ana':'123' y lo imprime",
                         "code": (
                             "assert agenda.get('ana') == '123', ('agenda debe tener ana:123', agenda)\n"
                             "assert '123' in _salida, _salida"
+                        ),
+                    },
+                    {
+                        "name": "el numero es texto, no un entero",
+                        "code": (
+                            "assert isinstance(agenda['ana'], str), "
+                            "f\"el numero quedo como {type(agenda['ana']).__name__}, y se pedia texto\""
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Los tres mejores",
+                description="Ordenar y cortar: sorted mas slicing.",
+                instructions=(
+                    "Define `top_tres(numeros)` que devuelva una lista con los tres "
+                    "valores mas grandes, **de mayor a menor**.\n\n"
+                    "- Con `[5, 9, 1, 7, 3]` devuelve `[9, 7, 5]`.\n"
+                    "- Si hay menos de tres, devuelve los que haya (tambien "
+                    "ordenados de mayor a menor).\n"
+                    "- La lista que te pasan no se puede modificar."
+                ),
+                starter_code=(
+                    "def top_tres(numeros):\n"
+                    "    # TODO: ordena de mayor a menor y quedate con los tres primeros\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "sorted(numeros, reverse=True) devuelve una lista NUEVA de mayor a menor.",
+                    "El corte [:3] se queda con los tres primeros.",
+                    "Si la lista tiene menos de tres, [:3] devuelve lo que haya: no hace falta un if.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "devuelve los tres mayores de mayor a menor",
+                        "code": (
+                            "obtenido = top_tres([5, 9, 1, 7, 3])\n"
+                            "assert obtenido == [9, 7, 5], f'devolvio {obtenido!r}'"
+                        ),
+                    },
+                    {
+                        "name": "con menos de tres devuelve los que hay",
+                        "code": (
+                            "assert top_tres([4, 8]) == [8, 4], top_tres([4, 8])\n"
+                            "assert top_tres([]) == [], top_tres([])"
+                        ),
+                    },
+                    {
+                        "name": "no modifica la lista que recibe",
+                        "code": (
+                            "datos = [5, 9, 1, 7, 3]\n"
+                            "assert top_tres(datos) == [9, 7, 5]\n"
+                            "assert datos == [5, 9, 1, 7, 3], "
+                            "f'usaste .sort() sobre la original: quedo {datos}'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Contar palabras",
+                description="El patron de conteo con get.",
+                instructions=(
+                    "Define `contar_palabras(texto)` que devuelva un diccionario "
+                    "con cuantas veces aparece cada palabra.\n\n"
+                    "- Con `'sol luna sol'` devuelve `{'sol': 2, 'luna': 1}`.\n"
+                    "- Con el texto vacio devuelve `{}`.\n"
+                    "- `texto.split()` parte por espacios y te da la lista de "
+                    "palabras."
+                ),
+                starter_code=(
+                    "def contar_palabras(texto):\n"
+                    "    # TODO: recorre texto.split() y ve contando en un diccionario\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Arranca con un diccionario vacio: conteo = {}.",
+                    "Recorre con for palabra in texto.split():",
+                    "Dentro: conteo[palabra] = conteo.get(palabra, 0) + 1.",
+                    "Devuelve el diccionario al final, fuera del bucle.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "cuenta las repeticiones",
+                        "code": (
+                            "obtenido = contar_palabras('sol luna sol')\n"
+                            "assert obtenido == {'sol': 2, 'luna': 1}, f'devolvio {obtenido!r}'"
+                        ),
+                    },
+                    {
+                        "name": "el texto vacio da un diccionario vacio",
+                        "code": (
+                            "obtenido = contar_palabras('')\n"
+                            "assert obtenido == {}, f'devolvio {obtenido!r}'"
+                        ),
+                    },
+                    {
+                        "name": "aguanta un texto mas largo",
+                        "code": (
+                            "obtenido = contar_palabras('a b a c b a')\n"
+                            "assert obtenido == {'a': 3, 'b': 2, 'c': 1}, f'devolvio {obtenido!r}'"
+                        ),
+                    },
+                    {
+                        "name": "distingue mayusculas de minusculas",
+                        "code": (
+                            "obtenido = contar_palabras('Sol sol')\n"
+                            "assert obtenido == {'Sol': 1, 'sol': 1}, "
+                            "f'devolvio {obtenido!r}: no hay que normalizar nada'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="El mejor vendedor",
+                description="Desempaqueta tuplas y agrupa en un diccionario.",
+                instructions=(
+                    "`ventas` es una lista de pares `(nombre, monto)`, y un mismo "
+                    "vendedor puede aparecer varias veces.\n\n"
+                    "Define `mejor_vendedor(ventas)` que devuelva la tupla "
+                    "`(nombre, total)` de quien mas vendio sumando todas sus "
+                    "ventas. Con la lista vacia devuelve `None`.\n\n"
+                    "Puedes suponer que no hay empate en el primer puesto."
+                ),
+                starter_code=(
+                    "def mejor_vendedor(ventas):\n"
+                    "    # TODO: suma por nombre en un diccionario y quedate con el mayor\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Recorre con for nombre, monto in ventas: y desempaquetas cada par.",
+                    "Acumula: totales[nombre] = totales.get(nombre, 0) + monto.",
+                    "Para elegir el mayor puedes recorrer totales.items() guardando el "
+                    "mejor visto hasta ahora.",
+                    "El primer if es el de la lista vacia: si no hay ventas, return None.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "suma las ventas de cada uno y devuelve el mayor",
+                        "code": (
+                            "ventas = [('ana', 100), ('luis', 80), ('ana', 50)]\n"
+                            "obtenido = mejor_vendedor(ventas)\n"
+                            "assert obtenido == ('ana', 150), f'devolvio {obtenido!r}'"
+                        ),
+                    },
+                    {
+                        "name": "gana el total, no la venta mas grande",
+                        "code": (
+                            "ventas = [('ana', 40), ('ana', 40), ('ana', 40), ('luis', 100)]\n"
+                            "obtenido = mejor_vendedor(ventas)\n"
+                            "assert obtenido == ('ana', 120), "
+                            "f'devolvio {obtenido!r}: hay que sumar por vendedor'"
+                        ),
+                    },
+                    {
+                        "name": "con la lista vacia devuelve None",
+                        "code": (
+                            "assert mejor_vendedor([('eva', 10)]) == ('eva', 10)\n"
+                            "obtenido = mejor_vendedor([])\n"
+                            "assert obtenido is None, f'devolvio {obtenido!r}'"
+                        ),
+                    },
+                    {
+                        "name": "devuelve una tupla de dos elementos",
+                        "code": (
+                            "obtenido = mejor_vendedor([('eva', 10)])\n"
+                            "assert isinstance(obtenido, tuple) and len(obtenido) == 2, "
+                            "f'devolvio {obtenido!r} y se pedia (nombre, total)'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Boletin de la clase",
+                description="El pipeline: lista de tuplas, diccionario, orden y corte.",
+                instructions=(
+                    "`registros` es una lista de pares `(alumno, nota)`, uno por "
+                    "alumno. Define `boletin(registros)` que devuelva un "
+                    "diccionario con estas tres claves:\n\n"
+                    "- `'aprobados'`: lista de los nombres con nota mayor o igual a "
+                    "5, **ordenada alfabeticamente**.\n"
+                    "- `'promedio'`: promedio de todas las notas redondeado a 1 "
+                    "decimal con `round(x, 1)`. Con la lista vacia, `0`.\n"
+                    "- `'podio'`: lista de los **dos** mejores nombres, de mayor a "
+                    "menor nota. Si hay menos de dos alumnos, los que haya.\n\n"
+                    "Con `[('ana', 9), ('luis', 4), ('eva', 7)]` sale "
+                    "`{'aprobados': ['ana', 'eva'], 'promedio': 6.7, 'podio': "
+                    "['ana', 'eva']}`."
+                ),
+                starter_code=(
+                    "def boletin(registros):\n"
+                    "    # TODO: aprobados, promedio y podio, en un diccionario\n"
+                    "    ...\n"
+                ),
+                hints=[
+                    "Para aprobados: recorre con for nombre, nota in registros: y "
+                    "junta los que pasan en una lista; sorted(lista) la ordena alfabeticamente.",
+                    "Para el promedio necesitas la lista de notas: recorre otra vez o "
+                    "juntala en el mismo bucle. Cuidado con dividir entre cero si no hay nadie.",
+                    "Para el podio, sorted(registros, reverse=True) no sirve: ordena por "
+                    "nombre porque el nombre va primero en la tupla. Junta pares (nota, nombre) "
+                    "y ordena esos.",
+                    "Del podio ordenado te quedas con [:2] y sacas solo los nombres.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "el ejemplo del enunciado",
+                        "code": (
+                            "obtenido = boletin([('ana', 9), ('luis', 4), ('eva', 7)])\n"
+                            "esperado = {'aprobados': ['ana', 'eva'], 'promedio': 6.7, "
+                            "'podio': ['ana', 'eva']}\n"
+                            "assert obtenido == esperado, f'devolvio {obtenido!r}'"
+                        ),
+                    },
+                    {
+                        "name": "los aprobados van ordenados alfabeticamente",
+                        "code": (
+                            "obtenido = boletin([('zoe', 8), ('ana', 6), ('beto', 5)])\n"
+                            "assert obtenido['aprobados'] == ['ana', 'beto', 'zoe'], "
+                            "f\"aprobados devolvio {obtenido['aprobados']!r}\""
+                        ),
+                    },
+                    {
+                        "name": "el podio va por nota, de mayor a menor",
+                        "code": (
+                            "obtenido = boletin([('ana', 3), ('luis', 10), ('eva', 6)])\n"
+                            "assert obtenido['podio'] == ['luis', 'eva'], "
+                            "f\"podio devolvio {obtenido['podio']!r}\"\n"
+                            "assert obtenido['aprobados'] == ['eva', 'luis'], "
+                            "'un suspenso se colo en aprobados'"
+                        ),
+                    },
+                    {
+                        "name": "el promedio cuenta a todos y se redondea a 1 decimal",
+                        "code": (
+                            "obtenido = boletin([('ana', 10), ('luis', 1)])\n"
+                            "assert obtenido['promedio'] == 5.5, "
+                            "f\"promedio devolvio {obtenido['promedio']!r}\"\n"
+                            "otro = boletin([('a', 5), ('b', 6), ('c', 8)])\n"
+                            "assert otro['promedio'] == 6.3, "
+                            "f\"promedio devolvio {otro['promedio']!r}\""
+                        ),
+                    },
+                    {
+                        "name": "con la lista vacia no revienta",
+                        "code": (
+                            "obtenido = boletin([])\n"
+                            "assert obtenido == {'aprobados': [], 'promedio': 0, 'podio': []}, "
+                            "f'devolvio {obtenido!r}'"
+                        ),
+                    },
+                    {
+                        "name": "con un solo alumno el podio tiene uno",
+                        "code": (
+                            "obtenido = boletin([('ana', 7)])\n"
+                            "assert obtenido['podio'] == ['ana'], "
+                            "f\"podio devolvio {obtenido['podio']!r}\""
                         ),
                     },
                 ],

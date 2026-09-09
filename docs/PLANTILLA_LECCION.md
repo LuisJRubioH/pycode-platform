@@ -161,9 +161,16 @@ propósito el código del alumno** para comprobar que sus tests lo detectan — 
 - [ ] `## Resumen` con una viñeta por sección.
 - [ ] 6 ejercicios con la curva de arriba y el último encadenando conceptos.
 - [ ] Cada ejercicio con `hidden_tests` — hay un test que lo exige.
-- [ ] `pytest backend/tests/test_prerequisitos_conceptos.py` en verde, con los
-      huecos cerrados borrados de `HUECOS_CONOCIDOS`.
-- [ ] Los ejemplos se han **ejecutado**, no solo escrito.
+- [ ] **Ningún `hidden_test` pasa con el starter.** Uno que aprueba sin código
+      del alumno no comprueba nada: pasa con `...` como cuerpo, con un `None`
+      devuelto por defecto o con una lista que nadie tocó. Se detecta corriendo
+      cada test dos veces, contra la solución y contra el starter.
+- [ ] `pytest backend/tests/test_prerequisitos_conceptos.py` en verde. La lista
+      de huecos está vacía: si aparece uno, se enseña el concepto con un
+      ejemplo en vez de anotarlo.
+- [ ] Los ejemplos se han **ejecutado**, no solo escrito, y **cada bloque corre
+      por sí solo**: si el segundo necesita una variable del primero, el alumno
+      que lo copia ve un `NameError`.
 
 ## Plan de reescritura de Track 1
 
@@ -177,25 +184,30 @@ de prerequisitos es un guard rail puro y el orden lo marca la calidad del conten
 | ✅ | Funciones y Parámetros | 5 | `def`, parámetros, `return`, argumentos por defecto, docstring | **`def` ×3** (Área de rectángulo, Saludo configurable, División segura) |
 | ✅ | Comprensiones y Manejo de Errores | 7 | comprensiones, `try`/`except`, `raise`, `with` como garantía de limpieza | **`raise` ×2** (AI 2, Cuenta bancaria) · **`with` ×1** (Prueba de calculadora) |
 | ✅ | POO en Python | 8 | `class`, `self`, `__init__`, métodos, colecciones como estado, encapsulación, `__str__` | **`class`/`self`/`__init__` ×6** (Clase Producto, Cuenta bancaria) — los 6 últimos |
-| **1** | **Listas, Tuplas y Diccionarios** | 6 | listas, tuplas, dicts, indexado, slicing, métodos | — (148 caracteres: la peor del temario, y POO ya se apoya en ella) |
-| **2** | **Python desde Cero** | 1 | `print`, ejecutar código, sintaxis, indentación, errores de novato | — |
-| **3** | **Variables y Tipos** | 2 | int/float/str/bool, conversión, f-strings, mutabilidad | — |
-| **4** | **Condicionales y Lógica** | 3 | `if`/`elif`/`else`, comparadores, `and`/`or`/`not`, truthiness | — |
-| 5 | Módulos, Paquetes y Entornos | 9 | módulos, `import`, `__name__`, venv, pip | — |
-| 6 | Testing con pytest | 10 | tests, `assert`, `pytest.raises`, casos borde | — |
+| ✅ | Listas, Tuplas y Diccionarios | 6 | listas, indexado y slicing, métodos, tuplas y desempaquetado, dicts con `.get` e `.items` | — (era la peor del temario con 148 caracteres, y POO se apoyaba en ella) |
+| **1** | **Python desde Cero** | 1 | `print`, ejecutar código, sintaxis, indentación, errores de novato | — |
+| **2** | **Variables y Tipos** | 2 | int/float/str/bool, conversión, f-strings, mutabilidad | — |
+| **3** | **Condicionales y Lógica** | 3 | `if`/`elif`/`else`, comparadores, `and`/`or`/`not`, truthiness | — |
+| 4 | Módulos, Paquetes y Entornos | 9 | módulos, `import`, `__name__`, venv, pip | — |
+| 5 | Testing con pytest | 10 | tests, `assert`, `pytest.raises`, casos borde | — |
 
 Con 6 ejercicios por lección, Track 1 pasa de 18 a 60: **42 ejercicios nuevos**, que
-se escriben junto a su lección y no como tarea aparte. Llevamos 4 lecciones y 24
-ejercicios.
+se escriben junto a su lección y no como tarea aparte. Llevamos **5 lecciones y 30
+ejercicios**; quedan cinco lecciones, todas sin hueco que cerrar.
 
 ### Deudas que deja este orden
 
-**Releer las lecciones 5, 7 y 8 después de reescribir las lecciones 1-3.** Se
+**Releer las lecciones 5, 6, 7 y 8 después de reescribir las lecciones 1-3.** Se
 escriben antes que la 1, 2 y 3, así que sus ejemplos se apoyan en variables,
 tipos y condicionales que todavía estarán en su versión pobre. El contenido es
 correcto —esos temas existen aunque flojos—, pero al reescribir 1-3 hay que volver a
-las tres y comprobar que los ejemplos encajan con lo que para entonces se enseñe de
-verdad. Se acepta a cambio de cerrar `def`, `raise` y `class` cuanto antes.
+las cuatro y comprobar que los ejemplos encajan con lo que para entonces se enseñe
+de verdad. Se acepta a cambio de cerrar `def`, `raise` y `class` cuanto antes.
+
+Un caso concreto ya localizado: la 6 usa `texto.split()` para partir en palabras y
+lo explica de pasada en el enunciado del ejercicio. Los métodos de string son de
+"Variables y Tipos" (lección 2); al reescribirla, `split` va allí y la 6 lo da por
+sabido.
 
 **"POO en Python" (lección 8) enseña tuplas y `dict.get()` sobre la marcha.** Su
 sección de colecciones como estado guarda pares `(nombre, precio)` en una lista y
