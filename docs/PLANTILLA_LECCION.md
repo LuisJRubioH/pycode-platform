@@ -186,28 +186,27 @@ de prerequisitos es un guard rail puro y el orden lo marca la calidad del conten
 | ✅ | POO en Python | 8 | `class`, `self`, `__init__`, métodos, colecciones como estado, encapsulación, `__str__` | **`class`/`self`/`__init__` ×6** (Clase Producto, Cuenta bancaria) — los 6 últimos |
 | ✅ | Listas, Tuplas y Diccionarios | 6 | listas, indexado y slicing, métodos, tuplas y desempaquetado, dicts con `.get` e `.items` | — (era la peor del temario con 148 caracteres, y POO se apoyaba en ella) |
 | ✅ | Python desde Cero | 1 | `print`, orden de ejecución, primera variable, f-strings, comentarios, leer un error | — |
-| **1** | **Variables y Tipos** | 2 | int/float/str/bool, conversión, f-strings, mutabilidad | — |
-| **2** | **Condicionales y Lógica** | 3 | `if`/`elif`/`else`, comparadores, `and`/`or`/`not`, truthiness | — |
-| 3 | Módulos, Paquetes y Entornos | 9 | módulos, `import`, `__name__`, venv, pip | — |
-| 4 | Testing con pytest | 10 | tests, `assert`, `pytest.raises`, casos borde | — |
+| ✅ | Variables y Tipos | 2 | int/float/str/bool, `type`, conversiones, `//` `%` `**`, métodos de texto, booleanos | — |
+| **1** | **Condicionales y Lógica** | 3 | `if`/`elif`/`else`, comparadores, `and`/`or`/`not`, truthiness | — |
+| **2** | **Módulos, Paquetes y Entornos** | 9 | módulos, `import`, `__name__`, venv, pip | — |
+| **3** | **Testing con pytest** | 10 | tests, `assert`, `pytest.raises`, casos borde | — |
 
 Con 6 ejercicios por lección, Track 1 pasa de 18 a 60: **42 ejercicios nuevos**, que
-se escriben junto a su lección y no como tarea aparte. Llevamos **6 lecciones y 36
-ejercicios**; quedan cuatro lecciones, todas sin hueco que cerrar.
+se escriben junto a su lección y no como tarea aparte. Llevamos **7 lecciones y 42
+ejercicios**; quedan tres lecciones, todas sin hueco que cerrar.
 
 ### Deudas que deja este orden
 
-**Releer las lecciones 5, 6, 7 y 8 después de reescribir las lecciones 1-3.** Se
-escriben antes que la 1, 2 y 3, así que sus ejemplos se apoyan en variables,
-tipos y condicionales que todavía estarán en su versión pobre. El contenido es
-correcto —esos temas existen aunque flojos—, pero al reescribir 1-3 hay que volver a
-las cuatro y comprobar que los ejemplos encajan con lo que para entonces se enseñe
-de verdad. Se acepta a cambio de cerrar `def`, `raise` y `class` cuanto antes.
+**Releer las lecciones 5, 6, 7 y 8 cuando esté reescrita la 3.** Se escribieron
+antes que el arranque del temario, así que sus ejemplos se apoyaban en variables,
+tipos y condicionales en su versión pobre. Las lecciones 1 y 2 ya están, y con ellas
+la mitad de la deuda: falta "Condicionales y Lógica" y, después, dar una pasada por
+esas cuatro comprobando que los ejemplos encajan con lo que ahora se enseña de
+verdad. Se aceptó a cambio de cerrar `def`, `raise` y `class` cuanto antes.
 
-Un caso concreto ya localizado: la 6 usa `texto.split()` para partir en palabras y
-lo explica de pasada en el enunciado del ejercicio. Los métodos de string son de
-"Variables y Tipos" (lección 2); al reescribirla, `split` va allí y la 6 lo da por
-sabido.
+El caso de `split` ya está resuelto: la 6 lo explicaba de pasada en el enunciado de
+un ejercicio, y al reescribir la 2 se metió donde le tocaba, junto a `len`,
+`.strip()` y `.upper()`. La 6 puede darlo por sabido.
 
 **"POO en Python" (lección 8) enseña tuplas y `dict.get()` sobre la marcha.** Su
 sección de colecciones como estado guarda pares `(nombre, precio)` en una lista y

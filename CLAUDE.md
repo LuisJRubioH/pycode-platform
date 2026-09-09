@@ -17,7 +17,7 @@ PyCode Platform — learning platform for Python with Monaco editor, sandboxed c
 - 🚧 **Track 5 (AI Engineering) en curso** — AI 1-3: embeddings/búsqueda semántica, chunking/indexación (retriever RAG en numpy), y LLM real + prompt RAG vía **proxy backend** `POST /api/v1/ai/complete` (reusa el LLM provider; helper `pycode.llm_complete` en el worker). Falta RAG end-to-end, agentes, evals, capstone.
 - ⏳ **Pendiente**: resto de Track 5, Track 6 (MLOps).
 
-**Contenido en números**: 40 lecciones (Track 1: 10 · Track 2: 11 · Track 3: 11 · Track 4: 5 · Track 5: 3) · 132 ejercicios (todos con hidden_tests; Track 1 va por 42 de los 60 que tendrá reescrito) · 100 puzzles ELO curados · 10 retos · 4 capstones · 3 datasets. Migraciones 0001-0014 (Tracks 3-5 y el proxy LLM **no** añaden migraciones). 177 tests backend. Esquema de datos: `docs/DATABASE.md`. **Nota**: el contenido real vive en `lesson_seed.py`; `lesson_content.py` es código **muerto/duplicado** (no se importa) — no editarlo pensando que seedea.
+**Contenido en números**: 40 lecciones (Track 1: 10 · Track 2: 11 · Track 3: 11 · Track 4: 5 · Track 5: 3) · 138 ejercicios (todos con hidden_tests; Track 1 va por 48 de los 60 que tendrá reescrito) · 100 puzzles ELO curados · 10 retos · 4 capstones · 3 datasets. Migraciones 0001-0014 (Tracks 3-5 y el proxy LLM **no** añaden migraciones). 177 tests backend. Esquema de datos: `docs/DATABASE.md`. **Nota**: el contenido real vive en `lesson_seed.py`; `lesson_content.py` es código **muerto/duplicado** (no se importa) — no editarlo pensando que seedea.
 
 **Producción**:
 - Frontend: https://pycode-platform.vercel.app (Vercel Hobby)
@@ -38,7 +38,7 @@ en uno). **Estado a 2026-09-03**:
 | 3 — Warning de pyarrow | ✅ cerrado (`9e47395`) — se hizo fuera de turno, pero el usuario decidió mantenerlo |
 | 4 — Densidad de contenido | ⏳ pendiente. **Auditoría hecha**: [docs/AUDITORIA_CONTENIDO.md](docs/AUDITORIA_CONTENIDO.md) inventaría las 40 lecciones y demuestra que el problema no es la densidad de ejercicios sino que **las 10 lecciones de Track 1 no tienen contenido** (208 chars de media, 1 bloque de código entre las 10). Enunciados a revisión ANTES de seedear |
 | 5 — Presentación de la lección | 🚧 typography + resaltado + copiar + ancho de línea hechos; queda decidir el índice con anclas |
-| **Contenido de Track 1** | 🚧 **6 de 10 reescritas** con la plantilla ([PLANTILLA_LECCION.md](docs/PLANTILLA_LECCION.md)): Python desde Cero, Bucles, Funciones, Listas/Tuplas/Diccionarios, Comprensiones y POO. `HUECOS_CONOCIDOS` quedó vacío con POO y el test es ya un guard rail puro. Siguiente: "Variables y Tipos" y "Condicionales y Logica" (175-196 chars, las dos que quedan del arranque). El Bloque 4 queda fusionado aquí: los ejercicios se escriben con su lección, no aparte |
+| **Contenido de Track 1** | 🚧 **7 de 10 reescritas** con la plantilla ([PLANTILLA_LECCION.md](docs/PLANTILLA_LECCION.md)): las seis primeras del temario seguidas (Cero, Variables, Bucles, Funciones, Listas, Comprensiones) más POO. `HUECOS_CONOCIDOS` quedó vacío con POO y el test es ya un guard rail puro. Quedan tres: "Condicionales y Logica" (175 chars), "Modulos" y "Testing con pytest". El Bloque 4 queda fusionado aquí: los ejercicios se escriben con su lección, no aparte |
 | 6 — Documentación desalineada | ✅ cerrado (`docs/historico/`) |
 | 7 — Barrido de problemas | ⏳ pendiente (solo listar, no implementar) |
 

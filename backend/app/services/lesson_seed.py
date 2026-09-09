@@ -483,43 +483,430 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
     ),
     LessonTemplate(
         title="Variables y Tipos",
-        description="Numeros, strings, booleanos y conversiones basicas.",
+        description=(
+            "int, float, str y bool: que puede hacer cada uno, como se convierte "
+            "de uno a otro y por que el mismo + a veces suma y a veces pega."
+        ),
         content=(
-            "## Tipos comunes\n"
-            "- `int`, `float`, `str`, `bool`\n"
-            "- `type(valor)` permite inspeccionar el tipo.\n\n"
-            "## Conversion\n"
-            "- `int('10')`, `str(25)`, `float(3)`\n"
-            "- Convierte antes de operar para evitar errores.\n"
+            "## Por que el tipo importa\n"
+            "En la leccion anterior guardaste datos en variables sin preguntarte\n"
+            "de que estaban hechos. Ahora si: `2 + 3` da `5`, pero `'2' + '3'` da\n"
+            "`'23'`. El mismo simbolo hace cosas distintas segun el **tipo** de lo\n"
+            "que tiene al lado, y la mayoria de los errores de los primeros dias\n"
+            "salen justo de ahi: un numero que en realidad era texto.\n\n"
+            "## Los cuatro tipos que vas a usar\n"
+            "```python\n"
+            "edad = 18             # int: numero entero, sin decimales\n"
+            "altura = 1.72         # float: decimal, y se escribe con PUNTO\n"
+            "nombre = 'Ana'        # str: texto, siempre entre comillas\n"
+            "activo = True         # bool: solo True o False, con mayuscula\n\n"
+            "print(type(edad))     # <class 'int'>\n"
+            "print(type(altura))   # <class 'float'>\n"
+            "print(type(nombre))   # <class 'str'>\n"
+            "print(type(activo))   # <class 'bool'>\n"
+            "```\n"
+            "`type(x)` te dice de que es cada cosa. Lo vas a usar sobre todo\n"
+            "cuando algo no funcione y sospeches que tienes un texto donde\n"
+            "creias tener un numero.\n\n"
+            "## El tipo decide lo que hace el operador\n"
+            "```python\n"
+            "print(2 + 3)          # 5      -> con numeros, + suma\n"
+            "print('2' + '3')      # 23     -> con textos, + pega uno detras del otro\n"
+            "print('ab' * 3)       # ababab -> y * repite el texto\n"
+            "print(2 * 3)          # 6      -> con numeros, * multiplica\n"
+            "# print('2' + 3)      # TypeError: no se puede pegar un texto con un numero\n"
+            "```\n"
+            "Ese `TypeError` es de los que mas vas a ver, y casi siempre significa\n"
+            "lo mismo: te falta una conversion.\n\n"
+            "## Convertir de un tipo a otro\n"
+            "```python\n"
+            "print(int('12'))      # 12    -> texto a entero\n"
+            "print(int('12') + 3)  # 15    -> ya convertido, suma de verdad\n"
+            "print(str(25))        # 25    -> numero a texto (ahora es '25')\n"
+            "print(float('3'))     # 3.0   -> a decimal, aunque venga sin decimales\n"
+            "print(int(3.9))       # 3     -> TRUNCA: se come los decimales\n"
+            "print(round(3.9))     # 4     -> esto SI redondea\n"
+            "```\n"
+            "`int(...)` corta, no redondea: `int(3.9)` es 3, no 4. Y ojo con\n"
+            "`int('3.5')`, que revienta con `ValueError`: hay que pasar primero\n"
+            "por `float('3.5')` y despues, si quieres, por `int(...)`.\n\n"
+            "## Numeros: las cuatro operaciones menos obvias\n"
+            "```python\n"
+            "print(7 / 2)          # 3.5  -> / SIEMPRE da float, aunque salga exacto\n"
+            "print(6 / 2)          # 3.0  -> ves? con punto\n"
+            "print(7 // 2)         # 3    -> // divide y se queda con la parte entera\n"
+            "print(7 % 2)          # 1    -> % da el RESTO de esa division\n"
+            "print(2 ** 3)         # 8    -> ** es elevar a\n"
+            "```\n"
+            "`//` y `%` van juntos y resuelven mas de lo que parece: repartir 17\n"
+            "caramelos entre 5 ninos es `17 // 5` para cada uno y `17 % 5` para\n"
+            "los que sobran. Y `n % 2 == 0` es como se pregunta si un numero es\n"
+            "par.\n\n"
+            "## Texto: lo que se le puede pedir a un str\n"
+            "```python\n"
+            "entrada = '  Ana Perez  '\n"
+            "print(len(entrada))              # 13   -> cuenta TODO, espacios incluidos\n"
+            "print(entrada.strip())           # Ana Perez  -> quita los espacios de los lados\n"
+            "print(entrada.strip().upper())   # ANA PEREZ  -> y se pueden encadenar\n"
+            "print('Ana Perez'.split())       # ['Ana', 'Perez']  -> parte por los espacios\n"
+            "print('ana' == 'Ana')            # False  -> distingue mayusculas de minusculas\n"
+            "```\n"
+            "`.strip()` y `.upper()` **no cambian** el texto original: devuelven\n"
+            "uno nuevo. Si quieres quedartelo, tienes que guardarlo:\n"
+            "`nombre = entrada.strip()`.\n\n"
+            "## Booleanos: el resultado de preguntar\n"
+            "```python\n"
+            "edad = 18\n"
+            "mayor = edad >= 18          # una comparacion DEVUELVE un bool\n"
+            "print(mayor)                # True\n"
+            "print(type(mayor))          # <class 'bool'>\n"
+            "print(edad == 20)           # False  -> == compara, = asigna\n"
+            "print(int(True), int(False))    # 1 0  -> por dentro son 1 y 0\n"
+            "```\n"
+            "No hace falta escribir `if` para tener un booleano: cualquier\n"
+            "comparacion ya lo es, y se puede guardar en una variable como\n"
+            "cualquier otro dato. En la proxima leccion los usaras para decidir.\n\n"
+            "## Errores comunes\n"
+            "- Sumar texto con numero: `'2' + 3` es `TypeError`. Convierte antes:\n"
+            "  `int('2') + 3`. Si el dato viene de fuera (un archivo, un\n"
+            "  formulario), casi siempre llega como texto.\n"
+            "- Escribir los decimales con coma: `altura = 1,72` no da error, pero\n"
+            "  **no es un numero**: la coma crea una tupla `(1, 72)`. En Python el\n"
+            "  decimal se escribe con punto.\n"
+            "- `int('3.5')` lanza `ValueError`. `int` solo entiende textos que ya\n"
+            "  son numeros enteros; para lo demas, `float('3.5')` primero.\n"
+            "- Escribir `true` o `TRUE`. En Python son `True` y `False`, con la\n"
+            "  primera letra en mayuscula y sin comillas: con comillas serian\n"
+            "  texto.\n"
+            "- Esperar que `int(3.9)` redondee. Trunca. Si quieres el 4, es\n"
+            "  `round(3.9)`.\n"
+            "- Llamar a un metodo de texto y no guardar el resultado:\n"
+            "  `entrada.strip()` a secas no cambia `entrada`, y te preguntas por\n"
+            "  que siguen los espacios.\n\n"
+            "## Resumen\n"
+            "- Cuatro tipos base: `int` (entero), `float` (decimal con punto),\n"
+            "  `str` (texto entre comillas) y `bool` (`True`/`False`).\n"
+            "- `type(x)` dice de que tipo es algo; util cuando algo no cuadra.\n"
+            "- El tipo decide lo que hace el operador: `+` suma numeros y pega\n"
+            "  textos.\n"
+            "- `int()`, `float()` y `str()` convierten; `int()` trunca y `round()`\n"
+            "  redondea.\n"
+            "- `/` da decimal, `//` da la parte entera, `%` da el resto y `**`\n"
+            "  eleva.\n"
+            "- Del texto: `len`, `.strip()`, `.upper()`, `.split()`, y que\n"
+            "  devuelven uno nuevo en vez de cambiar el original.\n"
+            "- Una comparacion (`>=`, `==`) devuelve un booleano que puedes\n"
+            "  guardar.\n"
         ),
         difficulty="beginner",
         category="fundamentos",
         order=2,
-        estimated_duration=25,
+        estimated_duration=45,
         prerequisites_titles=["Python desde Cero"],
         exercises=[
             ExerciseTemplate(
                 title="Conversor simple",
-                description="Convierte texto a numero.",
-                instructions="Convierte `texto_numero` a int, calcula su doble e imprimelo (debe dar 24).",
+                description="Un texto que parece numero no es un numero.",
+                instructions=(
+                    "`texto_numero` vale `'12'`, con comillas: es texto, no un "
+                    "numero. Conviertelo a entero, calcula su doble e imprime "
+                    "solo el resultado.\n\n"
+                    "La salida tiene que ser exactamente `24`. Si te sale `1212`, "
+                    "es que multiplicaste el texto sin convertirlo."
+                ),
                 starter_code="texto_numero = '12'\n# TODO\n",
+                hints=[
+                    "int(texto_numero) te da el 12 como numero.",
+                    "Guardalo en una variable y multiplicalo por 2 antes de imprimir.",
+                ],
+                difficulty="easy",
+                points=10,
                 hidden_tests=[
                     {
                         "name": "imprime el doble (24)",
                         "code": "assert '24' in _salida, ('esperaba 24 en la salida', _salida)",
                     },
+                    {
+                        "name": "imprime el numero solo, sin texto alrededor",
+                        "code": (
+                            "assert _salida.strip() == '24', "
+                            "f'salio {_salida.strip()!r} y se esperaba 24'"
+                        ),
+                    },
+                    {
+                        "name": "no multiplicaste el texto",
+                        "code": (
+                            "assert '24' in _salida, ('esperaba 24 en la salida', _salida)\n"
+                            "assert '1212' not in _salida, "
+                            "'multiplicaste el texto sin convertirlo: te falta el int()'\n"
+                            "assert texto_numero == '12', 'no cambies el valor del starter'"
+                        ),
+                    },
                 ],
             ),
             ExerciseTemplate(
                 title="Chequeo de tipos",
-                description="Valida tipos de variables.",
-                instructions="Imprime el tipo (`type(...)`) de `edad`, `altura` y `activo`.",
+                description="Mirar de que esta hecho cada dato.",
+                instructions=(
+                    "Imprime el tipo de `edad`, `altura` y `activo`, en ese orden "
+                    "y uno por linea, usando `type(...)`.\n\n"
+                    "La primera linea sera `<class 'int'>`."
+                ),
                 starter_code="edad = 18\naltura = 1.72\nactivo = True\n# TODO\n",
+                hints=[
+                    "print(type(edad)) imprime el tipo de edad.",
+                    "Son tres prints, uno por variable y en el orden del enunciado.",
+                ],
+                difficulty="easy",
+                points=10,
                 hidden_tests=[
                     {
                         "name": "muestra int, float y bool",
                         "code": (
                             "assert 'int' in _salida and 'float' in _salida and 'bool' in _salida, _salida"
+                        ),
+                    },
+                    {
+                        "name": "tres lineas, en el orden del enunciado",
+                        "code": (
+                            "lineas = [l for l in _salida.strip().split(chr(10)) if l.strip()]\n"
+                            "assert len(lineas) == 3, ('esperaba 3 lineas', lineas)\n"
+                            "assert 'int' in lineas[0] and 'float' in lineas[1] "
+                            "and 'bool' in lineas[2], f'el orden no cuadra: {lineas}'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="De dias a horas",
+                description="Convertir el texto y operar con el resultado.",
+                instructions=(
+                    "`dias_texto` es el numero de dias, pero como texto. "
+                    "Conviertelo a entero en una variable llamada `dias`, calcula "
+                    "las horas que son en una variable `horas` (24 por dia) e "
+                    "imprime exactamente:\n\n"
+                    "    15 dias son 360 horas\n\n"
+                    "Los dos numeros salen de las variables, con una f-string."
+                ),
+                starter_code="dias_texto = '15'\n# TODO: dias, horas y la linea\n",
+                hints=[
+                    "dias = int(dias_texto)",
+                    "horas = dias * 24",
+                    "print(f'{dias} dias son {horas} horas')",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "dias es un entero de verdad",
+                        "code": (
+                            "assert dias == 15, f'dias vale {dias!r}'\n"
+                            "assert isinstance(dias, int), "
+                            "f'dias sigue siendo {type(dias).__name__}: te falta el int()'"
+                        ),
+                    },
+                    {
+                        "name": "las horas salen de la multiplicacion",
+                        "code": (
+                            "assert horas == 360, f'horas vale {horas!r}'\n"
+                            "assert horas == dias * 24, 'horas no coincide con dias * 24'"
+                        ),
+                    },
+                    {
+                        "name": "la linea exacta",
+                        "code": (
+                            "assert _salida.strip() == '15 dias son 360 horas', "
+                            "f'salio {_salida.strip()!r}'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Limpiar un nombre",
+                description="Los metodos de texto devuelven uno nuevo.",
+                instructions=(
+                    "`entrada` viene con espacios de sobra y en minusculas. "
+                    "Guarda en `nombre` el texto sin los espacios de los lados y "
+                    "en mayusculas, guarda en `letras` su longitud, e imprime:\n\n"
+                    "    Hola, ANA PEREZ (9)\n\n"
+                    "El 9 es `letras`: la longitud del nombre ya limpio, espacio "
+                    "del medio incluido."
+                ),
+                starter_code="entrada = '  ana perez  '\n# TODO: nombre, letras y la linea\n",
+                hints=[
+                    ".strip() quita los espacios de los lados y .upper() pasa a mayusculas.",
+                    "Se pueden encadenar: entrada.strip().upper().",
+                    "Hay que GUARDARLO: nombre = entrada.strip().upper(), si no, entrada sigue igual.",
+                    "letras = len(nombre), y despues print(f'Hola, {nombre} ({letras})').",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "el nombre queda limpio y en mayusculas",
+                        "code": (
+                            "assert nombre == 'ANA PEREZ', f'nombre vale {nombre!r}'"
+                        ),
+                    },
+                    {
+                        "name": "letras cuenta el nombre ya limpio",
+                        "code": (
+                            "assert letras == 9, "
+                            "f'letras vale {letras!r}: son las del nombre limpio, no las de entrada'"
+                        ),
+                    },
+                    {
+                        "name": "la linea exacta",
+                        "code": (
+                            "assert _salida.strip() == 'Hola, ANA PEREZ (9)', "
+                            "f'salio {_salida.strip()!r}'"
+                        ),
+                    },
+                    {
+                        "name": "entrada no se toca",
+                        "code": (
+                            "assert entrada == '  ana perez  ', "
+                            "'entrada deberia seguir igual: los metodos devuelven un texto nuevo'\n"
+                            "assert nombre == 'ANA PEREZ'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Reparto de caramelos",
+                description="Division entera, resto y un booleano.",
+                instructions=(
+                    "Hay que repartir `caramelos` entre `ninos` a partes iguales, "
+                    "sin partir ninguno.\n\n"
+                    "Calcula `cada_uno` (cuantos le tocan a cada uno), `sobran` "
+                    "(los que quedan sin repartir) y `exacto` (un booleano: True "
+                    "si no sobra ninguno). Despues imprime estas tres lineas:\n\n"
+                    "    Cada uno: 3\n"
+                    "    Sobran: 2\n"
+                    "    Exacto: False"
+                ),
+                starter_code=(
+                    "caramelos = 17\n"
+                    "ninos = 5\n"
+                    "# TODO: cada_uno, sobran, exacto y las tres lineas\n"
+                ),
+                hints=[
+                    "cada_uno = caramelos // ninos  -> la division que se queda con la parte entera.",
+                    "sobran = caramelos % ninos  -> el resto de esa misma division.",
+                    "exacto es una comparacion, no un if: exacto = sobran == 0.",
+                    "Tres prints con f-string, en el orden del enunciado.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "el reparto y el resto",
+                        "code": (
+                            "assert cada_uno == 3, f'cada_uno vale {cada_uno!r}'\n"
+                            "assert sobran == 2, f'sobran vale {sobran!r}'"
+                        ),
+                    },
+                    {
+                        "name": "exacto es un booleano, no un texto",
+                        "code": (
+                            "assert exacto is False, f'exacto vale {exacto!r}'\n"
+                            "assert isinstance(exacto, bool), "
+                            "f'exacto es {type(exacto).__name__}: sale de una comparacion'"
+                        ),
+                    },
+                    {
+                        "name": "las cuentas salen de caramelos y ninos",
+                        "code": (
+                            "assert cada_uno == caramelos // ninos\n"
+                            "assert sobran == caramelos % ninos\n"
+                            "assert caramelos == 17 and ninos == 5, 'no cambies el starter'"
+                        ),
+                    },
+                    {
+                        "name": "las tres lineas exactas",
+                        "code": (
+                            "lineas = [l for l in _salida.strip().split(chr(10)) if l.strip()]\n"
+                            "esperado = ['Cada uno: 3', 'Sobran: 2', 'Exacto: False']\n"
+                            "assert lineas == esperado, f'esperaba {esperado} y salio {lineas}'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="El ticket del cine",
+                description="El pipeline: convertir, calcular, limpiar texto y comparar.",
+                instructions=(
+                    "Los tres datos llegan como texto, que es como suelen llegar "
+                    "los datos de fuera. Prepara el ticket:\n\n"
+                    "- `precio`: `precio_texto` convertido a decimal.\n"
+                    "- `entradas`: `entradas_texto` convertido a entero.\n"
+                    "- `total`: precio por entradas, redondeado a 2 decimales con "
+                    "`round(x, 2)`.\n"
+                    "- `cliente`: `nombre_texto` sin espacios de los lados y en "
+                    "mayusculas.\n"
+                    "- `es_grupo`: booleano, True si hay 3 entradas o mas.\n\n"
+                    "Y despues imprime exactamente:\n\n"
+                    "    Cliente: ANA\n"
+                    "    Entradas: 3\n"
+                    "    Total: 29.97\n"
+                    "    Grupo: True"
+                ),
+                starter_code=(
+                    "precio_texto = '9.99'\n"
+                    "entradas_texto = '3'\n"
+                    "nombre_texto = '  ana  '\n"
+                    "# TODO: precio, entradas, total, cliente, es_grupo y las cuatro lineas\n"
+                ),
+                hints=[
+                    "precio = float(precio_texto) y entradas = int(entradas_texto): "
+                    "uno lleva decimales y el otro no.",
+                    "total = round(precio * entradas, 2)  -> sin el round te saldrian "
+                    "decimales de mas por como se guardan los float.",
+                    "cliente = nombre_texto.strip().upper()",
+                    "es_grupo = entradas >= 3, y las cuatro lineas con f-strings en el orden dado.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "las conversiones dejan el tipo correcto",
+                        "code": (
+                            "assert precio == 9.99 and isinstance(precio, float), "
+                            "f'precio vale {precio!r} ({type(precio).__name__})'\n"
+                            "assert entradas == 3 and isinstance(entradas, int), "
+                            "f'entradas vale {entradas!r} ({type(entradas).__name__})'"
+                        ),
+                    },
+                    {
+                        "name": "el total esta calculado y redondeado",
+                        "code": (
+                            "assert total == 29.97, f'total vale {total!r}'\n"
+                            "assert total == round(precio * entradas, 2), "
+                            "'total no coincide con round(precio * entradas, 2)'"
+                        ),
+                    },
+                    {
+                        "name": "el nombre queda limpio y en mayusculas",
+                        "code": (
+                            "assert cliente == 'ANA', f'cliente vale {cliente!r}'\n"
+                            "assert nombre_texto == '  ana  ', 'no cambies el starter'"
+                        ),
+                    },
+                    {
+                        "name": "es_grupo es un booleano que sale de comparar",
+                        "code": (
+                            "assert es_grupo is True, f'es_grupo vale {es_grupo!r}'\n"
+                            "assert isinstance(es_grupo, bool), "
+                            "f'es_grupo es {type(es_grupo).__name__}'"
+                        ),
+                    },
+                    {
+                        "name": "las cuatro lineas exactas",
+                        "code": (
+                            "lineas = [l for l in _salida.strip().split(chr(10)) if l.strip()]\n"
+                            "esperado = ['Cliente: ANA', 'Entradas: 3', 'Total: 29.97', "
+                            "'Grupo: True']\n"
+                            "assert lineas == esperado, f'esperaba {esperado} y salio {lineas}'"
                         ),
                     },
                 ],
