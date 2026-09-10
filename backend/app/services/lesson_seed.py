@@ -915,48 +915,445 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
     ),
     LessonTemplate(
         title="Condicionales y Logica",
-        description="if/elif/else, comparaciones y operadores logicos.",
+        description=(
+            "if, elif y else para que el programa decida, con comparadores, "
+            "and/or/not y lo que Python considera verdadero."
+        ),
         content=(
-            "## Estructura\n"
+            "## Por que decidir\n"
+            "Hasta ahora tus programas hacen siempre lo mismo, pase lo que pase\n"
+            "con los datos. Un programa util no: cobra distinto a un socio, avisa\n"
+            "solo si el saldo esta bajo, deja pasar al que tiene entrada. Todo eso\n"
+            "es **una condicion**, y es lo que separa un guion de un programa.\n\n"
+            "## if: hacer algo solo si se cumple algo\n"
             "```python\n"
-            "if condicion:\n"
-            "    ...\n"
-            "elif otra:\n"
-            "    ...\n"
-            "else:\n"
-            "    ...\n"
-            "```\n\n"
-            "## Operadores\n"
-            "- Comparacion: `==`, `!=`, `<`, `>`, `<=`, `>=`\n"
-            "- Logica: `and`, `or`, `not`\n"
+            "edad = 20                      # el dato que se va a mirar\n"
+            "if edad >= 18:                 # la condicion da True o False\n"
+            "    print('mayor de edad')     # SOLO corre si dio True\n"
+            "print('esto sale siempre')     # fuera del if: no depende de nada\n"
+            "```\n"
+            "La forma es fija: `if`, la condicion, **dos puntos**, y debajo el\n"
+            "bloque **indentado** cuatro espacios. Aqui es donde la sangria que\n"
+            "viste en la primera leccion deja de ser estetica: es como Python sabe\n"
+            "que lineas van dentro del `if` y cuales no.\n\n"
+            "## else y elif: los otros caminos\n"
+            "```python\n"
+            "nota = 4\n"
+            "if nota >= 9:                 # se prueba primero\n"
+            "    print('sobresaliente')     # no llega: 4 no es >= 9\n"
+            "elif nota >= 5:            # solo se mira si la de arriba fue False\n"
+            "    print('aprobado')          # tampoco: 4 no es >= 5\n"
+            "else:                      # si no se cumplio ninguna\n"
+            "    print('suspenso')      # suspenso  <- lo que sale con nota = 4\n"
+            "```\n"
+            "Python las prueba **en orden y se para en la primera que se cumple**.\n"
+            "Por eso el orden importa: si pones `nota >= 5` arriba del todo, un 10\n"
+            "tambien entra por ahi y nunca llegas a `sobresaliente`. De lo general\n"
+            "a lo particular no; de lo particular a lo general si.\n\n"
+            "## Los comparadores\n"
+            "```python\n"
+            "print(5 == 5)          # True   -> == compara, = asigna\n"
+            "print(5 != 3)          # True   -> != es 'distinto de'\n"
+            "print(3 < 5, 5 <= 5)   # True True\n"
+            "print('ana' == 'Ana')  # False  -> el texto distingue mayusculas\n"
+            "print(18 <= 20 <= 65)  # True   -> se pueden encadenar dos de golpe\n"
+            "```\n"
+            "Cuidado con los bordes: `edad > 18` deja fuera al que tiene\n"
+            "exactamente 18. Si el 18 cuenta, es `>=`. La mitad de los fallos de\n"
+            "logica de un programa estan en esa diferencia.\n\n"
+            "## and, or, not: combinar preguntas\n"
+            "```python\n"
+            "tiene_pase = True                  # ya es un booleano\n"
+            "edad = 19                          # esto todavia no lo es\n"
+            "print(tiene_pase and edad >= 18)   # True  -> and: tienen que cumplirse LAS DOS\n"
+            "print(tiene_pase and edad >= 65)   # False -> una falla, y ya\n"
+            "print(tiene_pase or edad >= 65)    # True  -> or: basta con una\n"
+            "print(not tiene_pase)              # False -> not le da la vuelta\n"
+            "```\n"
+            "Cada lado tiene que ser una pregunta completa:\n"
+            "`edad >= 5 and edad <= 9`, repitiendo el nombre. `edad >= 5 and <= 9`\n"
+            "no es Python y da `SyntaxError`.\n\n"
+            "## Lo que Python considera falso\n"
+            "Una condicion no tiene por que ser una comparacion: cualquier valor\n"
+            "sirve, y Python decide si cuenta como verdadero:\n"
+            "```python\n"
+            "nombre = ''                     # vacio, pero es un texto\n"
+            "if nombre:                      # un texto vacio cuenta como False\n"
+            "    print('hay nombre')         # asi que esta rama no entra\n"
+            "else:                           # y se va por aqui\n"
+            "    print('falta el nombre')    # falta el nombre  <- lo que sale\n\n"
+            "print(bool(''), bool('ana'))    # False True  -> texto vacio es falso\n"
+            "print(bool(0), bool(5))         # False True  -> el cero es falso\n"
+            "```\n"
+            "Por eso `if nombre:` se lee como *si hay nombre*. Es comodo, pero\n"
+            "solo cuando lo que quieres preguntar es de verdad *esta vacio o no*;\n"
+            "si lo que quieres saber es si vale cero, dilo: `if total == 0:`.\n\n"
+            "## Anidar: un if dentro de otro\n"
+            "```python\n"
+            "edad = 20                        # cumple el primer if\n"
+            "tiene_entrada = False            # pero no el de dentro\n"
+            "if edad >= 18:                   # nivel 1\n"
+            "    if tiene_entrada:                     # solo se mira si el de fuera fue True\n"
+            "        print('pasa')                     # nivel 2: no entra\n"
+            "    else:                                 # el else del if de dentro\n"
+            "        print('mayor, pero sin entrada')  # <- lo que sale\n"
+            "else:                            # el del de fuera: ni se mira\n"
+            "    print('menor de edad')\n"
+            "```\n"
+            "Cada nivel son cuatro espacios mas. Y una regla practica: si te sale\n"
+            "un tercer nivel, casi siempre se puede aplanar juntando las dos\n"
+            "condiciones con `and`.\n\n"
+            "## Errores comunes\n"
+            "- Escribir `=` donde va `==`: `if edad = 18:` es `SyntaxError`. El de\n"
+            "  uno solo asigna, el de dos compara.\n"
+            "- Olvidar los dos puntos al final del `if`, del `elif` o del `else`.\n"
+            "  `SyntaxError` en esa misma linea.\n"
+            "- No indentar el bloque de debajo: `IndentationError: expected an\n"
+            "  indented block`. Despues de los dos puntos **siempre** viene algo\n"
+            "  indentado.\n"
+            "- Poner la condicion general antes que la concreta. Con\n"
+            "  `if nota >= 5` primero, un 10 ya nunca llega al `elif nota >= 9`:\n"
+            "  esa rama se vuelve inalcanzable y no hay ningun error que te avise.\n"
+            "- Confundir `>` con `>=` en el borde. Con `edad > 18`, el de 18 anos\n"
+            "  se queda fuera.\n"
+            "- Encadenar mal: `if edad >= 5 and <= 9:`. Hay que repetir el nombre:\n"
+            "  `edad >= 5 and edad <= 9` (o `5 <= edad <= 9`).\n\n"
+            "## Resumen\n"
+            "- `if condicion:` + bloque indentado ejecuta ese bloque solo si la\n"
+            "  condicion es verdadera.\n"
+            "- `elif` anade otro camino y `else` recoge todo lo demas; se prueban\n"
+            "  en orden y gana el primero que se cumple.\n"
+            "- Comparadores: `==`, `!=`, `<`, `>`, `<=`, `>=`, y se pueden\n"
+            "  encadenar (`18 <= edad <= 65`).\n"
+            "- `and` pide las dos, `or` se conforma con una, `not` invierte.\n"
+            "- El texto vacio y el cero cuentan como falsos: por eso funciona\n"
+            "  `if nombre:`.\n"
+            "- Anidar es meter un `if` dentro de otro; mas de dos niveles suele\n"
+            "  ser un `and` disfrazado.\n"
         ),
         difficulty="beginner",
         category="control-flujo",
         order=3,
-        estimated_duration=30,
+        estimated_duration=45,
         prerequisites_titles=["Variables y Tipos"],
         exercises=[
             ExerciseTemplate(
                 title="Clasificador de edad",
-                description="Define etapa de vida basica.",
-                instructions="Con `edad` (17), imprime `menor` (<18), `adulto` (<65) o `senior`.",
-                starter_code="edad = 17\n# TODO\n",
+                description="Tu primera cadena if/elif/else.",
+                instructions=(
+                    "Con la `edad` del starter, guarda en una variable `etapa` el "
+                    "texto que corresponda e imprimelo:\n\n"
+                    "- `menor` si es menor de 18,\n"
+                    "- `adulto` si tiene 18 o mas pero menos de 65,\n"
+                    "- `senior` si tiene 65 o mas.\n\n"
+                    "Con `edad = 17` la salida es `menor`."
+                ),
+                starter_code="edad = 17\n# TODO: etapa, con if/elif/else, y despues imprimela\n",
+                hints=[
+                    "Empieza por el caso mas concreto: if edad < 18: etapa = 'menor'.",
+                    "El de en medio es elif edad < 65, que solo se mira si no era menor.",
+                    "El ultimo es else: etapa = 'senior'. Y el print va fuera, al final.",
+                ],
+                difficulty="easy",
+                points=10,
                 hidden_tests=[
                     {
                         "name": "edad 17 -> menor",
                         "code": "assert 'menor' in _salida.lower(), _salida",
                     },
+                    {
+                        "name": "la etapa queda guardada en su variable",
+                        "code": (
+                            "assert etapa == 'menor', f'etapa vale {etapa!r}'\n"
+                            "assert _salida.strip() == 'menor', "
+                            "f'salio {_salida.strip()!r}: imprime solo la etapa'"
+                        ),
+                    },
+                    {
+                        "name": "no se imprimieron las otras ramas",
+                        "code": (
+                            "assert 'menor' in _salida, ('esperaba menor en la salida', _salida)\n"
+                            "assert 'adulto' not in _salida and 'senior' not in _salida, "
+                            "f'salieron varias ramas: {_salida!r}'\n"
+                            "assert edad == 17, 'no cambies la edad del starter'"
+                        ),
+                    },
                 ],
             ),
             ExerciseTemplate(
                 title="Acceso permitido",
-                description="Combina condiciones.",
-                instructions="Imprime 'Acceso permitido' si `tiene_pase` y `edad >= 18`; si no, 'Acceso denegado'.",
+                description="Dos condiciones que se tienen que cumplir a la vez.",
+                instructions=(
+                    "Imprime `Acceso permitido` si `tiene_pase` es verdadero **y** "
+                    "`edad` es 18 o mas. En cualquier otro caso, imprime "
+                    "`Acceso denegado`.\n\n"
+                    "Una sola linea de salida, y las dos condiciones en el mismo "
+                    "`if`, unidas por `and`."
+                ),
                 starter_code="tiene_pase = True\nedad = 19\n# TODO\n",
+                hints=[
+                    "La condicion es tiene_pase and edad >= 18.",
+                    "tiene_pase ya es un booleano: no hace falta escribir "
+                    "tiene_pase == True.",
+                    "El else imprime 'Acceso denegado'.",
+                ],
+                difficulty="easy",
+                points=10,
                 hidden_tests=[
                     {
                         "name": "pase + mayor de edad -> permitido",
                         "code": "assert 'permitido' in _salida.lower(), _salida",
+                    },
+                    {
+                        "name": "la linea exacta y sin la otra rama",
+                        "code": (
+                            "assert _salida.strip() == 'Acceso permitido', "
+                            "f'salio {_salida.strip()!r}'\n"
+                            "assert 'denegado' not in _salida.lower(), "
+                            "'se imprimieron las dos ramas'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Descuento de socio",
+                description="Una condicion que decide una cuenta.",
+                instructions=(
+                    "En esta tienda hay un 10% de descuento, pero solo para socios "
+                    "y solo a partir de 50 euros de compra.\n\n"
+                    "Guarda en `precio_final` lo que hay que pagar: el 90% del "
+                    "precio si se cumplen las dos cosas, y el precio entero si no. "
+                    "Despues imprime exactamente `Pagas 72.0`."
+                ),
+                starter_code=(
+                    "precio = 80\n"
+                    "es_socio = True\n"
+                    "# TODO: precio_final y la linea\n"
+                ),
+                hints=[
+                    "Las dos condiciones van juntas: if es_socio and precio >= 50:",
+                    "Quitar un 10% es quedarse con el 90%: precio * 0.9.",
+                    "En el else, precio_final = precio, sin tocar nada.",
+                    "print(f'Pagas {precio_final}')",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "aplica el descuento",
+                        "code": (
+                            "assert precio_final == 72.0, f'precio_final vale {precio_final!r}'"
+                        ),
+                    },
+                    {
+                        "name": "el precio sale de la cuenta, no escrito a mano",
+                        "code": (
+                            "assert precio_final == precio * 0.9, "
+                            "'precio_final no coincide con precio * 0.9'\n"
+                            "assert precio == 80 and es_socio is True, "
+                            "'no cambies los datos del starter'"
+                        ),
+                    },
+                    {
+                        "name": "la linea exacta",
+                        "code": (
+                            "assert _salida.strip() == 'Pagas 72.0', "
+                            "f'salio {_salida.strip()!r}'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="La nota en palabras",
+                description="Una cadena de tres ramas, en el orden correcto.",
+                instructions=(
+                    "Guarda en `resultado` la palabra que le toca a la `nota` e "
+                    "imprimela:\n\n"
+                    "- `sobresaliente` con 9 o mas,\n"
+                    "- `aprobado` con 5 o mas (pero menos de 9),\n"
+                    "- `suspenso` con menos de 5.\n\n"
+                    "Ojo al orden de las ramas: si empiezas por la de 5, un 10 "
+                    "entra por ahi y nunca llega a sobresaliente."
+                ),
+                starter_code="nota = 7\n# TODO: resultado y su print\n",
+                hints=[
+                    "La primera rama es la mas exigente: if nota >= 9.",
+                    "Despues elif nota >= 5, que ya solo ve las que no llegaron a 9.",
+                    "El else recoge el resto: no hace falta comprobar nada mas.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "un 7 es aprobado",
+                        "code": (
+                            "assert resultado == 'aprobado', f'resultado vale {resultado!r}'\n"
+                            "assert _salida.strip() == 'aprobado', "
+                            "f'salio {_salida.strip()!r}'"
+                        ),
+                    },
+                    {
+                        "name": "la palabra corresponde a la nota",
+                        "code": (
+                            "esperado = 'sobresaliente' if nota >= 9 else ("
+                            "'aprobado' if nota >= 5 else 'suspenso')\n"
+                            "assert resultado == esperado, "
+                            "f'con nota {nota} tocaba {esperado!r} y hay {resultado!r}'"
+                        ),
+                    },
+                    {
+                        "name": "solo se imprimio una rama",
+                        "code": (
+                            "assert 'aprobado' in _salida, ('esperaba aprobado en la salida', _salida)\n"
+                            "assert 'suspenso' not in _salida and 'sobresaliente' not in _salida, "
+                            "f'salio mas de una rama: {_salida!r}'\n"
+                            "assert nota == 7, 'no cambies la nota del starter'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Tarifa del parking",
+                description="Varias condiciones encadenadas sobre la misma cuenta.",
+                instructions=(
+                    "La hora del parking cuesta 2 euros. Ademas:\n\n"
+                    "- los festivos se cobra un 50% mas,\n"
+                    "- los abonados no pagan nada, sea festivo o no.\n\n"
+                    "Calcula `base` (lo que costaria antes de mirar el abono, "
+                    "recargo de festivo incluido) y `total` (lo que se paga de "
+                    "verdad). Despues imprime dos lineas:\n\n"
+                    "    Base: 9.0\n"
+                    "    Total: 9.0"
+                ),
+                starter_code=(
+                    "horas = 3\n"
+                    "es_festivo = True\n"
+                    "abonado = False\n"
+                    "# TODO: base, total y las dos lineas\n"
+                ),
+                hints=[
+                    "Empieza siempre igual: base = horas * 2.",
+                    "Y despues, si es festivo, la subes: base = base * 1.5.",
+                    "El abono decide el total: if abonado: total = 0, else: total = base.",
+                    "Dos prints con f-string, primero Base y despues Total.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "la base lleva el recargo de festivo",
+                        "code": (
+                            "assert base == 9.0, f'base vale {base!r}'\n"
+                            "assert base == horas * 2 * 1.5, "
+                            "'la base no coincide con horas * 2 mas el 50% de festivo'"
+                        ),
+                    },
+                    {
+                        "name": "sin abono se paga la base entera",
+                        "code": (
+                            "assert total == 9.0, f'total vale {total!r}'\n"
+                            "assert total == base, "
+                            "'este cliente no es abonado: deberia pagar la base'"
+                        ),
+                    },
+                    {
+                        "name": "las dos lineas exactas",
+                        "code": (
+                            "lineas = [l for l in _salida.strip().split(chr(10)) if l.strip()]\n"
+                            "assert lineas == ['Base: 9.0', 'Total: 9.0'], "
+                            "f'salio {lineas}'"
+                        ),
+                    },
+                    {
+                        "name": "no cambiaste los datos del starter",
+                        "code": (
+                            "assert horas == 3 and es_festivo is True and abonado is False, "
+                            "'los datos del starter tienen que quedarse como estan'\n"
+                            "assert base == 9.0 and total == 9.0"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Matricula del curso",
+                description="El pipeline: un booleano compuesto, una cadena de ramas y un texto vacio.",
+                instructions=(
+                    "Para matricularse hacen falta tres cosas a la vez: media de 5 "
+                    "o mas, 30 creditos o mas, y no estar sancionado.\n\n"
+                    "- `apto`: un booleano con esas tres condiciones combinadas. "
+                    "No uses `if`: guarda directamente la comparacion.\n"
+                    "- `estado`: `honor` si ademas la media es 9 o mas, `apto` si "
+                    "solo cumple lo basico, y `no apto` si no cumple.\n"
+                    "- `mensaje_beca`: si `beca` tiene algo escrito, "
+                    "`con beca: <lo que ponga>`; si esta vacia, `sin beca`. "
+                    "Aprovecha que un texto vacio cuenta como falso.\n\n"
+                    "Y despues imprime tres lineas:\n\n"
+                    "    Apto: True\n"
+                    "    Estado: apto\n"
+                    "    sin beca"
+                ),
+                starter_code=(
+                    "nota_media = 6.5\n"
+                    "creditos = 42\n"
+                    "sancionado = False\n"
+                    "beca = ''\n"
+                    "# TODO: apto, estado, mensaje_beca y las tres lineas\n"
+                ),
+                hints=[
+                    "apto = nota_media >= 5 and creditos >= 30 and not sancionado  "
+                    "-> una sola linea, sin if.",
+                    "Para estado, la rama mas exigente primero: "
+                    "if apto and nota_media >= 9.",
+                    "Para la beca: if beca: mensaje_beca = f'con beca: {beca}' "
+                    "y en el else, 'sin beca'.",
+                    "Las tres lineas: Apto y Estado con etiqueta, y la de la beca "
+                    "es el mensaje tal cual.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "apto es un booleano con las tres condiciones",
+                        "code": (
+                            "assert apto is True, f'apto vale {apto!r}'\n"
+                            "assert isinstance(apto, bool), "
+                            "f'apto es {type(apto).__name__}: sale de comparar, no de un texto'\n"
+                            "assert apto == (nota_media >= 5 and creditos >= 30 and not sancionado)"
+                        ),
+                    },
+                    {
+                        "name": "el estado corresponde a la media",
+                        "code": (
+                            "assert estado == 'apto', "
+                            "f'estado vale {estado!r}: con 6.5 no hay honor, pero si apto'"
+                        ),
+                    },
+                    {
+                        "name": "la beca vacia da 'sin beca'",
+                        "code": (
+                            "assert mensaje_beca == 'sin beca', "
+                            "f'mensaje_beca vale {mensaje_beca!r}'\n"
+                            "assert beca == '', 'no cambies el starter: la beca esta vacia a proposito'"
+                        ),
+                    },
+                    {
+                        "name": "las tres lineas exactas",
+                        "code": (
+                            "lineas = [l for l in _salida.strip().split(chr(10)) if l.strip()]\n"
+                            "esperado = ['Apto: True', 'Estado: apto', 'sin beca']\n"
+                            "assert lineas == esperado, f'esperaba {esperado} y salio {lineas}'"
+                        ),
+                    },
+                    {
+                        "name": "el estado sale de las reglas, no escrito a mano",
+                        "code": (
+                            "esperado = 'honor' if (apto and nota_media >= 9) else ("
+                            "'apto' if apto else 'no apto')\n"
+                            "assert estado == esperado, "
+                            "f'con media {nota_media} tocaba {esperado!r} y hay {estado!r}'\n"
+                            "assert 'honor' not in _salida and 'no apto' not in _salida, "
+                            "f'se colo otra rama en la salida: {_salida!r}'"
+                        ),
                     },
                 ],
             ),

@@ -187,22 +187,26 @@ de prerequisitos es un guard rail puro y el orden lo marca la calidad del conten
 | ✅ | Listas, Tuplas y Diccionarios | 6 | listas, indexado y slicing, métodos, tuplas y desempaquetado, dicts con `.get` e `.items` | — (era la peor del temario con 148 caracteres, y POO se apoyaba en ella) |
 | ✅ | Python desde Cero | 1 | `print`, orden de ejecución, primera variable, f-strings, comentarios, leer un error | — |
 | ✅ | Variables y Tipos | 2 | int/float/str/bool, `type`, conversiones, `//` `%` `**`, métodos de texto, booleanos | — |
-| **1** | **Condicionales y Lógica** | 3 | `if`/`elif`/`else`, comparadores, `and`/`or`/`not`, truthiness | — |
-| **2** | **Módulos, Paquetes y Entornos** | 9 | módulos, `import`, `__name__`, venv, pip | — |
-| **3** | **Testing con pytest** | 10 | tests, `assert`, `pytest.raises`, casos borde | — |
+| ✅ | Condicionales y Lógica | 3 | `if`/`elif`/`else`, comparadores, `and`/`or`/`not`, truthiness, anidar | — |
+| **1** | **Módulos, Paquetes y Entornos** | 9 | módulos, `import`, `__name__`, venv, pip | — |
+| **2** | **Testing con pytest** | 10 | tests, `assert`, `pytest.raises`, casos borde | — |
 
 Con 6 ejercicios por lección, Track 1 pasa de 18 a 60: **42 ejercicios nuevos**, que
-se escriben junto a su lección y no como tarea aparte. Llevamos **7 lecciones y 42
-ejercicios**; quedan tres lecciones, todas sin hueco que cerrar.
+se escriben junto a su lección y no como tarea aparte. Llevamos **8 lecciones y 48
+ejercicios**; quedan dos, las dos del final del track.
 
 ### Deudas que deja este orden
 
-**Releer las lecciones 5, 6, 7 y 8 cuando esté reescrita la 3.** Se escribieron
-antes que el arranque del temario, así que sus ejemplos se apoyaban en variables,
-tipos y condicionales en su versión pobre. Las lecciones 1 y 2 ya están, y con ellas
-la mitad de la deuda: falta "Condicionales y Lógica" y, después, dar una pasada por
-esas cuatro comprobando que los ejemplos encajan con lo que ahora se enseña de
-verdad. Se aceptó a cambio de cerrar `def`, `raise` y `class` cuanto antes.
+**~~Releer las lecciones 5, 6, 7 y 8~~ — saldada.** Se escribieron antes que el
+arranque del temario, apoyándose en variables, tipos y condicionales en su versión
+pobre. Con las lecciones 1, 2 y 3 reescritas, la revisión se reduce a nada por dos
+motivos: reescribir el arranque solo **añadió** contenido, así que lo que aquellas
+daban por sabido ahora está mejor sostenido, no peor; y los tres casos concretos de
+algo enseñado sobre la marcha ya están cerrados uno a uno —f-strings (estaban en la
+5, ahora en la 1), `split` (estaba en un enunciado de la 6, ahora en la 2) y las
+tuplas con `.get` (estaban en la 8, ahora en la 6)—. En la 5 queda un `return
+f'{prefijo}, {nombre}!'` con un comentario de recordatorio, que ahora es un repaso
+legítimo y no una introducción a escondidas.
 
 El caso de `split` ya está resuelto: la 6 lo explicaba de pasada en el enunciado de
 un ejercicio, y al reescribir la 2 se metió donde le tocaba, junto a `len`,
@@ -237,6 +241,30 @@ Un bucle infinito bloquea el sandbox de forma permanente: el timeout del runner 
 puede interrumpir código Python síncrono. Está documentado con el diagnóstico y las
 mediciones en el **issue #32**, y se aborda **después** de Track 1. Mientras tanto la
 lección 4 lo avisa en el contenido.
+
+## En las lecciones 1-4 los tests no pueden variar la entrada
+
+El runner ejecuta el código del alumno y **después** el test, en el mismo
+namespace. Mientras no haya `def` (lección 5) no hay nada que el test pueda volver
+a llamar con otros datos: el ejercicio ya se ejecutó con los valores del starter.
+En la práctica, un alumno que escriba `print('menor')` sin un solo `if` aprueba
+igual.
+
+No hay forma de arreglarlo desde el contenido, pero sí de estrecharlo, y las
+lecciones 1-3 lo hacen así:
+
+- **Atar el resultado a las variables del starter**: en vez de `assert total == 12`
+  a secas, también `assert total == precio_unitario * cantidad`, y `assert
+  precio_unitario == 3` para que no se cambien los datos. Copiar el número deja de
+  bastar; hay que copiar la relación.
+- **Pedir variables intermedias**, no solo la salida (`etapa`, `base`, `apto`), y
+  comprobar su tipo: `assert isinstance(exacto, bool)` descarta el `'False'`
+  escrito a mano.
+- **Varias decisiones en el mismo programa**: cuatro líneas exactas salidas de seis
+  variables se falsifican peor que una.
+
+A partir de la lección 5 esto desaparece: con una función, el test la llama con los
+casos que quiera.
 
 ## Los enunciados se muestran en texto plano
 
