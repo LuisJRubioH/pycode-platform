@@ -188,12 +188,12 @@ de prerequisitos es un guard rail puro y el orden lo marca la calidad del conten
 | ✅ | Python desde Cero | 1 | `print`, orden de ejecución, primera variable, f-strings, comentarios, leer un error | — |
 | ✅ | Variables y Tipos | 2 | int/float/str/bool, `type`, conversiones, `//` `%` `**`, métodos de texto, booleanos | — |
 | ✅ | Condicionales y Lógica | 3 | `if`/`elif`/`else`, comparadores, `and`/`or`/`not`, truthiness, anidar | — |
-| **1** | **Módulos, Paquetes y Entornos** | 9 | módulos, `import`, `__name__`, venv, pip | — |
-| **2** | **Testing con pytest** | 10 | tests, `assert`, `pytest.raises`, casos borde | — |
+| ✅ | Módulos, Paquetes y Entornos | 9 | `import`/`from`/`as`, módulo propio, paquete con `__init__.py`, `sys.path`, `sys.modules`, `__main__`, venv y pip | — |
+| **1** | **Testing con pytest** | 10 | tests, `assert`, `pytest.raises`, casos borde | — |
 
 Con 6 ejercicios por lección, Track 1 pasa de 18 a 60: **42 ejercicios nuevos**, que
-se escriben junto a su lección y no como tarea aparte. Llevamos **8 lecciones y 48
-ejercicios**; quedan dos, las dos del final del track.
+se escriben junto a su lección y no como tarea aparte. Llevamos **9 lecciones y 54
+ejercicios**; queda una, "Testing con pytest".
 
 ### Deudas que deja este orden
 
@@ -233,7 +233,10 @@ validaron en Pyodide real. Al reescribir el **contenido** de esas dos lecciones 
 que respetar los ejercicios existentes y limitarse a añadir los que falten hasta
 seis. Es lo que se hizo en POO: "Clase Producto" y "Cuenta bancaria" conservan su
 título y su contrato (y por tanto su id y el progreso de quien los aprobó), solo se
-les añadieron enunciado, pistas y tests, y los otros cuatro son nuevos.
+les añadieron enunciado, pistas y tests, y los otros cuatro son nuevos. Respetar el
+contrato no es respetar los tests: en "Refactor a modulo" tres de sus cuatro tests
+aprobaban con el starter intacto, y se endurecieron sin tocar lo que el ejercicio
+pide.
 
 ### Limitación de plataforma pendiente
 
@@ -241,6 +244,32 @@ Un bucle infinito bloquea el sandbox de forma permanente: el timeout del runner 
 puede interrumpir código Python síncrono. Está documentado con el diagnóstico y las
 mediciones en el **issue #32**, y se aborda **después** de Track 1. Mientras tanto la
 lección 4 lo avisa en el contenido.
+
+## Comprobar el starter sin que se contamine
+
+La regla de que ningún test pase con el starter se comprueba corriendo cada test
+dos veces, contra la solución y contra el starter. Con ejercicios que escriben
+archivos (lección 9) eso hay que **aislarlo**, o el resultado miente en las dos
+direcciones:
+
+- Si las dos ejecuciones comparten carpeta, el archivo que creó la solución sigue
+  ahí cuando corre el starter y todo parece trivial.
+- Si se cambia de carpeta sin más, `sys.path_importer_cache` sigue apuntando a la
+  anterior y todo falla con `ModuleNotFoundError`. Hay que limpiar ese caché y
+  llamar a `importlib.invalidate_caches()` después del `chdir`, además de sacar los
+  módulos de `sys.modules`.
+
+Con el aislamiento bien puesto salieron cinco tests que aprobaban solos: los
+starters crean el archivo con `write_text('')`, así que `Path('utils.py').exists()`
+y hasta `import utils` funcionan sin que el alumno escriba una línea. Se arreglan
+mirando el contenido (`'def normalizar' in Path('utils.py').read_text()`) o el
+módulo ya cargado (`hasattr(utils, 'normalizar')`).
+
+**Ojo, en el editor real esto también pasa**: el sistema de archivos de Pyodide y
+`sys.modules` sobreviven entre ejecuciones de la misma sesión. Un alumno que
+resuelve el ejercicio y luego borra su código puede seguir aprobando esos tests
+hasta que recargue la página. Es otra razón para que el test mire el contenido y no
+la existencia.
 
 ## En las lecciones 1-4 los tests no pueden variar la entrada
 

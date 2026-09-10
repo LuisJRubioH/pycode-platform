@@ -3690,20 +3690,83 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
     ),
     LessonTemplate(
         title="Modulos, Paquetes y Entornos",
-        description="Organiza proyectos Python y gestiona dependencias.",
+        description=(
+            "Partir el codigo en archivos: import, modulos propios, paquetes, la "
+            "libreria estandar, el guard de __main__ y los entornos virtuales."
+        ),
         content=(
-            "## Modulos\n"
-            "- Un archivo `.py` es un modulo.\n"
-            "- Importa con `import` o `from ... import ...`.\n\n"
+            "## Por que partir el codigo en archivos\n"
+            "Todo lo que has escrito hasta ahora cabia en un archivo. Un proyecto\n"
+            "de verdad no: acabas con mil lineas donde no encuentras nada y donde\n"
+            "no puedes reutilizar una funcion sin copiarla. Un **modulo** es la\n"
+            "unidad para partir eso, y `import` es como se juntan otra vez las\n"
+            "piezas.\n\n"
+            "## import, from ... import y as\n"
+            "Empecemos por lo que ya viene con Python. `math` y `json` son\n"
+            "modulos de la **libreria estandar**: estan instalados de fabrica.\n"
+            "```python\n"
+            "import math                     # trae el modulo entero\n"
+            "print(math.sqrt(16))            # 4.0  -> el nombre del modulo delante\n"
+            "print(math.floor(3.7))          # 3\n\n"
+            "from math import sqrt, pi       # trae SOLO esos dos nombres\n"
+            "print(sqrt(25), round(pi, 2))   # 5.0 3.14  -> ya sin el math. delante\n\n"
+            "import json as j                # alias, para nombres largos\n"
+            "print(j.dumps({'a': 1}))        # {\"a\": 1}  -> el dict como texto JSON\n"
+            "```\n"
+            "Las tres formas hacen lo mismo por dentro. `import modulo` deja claro\n"
+            "de donde sale cada cosa y es la opcion por defecto; `from ... import`\n"
+            "acorta cuando usas un nombre muchas veces. Los `import` van todos\n"
+            "arriba del archivo, juntos.\n\n"
+            "## Un modulo es un archivo .py tuyo\n"
+            "No hay nada especial en los modulos de Python: cualquier archivo\n"
+            "`.py` lo es. Aqui, como no tienes un explorador de archivos, lo\n"
+            "escribimos desde el propio codigo:\n"
+            "```python\n"
+            "from pathlib import Path        # para escribir el archivo\n"
+            "import sys                      # para tocar sys.path y sys.modules\n\n"
+            "sys.modules.pop('saludos', None)      # olvida la version anterior (ver abajo)\n"
+            "Path('saludos.py').write_text(        # crea el archivo, con su codigo dentro\n"
+            '    "def hola(nombre):\\n"\n'
+            "    \"    return f'Hola, {nombre}'\\n\"\n"
+            ")\n"
+            "if '.' not in sys.path:               # solo si no estaba ya\n"
+            "    sys.path.insert(0, '.')           # busca modulos tambien en esta carpeta\n\n"
+            "import saludos                        # ahora ya existe y se puede importar\n"
+            "print(saludos.hola('Ana'))            # Hola, Ana\n"
+            "```\n"
+            "Fijate en `sys.path`: es la lista de sitios donde Python busca lo que\n"
+            "le pides importar. Si tu archivo no esta en ninguno, el import falla\n"
+            "con `ModuleNotFoundError` por mucho que el archivo exista.\n\n"
+            "Y `sys.modules.pop('saludos', None)` esta por otra razon: Python\n"
+            "**cachea** los modulos ya importados. Si corriges `saludos.py` y\n"
+            "vuelves a ejecutar sin borrar el cache, sigues usando la version\n"
+            "vieja y te vuelves loco. Pasa aqui, y pasa igual en un notebook.\n\n"
+            "## Un paquete es una carpeta con __init__.py\n"
+            "Cuando los modulos crecen, se agrupan en carpetas. Una carpeta con un\n"
+            "archivo `__init__.py` dentro es un **paquete**:\n"
+            "```python\n"
+            "from pathlib import Path        # crea carpetas y archivos\n"
+            "import sys\n\n"
+            "Path('tienda').mkdir(exist_ok=True)          # la carpeta: el paquete\n"
+            "Path('tienda/__init__.py').write_text('')    # este archivo la convierte en uno\n"
+            "Path('tienda/precios.py').write_text('IVA = 0.21\\n')   # un modulo dentro\n\n"
+            "if '.' not in sys.path:\n"
+            "    sys.path.insert(0, '.')                  # otra vez, la carpeta actual\n"
+            "from tienda import precios                   # paquete.modulo\n"
+            "print(precios.IVA)                           # 0.21\n"
+            "```\n"
+            "`__init__.py` puede estar vacio: su trabajo es decir *esta carpeta es\n"
+            "un paquete, no una carpeta cualquiera*. Con eso, `tienda.precios` es\n"
+            "una ruta de import como cualquier otra.\n\n"
             "## El guard `if __name__ == '__main__'`\n"
             "Cuando Python ejecuta un archivo directamente le pone a la variable\n"
             "`__name__` el valor `'__main__'`. Cuando ese mismo archivo se\n"
             "importa desde otro, `__name__` pasa a ser el nombre del modulo\n"
             "(`'utils'`). Por eso el codigo de prueba se protege:\n\n"
             "```python\n"
-            "def normalizar(texto):\n"
+            "def normalizar(texto):                 # lo util del modulo: esto se importa\n"
             "    return texto.strip().lower()\n\n"
-            "if __name__ == '__main__':\n"
+            "if __name__ == '__main__':             # True solo si ejecutas ESTE archivo\n"
             "    # solo corre si ejecutas ESTE archivo, no al importarlo\n"
             "    print(normalizar('  HOLA  '))\n"
             "```\n"
@@ -3715,16 +3778,283 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             "> de tu codigo: en un Python normal funciona como esta descrito.\n"
             "> Preferimos decirtelo a que te vuelvas loco buscando por que no\n"
             "> imprime nada.\n\n"
-            "## Entornos virtuales\n"
-            "- Aislan dependencias por proyecto.\n"
-            "- Usa `python -m venv .venv` y activa antes de instalar paquetes.\n"
+            "## Entornos virtuales y pip\n"
+            "La libreria estandar no lo trae todo: pandas, requests o pytest se\n"
+            "instalan con `pip`. El problema es que instalarlos *en el sistema*\n"
+            "mezcla las dependencias de todos tus proyectos, y un dia uno necesita\n"
+            "una version que rompe a otro. La solucion es un **entorno virtual**:\n"
+            "una carpeta con su propio Python y sus propios paquetes.\n\n"
+            "```\n"
+            "python -m venv .venv          # crea el entorno en la carpeta .venv\n"
+            ".venv\\Scripts\\activate        # activarlo en Windows\n"
+            "source .venv/bin/activate     # activarlo en Linux o Mac\n"
+            "pip install pandas            # ya solo afecta a ESTE proyecto\n"
+            "pip freeze > requirements.txt # deja escrito que versiones usas\n"
+            "pip install -r requirements.txt   # y otro reproduce tu entorno con eso\n"
+            "```\n"
+            "Esas lineas no son Python: van en la terminal, no en el editor. Aqui\n"
+            "no las puedes probar -el navegador no tiene terminal ni pip-, pero\n"
+            "son el primer paso de cualquier proyecto real, y `requirements.txt`\n"
+            "es lo que hace que tu codigo funcione tambien en el ordenador de\n"
+            "otro.\n\n"
+            "## Errores comunes\n"
+            "- `ModuleNotFoundError` con un archivo que existe: no esta en\n"
+            "  `sys.path`. O lo anades, o ejecutas desde la carpeta que lo\n"
+            "  contiene.\n"
+            "- Llamar a tu archivo como uno del estandar (`math.py`, `json.py`,\n"
+            "  `random.py`). El tuyo gana y tapa al de verdad, con errores\n"
+            "  absurdos despues.\n"
+            "- Editar un modulo y no ver el cambio: es el cache de `sys.modules`.\n"
+            "  `sys.modules.pop('nombre', None)` antes de volver a importar.\n"
+            "- `from modulo import *`. Trae todos los nombres de golpe y pisa los\n"
+            "  tuyos sin avisar; ademas, quien lea el codigo no sabe de donde sale\n"
+            "  cada cosa.\n"
+            "- Instalar con `pip` sin entorno virtual. Funciona hoy y rompe el mes\n"
+            "  que viene, cuando otro proyecto necesite otra version.\n"
+            "- Poner los `import` en mitad del archivo. Van arriba, todos juntos:\n"
+            "  asi se ve de un vistazo de que depende el modulo.\n\n"
+            "## Resumen\n"
+            "- Un modulo es un archivo `.py`; `import modulo` lo trae entero y\n"
+            "  `from modulo import nombre` trae una pieza.\n"
+            "- `import modulo as alias` renombra; los import van arriba.\n"
+            "- `sys.path` es donde Python busca, y `sys.modules` es lo que ya\n"
+            "  tiene cargado (y cachea).\n"
+            "- Un paquete es una carpeta con `__init__.py`, y se importa como\n"
+            "  `paquete.modulo`.\n"
+            "- `__name__` vale `'__main__'` solo si ejecutas el archivo\n"
+            "  directamente; por eso el guard protege el codigo de prueba.\n"
+            "- Un entorno virtual (`python -m venv .venv`) aisla las dependencias\n"
+            "  del proyecto, y `requirements.txt` las deja reproducibles.\n"
         ),
         difficulty="advanced",
         category="tooling",
         order=9,
-        estimated_duration=30,
+        estimated_duration=50,
         prerequisites_titles=["POO en Python"],
         exercises=[
+            ExerciseTemplate(
+                title="Importar de la libreria estandar",
+                description="Usar un modulo que ya viene con Python.",
+                instructions=(
+                    "Importa el modulo `math` y guarda:\n\n"
+                    "- `raiz`: la raiz cuadrada de 144 con `math.sqrt`.\n"
+                    "- `entero`: el 7.9 redondeado hacia abajo con `math.floor`.\n\n"
+                    "Despues imprime los dos, en ese orden y uno por linea."
+                ),
+                starter_code="# TODO: importa math y calcula raiz y entero\n",
+                hints=[
+                    "El import va en la primera linea: import math.",
+                    "raiz = math.sqrt(144) y entero = math.floor(7.9).",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "raiz y entero salen de math",
+                        "code": (
+                            "assert raiz == 12.0, f'raiz vale {raiz!r}'\n"
+                            "assert entero == 7, f'entero vale {entero!r}'"
+                        ),
+                    },
+                    {
+                        "name": "se importo el modulo, no se escribio el numero",
+                        "code": (
+                            "import types\n"
+                            "assert isinstance(math, types.ModuleType), "
+                            "'falta el import math'\n"
+                            "assert raiz == math.sqrt(144) and entero == math.floor(7.9)"
+                        ),
+                    },
+                    {
+                        "name": "imprime los dos valores",
+                        "code": (
+                            "lineas = [l for l in _salida.strip().split(chr(10)) if l.strip()]\n"
+                            "assert lineas == ['12.0', '7'], f'salio {lineas}'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="from, import y alias",
+                description="Las otras dos formas de importar.",
+                instructions=(
+                    "Sin usar `import math` a secas:\n\n"
+                    "- trae solo `pi` con `from math import pi` y guarda en "
+                    "`area` el area de un circulo de radio 2 (`pi * radio ** 2`), "
+                    "redondeada a 2 decimales;\n"
+                    "- importa `json` con el alias `j` y guarda en `texto` el "
+                    "resultado de `j.dumps({'ok': True})`.\n\n"
+                    "Imprime `area` y `texto`, uno por linea."
+                ),
+                starter_code="radio = 2\n# TODO: los dos imports, area y texto\n",
+                hints=[
+                    "from math import pi trae el nombre pi directamente, sin math. delante.",
+                    "area = round(pi * radio ** 2, 2)",
+                    "import json as j, y despues texto = j.dumps({'ok': True}).",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "el area usa pi y sale redondeada",
+                        "code": (
+                            "assert area == 12.57, f'area vale {area!r}'\n"
+                            "from math import pi as _pi\n"
+                            "assert area == round(_pi * radio ** 2, 2)"
+                        ),
+                    },
+                    {
+                        "name": "pi entro por from ... import",
+                        "code": (
+                            "assert 'pi' in globals(), "
+                            "'usa from math import pi: el nombre pi tiene que quedar disponible'"
+                        ),
+                    },
+                    {
+                        "name": "json entro con alias y produjo el texto",
+                        "code": (
+                            "import types\n"
+                            "assert isinstance(j, types.ModuleType), "
+                            "'falta import json as j'\n"
+                            "assert texto == '{\"ok\": true}', f'texto vale {texto!r}'"
+                        ),
+                    },
+                    {
+                        "name": "imprime los dos, en orden",
+                        "code": (
+                            "lineas = [l for l in _salida.strip().split(chr(10)) if l.strip()]\n"
+                            "assert lineas == ['12.57', '{\"ok\": true}'], f'salio {lineas}'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Tu primer modulo",
+                description="Escribir un archivo .py y usarlo desde otro.",
+                instructions=(
+                    "Escribe un modulo `saludos.py` que contenga UNA funcion, "
+                    "`hola(nombre)`, que devuelva `Hola, <nombre>!`.\n\n"
+                    "El starter ya prepara el terreno (borra el cache y anade la "
+                    "carpeta a `sys.path`): tu pones el contenido del archivo y el "
+                    "`import saludos` al final. Despues imprime "
+                    "`saludos.hola('Ana')`.\n\n"
+                    "La funcion tiene que vivir dentro de `saludos.py`, no aqui."
+                ),
+                starter_code=(
+                    "from pathlib import Path\n"
+                    "import sys\n\n"
+                    "sys.modules.pop('saludos', None)   # olvida la version anterior\n\n"
+                    "Path('saludos.py').write_text(\n"
+                    "    # TODO: el contenido del modulo, como texto\n"
+                    "    ''\n"
+                    ")\n\n"
+                    "if '.' not in sys.path:\n"
+                    "    sys.path.insert(0, '.')\n\n"
+                    "# TODO: importa saludos y usa hola('Ana')\n"
+                ),
+                hints=[
+                    "El contenido es un texto con el codigo dentro: "
+                    "\"def hola(nombre):\\n    return f'Hola, {nombre}!'\\n\".",
+                    "Cuidado con los saltos de linea (\\n) y con la indentacion de las "
+                    "cuatro espacios dentro del texto.",
+                    "Al final: import saludos y despues print(saludos.hola('Ana')).",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "saludos.py existe",
+                        "code": (
+                            "from pathlib import Path\n"
+                            "assert Path('saludos.py').exists(), 'no creaste saludos.py'\n"
+                            "assert 'def hola' in Path('saludos.py').read_text(), "
+                            "'saludos.py esta vacio: el contenido del modulo va dentro del write_text'"
+                        ),
+                    },
+                    {
+                        "name": "la funcion vive en el modulo y saluda",
+                        "code": (
+                            "assert saludos.hola('Ana') == 'Hola, Ana!', "
+                            "f\"hola('Ana') devolvio {saludos.hola('Ana')!r}\"\n"
+                            "assert saludos.hola('Luis') == 'Hola, Luis!'"
+                        ),
+                    },
+                    {
+                        "name": "hola no esta suelta en el archivo principal",
+                        "code": (
+                            "assert callable(saludos.hola), 'saludos.hola no es una funcion'\n"
+                            "assert 'hola' not in globals(), "
+                            "'hola tiene que vivir dentro de saludos.py'"
+                        ),
+                    },
+                    {
+                        "name": "imprime el saludo",
+                        "code": (
+                            "assert _salida.strip() == 'Hola, Ana!', "
+                            "f'salio {_salida.strip()!r}'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Traer solo una funcion",
+                description="from tu_modulo import lo_que_necesitas.",
+                instructions=(
+                    "Escribe `medidas.py` con dos funciones, `area(base, altura)` "
+                    "(base por altura) y `perimetro(base, altura)` (el doble de la "
+                    "suma).\n\n"
+                    "Despues traelas con `from medidas import area, perimetro` -sin "
+                    "`import medidas`- y guarda `a = area(3, 4)` y "
+                    "`p = perimetro(3, 4)`."
+                ),
+                starter_code=(
+                    "from pathlib import Path\n"
+                    "import sys\n\n"
+                    "sys.modules.pop('medidas', None)\n\n"
+                    "Path('medidas.py').write_text(\n"
+                    "    # TODO: las dos funciones, como texto\n"
+                    "    ''\n"
+                    ")\n\n"
+                    "if '.' not in sys.path:\n"
+                    "    sys.path.insert(0, '.')\n\n"
+                    "# TODO: from medidas import area, perimetro  y despues a y p\n"
+                ),
+                hints=[
+                    "Las dos funciones van en el mismo texto, separadas por un salto de linea.",
+                    "El perimetro es 2 * (base + altura).",
+                    "Con from ... import, las funciones quedan disponibles por su nombre: "
+                    "area(3, 4), sin medidas. delante.",
+                    "a = area(3, 4) y p = perimetro(3, 4).",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "el modulo existe y tiene las dos funciones",
+                        "code": (
+                            "import importlib\n"
+                            "m = importlib.import_module('medidas')\n"
+                            "assert m.area(3, 4) == 12, 'area no calcula base por altura'\n"
+                            "assert m.perimetro(3, 4) == 14, 'perimetro no es 2 * (base + altura)'"
+                        ),
+                    },
+                    {
+                        "name": "los nombres se trajeron con from ... import",
+                        "code": (
+                            "assert 'area' in globals() and 'perimetro' in globals(), "
+                            "'usa from medidas import area, perimetro'\n"
+                            "assert callable(area) and callable(perimetro)"
+                        ),
+                    },
+                    {
+                        "name": "a y p tienen los valores del enunciado",
+                        "code": (
+                            "assert a == 12, f'a vale {a!r}'\n"
+                            "assert p == 14, f'p vale {p!r}'"
+                        ),
+                    },
+                ],
+            ),
             ExerciseTemplate(
                 title="Refactor a modulo",
                 description="Saca las funciones a su propio modulo y consumelas importandolas.",
@@ -3758,15 +4088,19 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                 hints=[
                     "El contenido de utils.py es un string; cuida los saltos de linea.",
                     "sys.path.insert(0, '.') hace que Python busque modulos en el directorio actual.",
+                    "es_valido puede apoyarse en normalizar: las dos viven en el mismo modulo.",
                     "Si editas utils.py y no ves el cambio, es el cache: sys.modules.pop('utils', None).",
                 ],
-                difficulty="medium",
+                difficulty="hard",
+                points=20,
                 hidden_tests=[
                     {
                         "name": "utils.py existe en el sistema de archivos",
                         "code": (
                             "from pathlib import Path\n"
-                            "assert Path('utils.py').exists(), 'no creaste el archivo utils.py'"
+                            "assert Path('utils.py').exists(), 'no creaste el archivo utils.py'\n"
+                            "assert 'def normalizar' in Path('utils.py').read_text(), "
+                            "'utils.py esta vacio: el codigo va dentro del write_text'"
                         ),
                     },
                     {
@@ -3776,7 +4110,9 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                             "assert isinstance(utils, types.ModuleType), "
                             "'utils deberia ser un modulo importado'\n"
                             "assert utils.__file__.endswith('utils.py'), "
-                            "f'utils viene de {utils.__file__}'"
+                            "f'utils viene de {utils.__file__}'\n"
+                            "assert hasattr(utils, 'normalizar') and hasattr(utils, 'es_valido'), "
+                            "'el modulo se importa pero esta vacio'"
                         ),
                     },
                     {
@@ -3790,8 +4126,92 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                     {
                         "name": "las funciones NO estan sueltas en el archivo principal",
                         "code": (
+                            "assert callable(utils.normalizar), 'utils.normalizar no es una funcion'\n"
                             "assert 'normalizar' not in globals(), "
                             "'normalizar debe vivir en utils.py, no en el archivo principal'"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Un paquete de verdad",
+                description="El pipeline: una carpeta, __init__.py, dos modulos y sus imports.",
+                instructions=(
+                    "Monta un paquete llamado `tienda` con esta forma:\n\n"
+                    "    tienda/__init__.py    (vacio)\n"
+                    "    tienda/precios.py     IVA = 0.21 y con_iva(precio)\n"
+                    "    tienda/textos.py      etiqueta(nombre, precio)\n\n"
+                    "- `con_iva(precio)`: devuelve el precio con el IVA aplicado, "
+                    "redondeado a 2 decimales. Usa la constante `IVA` del propio "
+                    "modulo.\n"
+                    "- `etiqueta(nombre, precio)`: devuelve el texto "
+                    "`<nombre>: <precio> EUR`.\n\n"
+                    "Despues importa los dos modulos del paquete, guarda "
+                    "`total = precios.con_iva(100)` y "
+                    "`linea = textos.etiqueta('mesa', total)`, e imprime `linea`."
+                ),
+                starter_code=(
+                    "from pathlib import Path\n"
+                    "import sys\n\n"
+                    "for _m in ('tienda', 'tienda.precios', 'tienda.textos'):\n"
+                    "    sys.modules.pop(_m, None)   # el cache tambien afecta a los paquetes\n\n"
+                    "Path('tienda').mkdir(exist_ok=True)\n"
+                    "# TODO: __init__.py, precios.py y textos.py\n\n"
+                    "if '.' not in sys.path:\n"
+                    "    sys.path.insert(0, '.')\n\n"
+                    "# TODO: importa los dos modulos, calcula total y linea, e imprime\n"
+                ),
+                hints=[
+                    "El __init__.py va vacio: Path('tienda/__init__.py').write_text('').",
+                    "En precios.py: primero IVA = 0.21 y debajo "
+                    "def con_iva(precio): return round(precio * (1 + IVA), 2).",
+                    "En textos.py: def etiqueta(nombre, precio): return f'{nombre}: {precio} EUR'.",
+                    "Para importarlos: from tienda import precios, textos.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "la carpeta tiene la forma de un paquete",
+                        "code": (
+                            "from pathlib import Path\n"
+                            "assert Path('tienda/__init__.py').exists(), "
+                            "'sin __init__.py la carpeta no es un paquete'\n"
+                            "assert Path('tienda/precios.py').exists() and "
+                            "Path('tienda/textos.py').exists(), 'faltan modulos dentro'"
+                        ),
+                    },
+                    {
+                        "name": "precios.con_iva usa la constante IVA del modulo",
+                        "code": (
+                            "import importlib\n"
+                            "p = importlib.import_module('tienda.precios')\n"
+                            "assert p.IVA == 0.21, f'IVA vale {p.IVA!r}'\n"
+                            "assert p.con_iva(100) == 121.0, f'con_iva(100) dio {p.con_iva(100)!r}'\n"
+                            "assert p.con_iva(9.99) == 12.09, f'con_iva(9.99) dio {p.con_iva(9.99)!r}'"
+                        ),
+                    },
+                    {
+                        "name": "textos.etiqueta arma la linea",
+                        "code": (
+                            "import importlib\n"
+                            "t = importlib.import_module('tienda.textos')\n"
+                            "assert t.etiqueta('mesa', 121.0) == 'mesa: 121.0 EUR', "
+                            "f\"devolvio {t.etiqueta('mesa', 121.0)!r}\""
+                        ),
+                    },
+                    {
+                        "name": "total y linea salen de los modulos del paquete",
+                        "code": (
+                            "assert total == 121.0, f'total vale {total!r}'\n"
+                            "assert linea == 'mesa: 121.0 EUR', f'linea vale {linea!r}'"
+                        ),
+                    },
+                    {
+                        "name": "imprime la etiqueta",
+                        "code": (
+                            "assert _salida.strip() == 'mesa: 121.0 EUR', "
+                            "f'salio {_salida.strip()!r}'"
                         ),
                     },
                 ],
