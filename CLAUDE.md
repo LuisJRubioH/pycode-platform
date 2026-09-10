@@ -17,7 +17,7 @@ PyCode Platform — learning platform for Python with Monaco editor, sandboxed c
 - 🚧 **Track 5 (AI Engineering) en curso** — AI 1-3: embeddings/búsqueda semántica, chunking/indexación (retriever RAG en numpy), y LLM real + prompt RAG vía **proxy backend** `POST /api/v1/ai/complete` (reusa el LLM provider; helper `pycode.llm_complete` en el worker). Falta RAG end-to-end, agentes, evals, capstone.
 - ⏳ **Pendiente**: resto de Track 5, Track 6 (MLOps).
 
-**Contenido en números**: 40 lecciones (Track 1: 10 · Track 2: 11 · Track 3: 11 · Track 4: 5 · Track 5: 3) · 145 ejercicios (todos con hidden_tests; de Track 1, 54 son ya de lecciones reescritas y quedan los 6 de "Testing con pytest") · 100 puzzles ELO curados · 10 retos · 4 capstones · 3 datasets. Migraciones 0001-0014 (Tracks 3-5 y el proxy LLM **no** añaden migraciones). 177 tests backend. Esquema de datos: `docs/DATABASE.md`. **Nota**: el contenido real vive en `lesson_seed.py`; `lesson_content.py` es código **muerto/duplicado** (no se importa) — no editarlo pensando que seedea.
+**Contenido en números**: 40 lecciones (Track 1: 10 · Track 2: 11 · Track 3: 11 · Track 4: 5 · Track 5: 3) · 150 ejercicios (todos con hidden_tests; Track 1 reescrito entero: 60) · 100 puzzles ELO curados · 10 retos · 4 capstones · 3 datasets. Migraciones 0001-0014 (Tracks 3-5 y el proxy LLM **no** añaden migraciones). 177 tests backend. Esquema de datos: `docs/DATABASE.md`. **Nota**: el contenido real vive en `lesson_seed.py`; `lesson_content.py` es código **muerto/duplicado** (no se importa) — no editarlo pensando que seedea.
 
 **Producción**:
 - Frontend: https://pycode-platform.vercel.app (Vercel Hobby)
@@ -28,7 +28,7 @@ PyCode Platform — learning platform for Python with Monaco editor, sandboxed c
 ## Plan de correcciones en curso (`INSTRUCCIONES_CLAUDE_CODE.md`)
 
 Fuente: `INSTRUCCIONES_CLAUDE_CODE.md` en la raíz (bloques 0-7, se pegan de uno
-en uno). **Estado a 2026-09-03**:
+en uno). **Estado a 2026-09-09**:
 
 | Bloque | Estado |
 |---|---|
@@ -36,9 +36,9 @@ en uno). **Estado a 2026-09-03**:
 | 1 — Progreso que no se persiste | ✅ cerrado y **verificado en producción por el usuario** |
 | 2 — Navegación del editor | ✅ implementado (`6e82b1f`, `b694db2`) — se hizo **sin autorización previa** |
 | 3 — Warning de pyarrow | ✅ cerrado (`9e47395`) — se hizo fuera de turno, pero el usuario decidió mantenerlo |
-| 4 — Densidad de contenido | ⏳ pendiente. **Auditoría hecha**: [docs/AUDITORIA_CONTENIDO.md](docs/AUDITORIA_CONTENIDO.md) inventaría las 40 lecciones y demuestra que el problema no es la densidad de ejercicios sino que **las 10 lecciones de Track 1 no tienen contenido** (208 chars de media, 1 bloque de código entre las 10). Enunciados a revisión ANTES de seedear |
+| 4 — Densidad de contenido | ✅ cerrado dentro de la reescritura de Track 1 (fila de abajo). La [auditoría](docs/AUDITORIA_CONTENIDO.md) demostró que el problema no era la densidad de ejercicios sino que **las 10 lecciones de Track 1 no tenían contenido** (208 chars de media, 1 bloque de código entre las 10); hoy están entre 4.954 y 8.698 chars |
 | 5 — Presentación de la lección | 🚧 typography + resaltado + copiar + ancho de línea hechos; queda decidir el índice con anclas |
-| **Contenido de Track 1** | 🚧 **9 de 10 reescritas** con la plantilla ([PLANTILLA_LECCION.md](docs/PLANTILLA_LECCION.md)): las nueve primeras del temario seguidas, de "Python desde Cero" a "Modulos, Paquetes y Entornos". `HUECOS_CONOCIDOS` quedó vacío con POO y el test es ya un guard rail puro; con Condicionales se saldó la deuda de releer las lecciones 5-8. Queda una: "Testing con pytest". El Bloque 4 queda fusionado aquí: los ejercicios se escriben con su lección, no aparte |
+| **Contenido de Track 1** | ✅ **10 de 10 reescritas** con la plantilla ([PLANTILLA_LECCION.md](docs/PLANTILLA_LECCION.md)): Track 1 entero, de 18 a **60 ejercicios**. `HUECOS_CONOCIDOS` quedó vacío y el test de prerequisitos es ya un guard rail puro; saldadas también las deudas de f-strings, `split`, tuplas/`.get` y la relectura de las lecciones 5-8. El Bloque 4 quedó fusionado aquí: los ejercicios se escribieron con su lección, no aparte |
 | 6 — Documentación desalineada | ✅ cerrado (`docs/historico/`) |
 | 7 — Barrido de problemas | ⏳ pendiente (solo listar, no implementar) |
 
@@ -81,7 +81,7 @@ se recalcularon en producción el **2026-09-03**: 4 filas (users 6/7/8/9),
 `backend/scripts/backfill_legacy_progress.py` queda para futuros arrastres (sin
 `--apply` es de solo lectura).
 
-**Próximo trabajo**: continuar Track 5 (AI 4 RAG end-to-end → agentes → evals → capstone "Nebula RAG"). Decisión pendiente aparte: Track 4b con PyTorch real (GPU remota vs Colab). Ver `docs/ARCHITECTURE.md` (diseño), `docs/DATABASE.md` (esquema) y `project_track5_piloto` / `project_track4_piloto` en memoria para el detalle vivo.
+**Próximo trabajo**: cerrar lo que queda del plan de correcciones (Bloque 5: el índice con anclas de la lección; Bloque 7: barrido de problemas, solo listar) y el issue #32 (un bucle infinito bloquea el sandbox). Después, continuar Track 5 (AI 4 RAG end-to-end → agentes → evals → capstone "Nebula RAG"). Decisión pendiente aparte: Track 4b con PyTorch real (GPU remota vs Colab). Ver `docs/ARCHITECTURE.md` (diseño), `docs/DATABASE.md` (esquema) y `project_track5_piloto` / `project_track4_piloto` en memoria para el detalle vivo.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the technical design, [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for the vision, and [docs/historico/](docs/historico/) for the discarded initial design (Docker server-side, Kubernetes, microservices — **not** a source of truth).
 

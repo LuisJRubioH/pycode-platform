@@ -189,11 +189,11 @@ de prerequisitos es un guard rail puro y el orden lo marca la calidad del conten
 | ✅ | Variables y Tipos | 2 | int/float/str/bool, `type`, conversiones, `//` `%` `**`, métodos de texto, booleanos | — |
 | ✅ | Condicionales y Lógica | 3 | `if`/`elif`/`else`, comparadores, `and`/`or`/`not`, truthiness, anidar | — |
 | ✅ | Módulos, Paquetes y Entornos | 9 | `import`/`from`/`as`, módulo propio, paquete con `__init__.py`, `sys.path`, `sys.modules`, `__main__`, venv y pip | — |
-| **1** | **Testing con pytest** | 10 | tests, `assert`, `pytest.raises`, casos borde | — |
+| ✅ | Testing con pytest | 10 | `assert`, casos borde, `pytest.raises`, mutation testing, `parametrize` | — |
 
 Con 6 ejercicios por lección, Track 1 pasa de 18 a 60: **42 ejercicios nuevos**, que
-se escriben junto a su lección y no como tarea aparte. Llevamos **9 lecciones y 54
-ejercicios**; queda una, "Testing con pytest".
+se escriben junto a su lección y no como tarea aparte. **Track 1 está reescrito
+entero: 10 lecciones y 60 ejercicios.**
 
 ### Deudas que deja este orden
 
@@ -244,6 +244,29 @@ Un bucle infinito bloquea el sandbox de forma permanente: el timeout del runner 
 puede interrumpir código Python síncrono. Está documentado con el diagnóstico y las
 mediciones en el **issue #32**, y se aborda **después** de Track 1. Mientras tanto la
 lección 4 lo avisa en el contenido.
+
+## El caso del test vacío (lección 10)
+
+En "Testing con pytest" el alumno escribe los tests, así que la comprobación de
+que sirven es **romper su función a propósito** y exigir que su test se entere.
+Eso cubre el test flojo, pero no el vacío: los starters traen las funciones
+`test_*` ya definidas con `...` de cuerpo, y un cuerpo vacío **pasa siempre**, con
+la función rota o entera. Seis tests aprobaban así.
+
+La única señal que distingue un test vacío de uno lleno sin ejecutarlo contra una
+mutación es su propio bytecode:
+
+```python
+import dis
+ops = {i.opname for i in dis.get_instructions(test_triple)}
+assert 'LOAD_ASSERTION_ERROR' in ops or 'BEFORE_WITH' in ops
+```
+
+`LOAD_ASSERTION_ERROR` aparece con cualquier `assert` y `BEFORE_WITH` con un
+`with pytest.raises(...)`. Los dos nombres son iguales en el 3.11 del backend y en
+el 3.12 de Pyodide (comprobado en los dos). Es la única vez en todo el track que un
+test mira la forma y no el comportamiento, y se hace porque aquí la forma *es* el
+comportamiento que se enseña.
 
 ## Comprobar el starter sin que se contamine
 

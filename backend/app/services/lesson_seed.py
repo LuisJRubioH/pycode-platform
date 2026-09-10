@@ -4220,21 +4220,407 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
     ),
     LessonTemplate(
         title="Testing con pytest",
-        description="Pruebas unitarias para validar comportamiento.",
+        description=(
+            "Escribir pruebas que de verdad detecten bugs: assert, casos borde, "
+            "pytest.raises y como saber si un test sirve para algo."
+        ),
         content=(
-            "## Idea central\n"
-            "Las pruebas automatizadas permiten refactorizar con confianza.\n\n"
-            "## pytest basico\n"
-            "- Archivos `test_*.py`\n"
-            "- Funciones `test_*`\n"
-            "- Usa asserts claros y casos borde.\n"
+            "## Por que escribir tests\n"
+            "Un test no esta para demostrar que tu codigo funciona hoy: esta para\n"
+            "que puedas **cambiarlo manana sin miedo**. Sin tests, tocar una\n"
+            "funcion que ya funcionaba es una apuesta; con tests, el programa te\n"
+            "avisa en dos segundos de lo que has roto. Es la diferencia entre un\n"
+            "proyecto que crece y uno que se congela porque nadie se atreve a\n"
+            "tocarlo.\n\n"
+            "## Un test es una funcion que afirma\n"
+            "```python\n"
+            "def doble(n):                 # la funcion que queremos probar\n"
+            "    return n * 2\n\n"
+            "def test_doble():             # por convencion, el nombre empieza por test_\n"
+            "    assert doble(3) == 6      # si la afirmacion es falsa, el test falla\n"
+            "    assert doble(0) == 0      # varios asserts en el mismo test: perfecto\n\n"
+            "test_doble()                  # aqui lo llamamos a mano...\n"
+            "print('paso')                 # paso  -> si llega aqui, no salto ningun assert\n"
+            "```\n"
+            "En un proyecto de verdad no los llamas tu: `pytest` recorre los\n"
+            "archivos, encuentra las funciones que empiezan por `test_` y las\n"
+            "ejecuta todas. En este editor no hay terminal, asi que los llamamos a\n"
+            "mano; lo que escribes es exactamente igual.\n\n"
+            "## assert, y el mensaje que te ahorra el rato\n"
+            "```python\n"
+            "valor = 5                            # el dato que vamos a afirmar\n"
+            "assert valor == 5                    # pasa en silencio: no imprime nada\n\n"
+            "try:                                 # solo para poder ensenar el fallo\n"
+            "    assert valor == 6, f'valor era {valor}'   # el mensaje explica el fallo\n"
+            "except AssertionError as e:\n"
+            "    print('fallo:', e)               # fallo: valor era 5\n"
+            "```\n"
+            "`assert condicion, mensaje` es todo lo que hace falta. El mensaje es\n"
+            "opcional pero se agradece: cuando un test falla dentro de seis meses,\n"
+            "`valor era 5` te dice mas que un `AssertionError` pelado.\n\n"
+            "## Casos borde: donde se rompen los programas\n"
+            "```python\n"
+            "def descuento(precio, pct):          # el codigo a probar\n"
+            "    return precio * (100 - pct) / 100\n\n"
+            "def test_descuento():                # un test, tres casos\n"
+            "    assert descuento(100, 10) == 90.0    # el caso normal\n"
+            "    assert descuento(100, 0) == 100.0    # borde: sin descuento\n"
+            "    assert descuento(100, 100) == 0.0    # borde: todo gratis\n\n"
+            "test_descuento()                     # si algun assert falla, salta aqui\n"
+            "print('paso')                            # paso\n"
+            "```\n"
+            "El caso normal casi nunca es el que falla. Los que fallan son el\n"
+            "cero, la lista vacia, el numero negativo, el maximo y el minimo. Al\n"
+            "escribir un test, la pregunta util es *cual es el valor mas raro que\n"
+            "esto puede recibir*.\n\n"
+            "## pytest.raises: comprobar que algo falla\n"
+            "A veces lo correcto **es** fallar: si le pides la raiz de un\n"
+            "negativo, quieres un error, no un resultado inventado.\n"
+            "```python\n"
+            "import pytest                         # raises vive en pytest\n\n"
+            "def raiz(n):\n"
+            "    if n < 0:                         # el caso que no aceptamos\n"
+            "        raise ValueError('no hay raiz real de un negativo')\n"
+            "    return n ** 0.5                   # y el que si\n\n"
+            "def test_raiz_negativa():             # probamos que falle como debe\n"
+            "    with pytest.raises(ValueError):   # este bloque DEBE lanzar ese error\n"
+            "        raiz(-1)                      # si no lanza, el test falla\n\n"
+            "test_raiz_negativa()                  # pasa: raiz(-1) lanzo ValueError\n"
+            "print('paso')                         # paso\n"
+            "```\n"
+            "Sin `pytest.raises` tendrias que montar un `try/except` con un `else`\n"
+            "que lance `AssertionError`. Hace lo mismo, en una linea y leyendose.\n\n"
+            "## Un test que no puede fallar no sirve de nada\n"
+            "```python\n"
+            "def suma(a, b):                # la funcion, correcta\n"
+            "    return a + b\n\n"
+            "def test_flojo():              # el test, inutil\n"
+            "    suma(2, 3)                 # llama, pero no afirma nada: pasa SIEMPRE\n\n"
+            "def test_bueno():              # el test, util\n"
+            "    assert suma(2, 3) == 5     # este si se entera si suma se rompe\n\n"
+            "test_flojo()                   # pasa\n"
+            "test_bueno()                   # pasa, pero por un motivo distinto\n"
+            "print('los dos pasan')         # los dos pasan  <- y uno de ellos miente\n"
+            "```\n"
+            "La forma de saber si un test sirve es **romper la funcion a\n"
+            "proposito** y comprobar que el test se entera. Si sigue pasando, el\n"
+            "test no comprueba nada. Eso tiene nombre -*mutation testing*- y es\n"
+            "exactamente lo que hacen los tests ocultos de esta leccion con tu\n"
+            "codigo.\n\n"
+            "## Como se organiza en un proyecto de verdad\n"
+            "Los tests viven en archivos `test_*.py`, al lado del codigo o en una\n"
+            "carpeta `tests/`, y se lanzan con `pytest -q` desde la terminal.\n"
+            "Cuando el mismo test se repite con datos distintos, se parametriza:\n"
+            "```python\n"
+            "import pytest\n\n"
+            "@pytest.mark.parametrize('entrada,esperado', [(1, 2), (0, 0), (-3, -6)])   # tres pares de datos\n"
+            "def test_doble_param(entrada, esperado):   # pytest lo corre 3 veces\n"
+            "    assert entrada * 2 == esperado         # una por cada par de la lista\n"
+            "```\n"
+            "> **Nota honesta sobre el editor**: este es de los pocos ejemplos que\n"
+            "> aqui no puedes ejecutar. Un test parametrizado no se puede llamar a\n"
+            "> mano -le faltan los argumentos que le inyecta pytest-, y en este\n"
+            "> sandbox no hay terminal donde correr `pytest -q`. Se ensena porque\n"
+            "> lo vas a ver en cualquier proyecto real, pero los ejercicios de\n"
+            "> abajo usan tests normales.\n\n"
+            "## Errores comunes\n"
+            "- Un test sin `assert`. Llama a la funcion, no comprueba nada y pasa\n"
+            "  siempre. Es peor que no tener test: da confianza falsa.\n"
+            "- Probar solo el caso bonito. `sumar(2, 3)` funciona en todas las\n"
+            "  implementaciones rotas imaginables; el cero y los negativos no.\n"
+            "- Comprobar un error con `try/except` y olvidar el `else`. Si la\n"
+            "  funcion **no** lanza, el `except` no entra y el test pasa igual.\n"
+            "  Por eso existe `pytest.raises`.\n"
+            "- Que un test dependa de otro (o del orden). Cada test se levanta\n"
+            "  solo: si necesita datos, se los prepara el.\n"
+            "- Tests que repiten el bug del codigo. Si calculas el resultado\n"
+            "  esperado con la misma formula que usa la funcion, el test aprueba\n"
+            "  la formula equivocada. Los numeros esperados se escriben a mano.\n"
+            "- No ejecutar nunca el test viendolo fallar. Un test que solo has\n"
+            "  visto en verde puede estar comprobando otra cosa.\n\n"
+            "## Resumen\n"
+            "- Un test es una funcion `test_*` con uno o varios `assert`.\n"
+            "- `assert condicion, mensaje` -el mensaje se lee cuando falla.\n"
+            "- Los casos borde (cero, vacio, negativo, maximo) son los que pillan\n"
+            "  los bugs.\n"
+            "- `with pytest.raises(ValueError):` comprueba que algo falla como\n"
+            "  debe.\n"
+            "- Un test que pasa aunque rompas la funcion no comprueba nada:\n"
+            "  rompela a proposito para saberlo.\n"
+            "- En un proyecto real, archivos `test_*.py`, `pytest -q`, y\n"
+            "  `@pytest.mark.parametrize` para repetir el mismo test con datos\n"
+            "  distintos.\n"
         ),
         difficulty="advanced",
         category="testing",
         order=10,
-        estimated_duration=40,
+        estimated_duration=55,
         prerequisites_titles=["Modulos, Paquetes y Entornos"],
         exercises=[
+            ExerciseTemplate(
+                title="Tu primer test",
+                description="Una funcion que ya funciona y un test que lo comprueba.",
+                instructions=(
+                    "`triple(n)` ya esta escrita. Escribe `test_triple()` con "
+                    "**dos** asserts -uno con un numero cualquiera y otro con el "
+                    "0- y llamalo al final para verlo pasar.\n\n"
+                    "Los tests ocultos van a romper `triple` a proposito: si tu "
+                    "test no se entera, no cuenta."
+                ),
+                starter_code=(
+                    "def triple(n):\n"
+                    "    return n * 3\n\n\n"
+                    "def test_triple():\n"
+                    "    # TODO: dos asserts sobre triple, uno de ellos con el 0\n"
+                    "    ...\n\n\n"
+                    "# TODO: llama a test_triple()\n"
+                ),
+                hints=[
+                    "Un assert compara el resultado con el numero que esperas: "
+                    "assert triple(2) == 6.",
+                    "El otro es el caso del cero: assert triple(0) == 0.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "test_triple existe y pasa",
+                        "code": (
+                            "assert callable(test_triple), 'falta la funcion test_triple'\n"
+                            "import dis\n"
+                            "def _comprueba_algo(f):\n"
+                            "    ops = {i.opname for i in dis.get_instructions(f)}\n"
+                            "    return 'LOAD_ASSERTION_ERROR' in ops or 'BEFORE_WITH' in ops\n"
+                            "assert _comprueba_algo(test_triple), "
+                            "'test_triple no comprueba nada: le falta el assert'\n"
+                            "test_triple()"
+                        ),
+                    },
+                    {
+                        "name": "tu test detecta que triple se rompa",
+                        "code": (
+                            "def triple(n):\n"
+                            "    return 0\n"
+                            "try:\n"
+                            "    test_triple()\n"
+                            "except BaseException:\n"
+                            "    pass\n"
+                            "else:\n"
+                            "    raise AssertionError('test_triple pasa aunque triple "
+                            "devuelva siempre 0: no comprueba nada')"
+                        ),
+                    },
+                    {
+                        "name": "tu test tambien cubre el caso del cero",
+                        "code": (
+                            "def triple(n):\n"
+                            "    return n * 3 if n != 0 else 99\n"
+                            "try:\n"
+                            "    test_triple()\n"
+                            "except BaseException:\n"
+                            "    pass\n"
+                            "else:\n"
+                            "    raise AssertionError('test_triple pasa con una triple "
+                            "que devuelve 99 para el 0: falta el assert del cero')"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Casos borde",
+                description="El cero y los negativos son los que pillan los bugs.",
+                instructions=(
+                    "`es_par(n)` ya esta escrita y es correcta. Escribe "
+                    "`test_es_par()` que la compruebe **incluyendo el cero y "
+                    "algun negativo**, y llamalo.\n\n"
+                    "Los tests ocultos la van a sustituir por una version que "
+                    "solo acierta con los positivos. Si tu test solo prueba 2 y "
+                    "3, no lo vas a pillar."
+                ),
+                starter_code=(
+                    "def es_par(n):\n"
+                    "    return n % 2 == 0\n\n\n"
+                    "def test_es_par():\n"
+                    "    # TODO: casos normales, el cero y algun negativo\n"
+                    "    ...\n\n\n"
+                    "# TODO: llama a test_es_par()\n"
+                ),
+                hints=[
+                    "es_par(4) es True y es_par(7) es False.",
+                    "El cero es par: assert es_par(0) is True.",
+                    "Y los negativos tambien cuentan: es_par(-2) es True.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "test_es_par existe y pasa",
+                        "code": (
+                            "assert callable(test_es_par), 'falta la funcion test_es_par'\n"
+                            "import dis\n"
+                            "def _comprueba_algo(f):\n"
+                            "    ops = {i.opname for i in dis.get_instructions(f)}\n"
+                            "    return 'LOAD_ASSERTION_ERROR' in ops or 'BEFORE_WITH' in ops\n"
+                            "assert _comprueba_algo(test_es_par), "
+                            "'test_es_par no comprueba nada: le falta el assert'\n"
+                            "test_es_par()"
+                        ),
+                    },
+                    {
+                        "name": "tu test pilla la version que falla con el cero y los negativos",
+                        "code": (
+                            "def es_par(n):\n"
+                            "    return n > 0 and n % 2 == 0\n"
+                            "try:\n"
+                            "    test_es_par()\n"
+                            "except BaseException:\n"
+                            "    pass\n"
+                            "else:\n"
+                            "    raise AssertionError('tu test pasa con una es_par que "
+                            "falla en el 0 y en los negativos: prueba esos casos')"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Comprobar que falla",
+                description="pytest.raises para los casos en los que lo correcto es un error.",
+                instructions=(
+                    "`edad_valida(edad)` devuelve la edad si esta entre 0 y 120, y "
+                    "lanza `ValueError` si no.\n\n"
+                    "Escribe dos tests y llamalos:\n\n"
+                    "- `test_edad_valida()`: comprueba con asserts que las edades "
+                    "buenas se devuelven tal cual.\n"
+                    "- `test_edad_invalida()`: comprueba con "
+                    "`with pytest.raises(ValueError):` que una edad de -1 lanza el "
+                    "error."
+                ),
+                starter_code=(
+                    "import pytest\n\n\n"
+                    "def edad_valida(edad):\n"
+                    "    if edad < 0 or edad > 120:\n"
+                    "        raise ValueError('edad fuera de rango')\n"
+                    "    return edad\n\n\n"
+                    "def test_edad_valida():\n"
+                    "    ...\n\n\n"
+                    "def test_edad_invalida():\n"
+                    "    ...\n\n\n"
+                    "# TODO: llama a los dos tests\n"
+                ),
+                hints=[
+                    "El primero es un assert normal: assert edad_valida(30) == 30.",
+                    "Prueba tambien los bordes que SI valen: 0 y 120.",
+                    "El segundo lleva dentro:\n"
+                    "    with pytest.raises(ValueError):\n"
+                    "        edad_valida(-1)",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "los dos tests existen y pasan",
+                        "code": (
+                            "assert callable(test_edad_valida) and callable(test_edad_invalida), "
+                            "'faltan tests'\n"
+                            "import dis\n"
+                            "def _comprueba_algo(f):\n"
+                            "    ops = {i.opname for i in dis.get_instructions(f)}\n"
+                            "    return 'LOAD_ASSERTION_ERROR' in ops or 'BEFORE_WITH' in ops\n"
+                            "assert _comprueba_algo(test_edad_valida), "
+                            "'test_edad_valida no comprueba nada: le falta el assert'\n"
+                            "assert _comprueba_algo(test_edad_invalida), "
+                            "'test_edad_invalida no comprueba nada: usa with pytest.raises'\n"
+                            "test_edad_valida()\n"
+                            "test_edad_invalida()"
+                        ),
+                    },
+                    {
+                        "name": "test_edad_valida se entera si deja de devolver la edad",
+                        "code": (
+                            "def edad_valida(edad):\n"
+                            "    return 0\n"
+                            "try:\n"
+                            "    test_edad_valida()\n"
+                            "except BaseException:\n"
+                            "    pass\n"
+                            "else:\n"
+                            "    raise AssertionError('test_edad_valida pasa aunque la "
+                            "funcion devuelva siempre 0')"
+                        ),
+                    },
+                    {
+                        "name": "test_edad_invalida se entera si deja de lanzar",
+                        "code": (
+                            "def edad_valida(edad):\n"
+                            "    return edad\n"
+                            "try:\n"
+                            "    test_edad_invalida()\n"
+                            "except BaseException:\n"
+                            "    pass\n"
+                            "else:\n"
+                            "    raise AssertionError('test_edad_invalida pasa aunque la "
+                            "funcion ya no lance ValueError: usa pytest.raises')"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="El test manda",
+                description="Aqui el test ya esta escrito: la funcion la pones tu.",
+                instructions=(
+                    "Le damos la vuelta al ejercicio. `test_iniciales()` ya esta "
+                    "escrito y no se toca: es la **especificacion** de lo que "
+                    "tiene que hacer `iniciales(nombre_completo)`.\n\n"
+                    "Leelo, escribe la funcion que lo hace pasar y llama al test "
+                    "al final. Asi es como se trabaja cuando el test llega antes "
+                    "que el codigo."
+                ),
+                starter_code=(
+                    "def iniciales(nombre_completo):\n"
+                    "    # TODO: hazlo pasar\n"
+                    "    ...\n\n\n"
+                    "def test_iniciales():\n"
+                    "    assert iniciales('ana perez') == 'A.P.'\n"
+                    "    assert iniciales('  luis  gomez  ') == 'L.G.'\n"
+                    "    assert iniciales('Sol') == 'S.'\n\n\n"
+                    "# TODO: llama a test_iniciales()\n"
+                ),
+                hints=[
+                    "nombre_completo.split() parte por espacios y se come los de sobra.",
+                    "De cada palabra necesitas la primera letra en mayuscula: "
+                    "palabra[0].upper().",
+                    "Recorre las palabras con un for y ve juntando letra + '.'.",
+                    "Con 'Sol' solo hay una palabra, asi que sale 'S.': la misma "
+                    "logica sirve, no hace falta un caso aparte.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "el test que te dimos pasa",
+                        "code": (
+                            "assert callable(test_iniciales), 'no borres test_iniciales'\n"
+                            "test_iniciales()"
+                        ),
+                    },
+                    {
+                        "name": "la funcion aguanta otros nombres",
+                        "code": (
+                            "assert iniciales('maria jose ruiz') == 'M.J.R.', "
+                            "f\"devolvio {iniciales('maria jose ruiz')!r}\"\n"
+                            "assert iniciales('ZOE') == 'Z.', "
+                            "f\"devolvio {iniciales('ZOE')!r}\""
+                        ),
+                    },
+                    {
+                        "name": "no te saltaste el .strip() implicito de split()",
+                        "code": (
+                            "assert iniciales('   pedro   luis   ') == 'P.L.', "
+                            "'los espacios de sobra no deberian afectar'"
+                        ),
+                    },
+                ],
+            ),
             ExerciseTemplate(
                 title="Prueba de calculadora",
                 description="Escribe las funciones y los tests que las verifican.",
@@ -4298,12 +4684,28 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                         "code": (
                             "faltan = [n for n in ('test_sumar', 'test_restar', "
                             "'test_dividir_por_cero') if not callable(globals().get(n))]\n"
-                            "assert not faltan, f'faltan estos tests: {faltan}'"
+                            "assert not faltan, f'faltan estos tests: {faltan}'\n"
+                            "import dis\n"
+                            "def _comprueba_algo(f):\n"
+                            "    ops = {i.opname for i in dis.get_instructions(f)}\n"
+                            "    return 'LOAD_ASSERTION_ERROR' in ops or 'BEFORE_WITH' in ops\n"
+                            "vacios = [n for n in ('test_sumar', 'test_restar', "
+                            "'test_dividir_por_cero') if not _comprueba_algo(globals()[n])]\n"
+                            "assert not vacios, f'estos tests no comprueban nada: {vacios}'"
                         ),
                     },
                     {
                         "name": "tus tests pasan con tu implementacion",
-                        "code": "test_sumar()\ntest_restar()\ntest_dividir_por_cero()",
+                        "code": (
+                            "import dis\n"
+                            "for _n in ('test_sumar', 'test_restar', 'test_dividir_por_cero'):\n"
+                            "    _ops = {i.opname for i in dis.get_instructions(globals()[_n])}\n"
+                            "    assert 'LOAD_ASSERTION_ERROR' in _ops or 'BEFORE_WITH' in _ops, \\\n"
+                            "        f'{_n} esta vacio'\n"
+                            "test_sumar()\n"
+                            "test_restar()\n"
+                            "test_dividir_por_cero()"
+                        ),
                     },
                     {
                         "name": "tu test detecta un bug: sumar rota",
@@ -4331,6 +4733,125 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                             "else:\n"
                             "    raise AssertionError('test_dividir_por_cero pasa aunque "
                             "dividir ya no lance ValueError')"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="La suite del carrito",
+                description="El pipeline: una funcion con validacion y tres tests que la aprietan.",
+                instructions=(
+                    "Escribe `total(items)`, donde `items` es una lista de pares "
+                    "`(precio, cantidad)`:\n\n"
+                    "- devuelve la suma de `precio * cantidad` de todos;\n"
+                    "- con la lista vacia devuelve 0;\n"
+                    "- si alguna cantidad es 0 o negativa, lanza `ValueError`, y "
+                    "lo hace **antes** de sumar nada.\n\n"
+                    "Y escribe sus tres tests, con estos nombres exactos: "
+                    "`test_total`, `test_total_vacio` y `test_total_cantidad_mala` "
+                    "(este ultimo con `pytest.raises`). Llamalos al final.\n\n"
+                    "Los tests ocultos rompen tu funcion de tres maneras distintas "
+                    "y comprueban que cada uno de tus tests pilla la suya."
+                ),
+                starter_code=(
+                    "import pytest\n\n\n"
+                    "def total(items):\n"
+                    "    # TODO: valida primero, suma despues\n"
+                    "    ...\n\n\n"
+                    "def test_total():\n"
+                    "    ...\n\n\n"
+                    "def test_total_vacio():\n"
+                    "    ...\n\n\n"
+                    "def test_total_cantidad_mala():\n"
+                    "    ...\n\n\n"
+                    "# TODO: llama a los tres tests\n"
+                ),
+                hints=[
+                    "Recorre con for precio, cantidad in items: y desempaquetas cada par.",
+                    "La validacion va en su propio recorrido, antes del que suma: "
+                    "asi no dejas medio total calculado.",
+                    "test_total puede usar [(10, 2), (5, 3)], que suman 35.",
+                    "test_total_cantidad_mala: with pytest.raises(ValueError): "
+                    "total([(10, 0)]).",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "total suma, aguanta la lista vacia y valida",
+                        "code": (
+                            "assert total([(10, 2), (5, 3)]) == 35, "
+                            "f'devolvio {total([(10, 2), (5, 3)])!r}'\n"
+                            "assert total([]) == 0, f'con lista vacia devolvio {total([])!r}'\n"
+                            "try:\n"
+                            "    total([(10, 0)])\n"
+                            "except ValueError:\n"
+                            "    pass\n"
+                            "else:\n"
+                            "    raise AssertionError('cantidad 0 deberia lanzar ValueError')"
+                        ),
+                    },
+                    {
+                        "name": "los tres tests existen y pasan",
+                        "code": (
+                            "faltan = [n for n in ('test_total', 'test_total_vacio', "
+                            "'test_total_cantidad_mala') if not callable(globals().get(n))]\n"
+                            "assert not faltan, f'faltan estos tests: {faltan}'\n"
+                            "import dis\n"
+                            "def _comprueba_algo(f):\n"
+                            "    ops = {i.opname for i in dis.get_instructions(f)}\n"
+                            "    return 'LOAD_ASSERTION_ERROR' in ops or 'BEFORE_WITH' in ops\n"
+                            "vacios = [n for n in ('test_total', 'test_total_vacio', "
+                            "'test_total_cantidad_mala') if not _comprueba_algo(globals()[n])]\n"
+                            "assert not vacios, f'estos tests no comprueban nada: {vacios}'\n"
+                            "test_total()\n"
+                            "test_total_vacio()\n"
+                            "test_total_cantidad_mala()"
+                        ),
+                    },
+                    {
+                        "name": "test_total pilla una suma rota",
+                        "code": (
+                            "def total(items):\n"
+                            "    return 0\n"
+                            "try:\n"
+                            "    test_total()\n"
+                            "except BaseException:\n"
+                            "    pass\n"
+                            "else:\n"
+                            "    raise AssertionError('test_total pasa aunque total "
+                            "devuelva siempre 0')"
+                        ),
+                    },
+                    {
+                        "name": "test_total_vacio pilla que la lista vacia reviente",
+                        "code": (
+                            "def total(items):\n"
+                            "    return items[0][0] * items[0][1]\n"
+                            "try:\n"
+                            "    test_total_vacio()\n"
+                            "except BaseException:\n"
+                            "    pass\n"
+                            "else:\n"
+                            "    raise AssertionError('test_total_vacio pasa aunque total "
+                            "reviente con la lista vacia')"
+                        ),
+                    },
+                    {
+                        "name": "test_total_cantidad_mala pilla que deje de validar",
+                        "code": (
+                            "def total(items):\n"
+                            "    suma = 0\n"
+                            "    for precio, cantidad in items:\n"
+                            "        suma = suma + precio * cantidad\n"
+                            "    return suma\n"
+                            "try:\n"
+                            "    test_total_cantidad_mala()\n"
+                            "except BaseException:\n"
+                            "    pass\n"
+                            "else:\n"
+                            "    raise AssertionError('test_total_cantidad_mala pasa aunque "
+                            "total ya no valide las cantidades')"
                         ),
                     },
                 ],
