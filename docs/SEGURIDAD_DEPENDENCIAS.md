@@ -49,7 +49,9 @@ del alumno.
 - **Ninguna navegación toma su destino de entrada del usuario**: todos los
   `navigate()` usan rutas literales o ids numéricos, y el único
   `window.location.href` es `'/login'`. Los open redirect (#92, #94) no tienen
-  por dónde entrar hoy.
+  por dónde entrar hoy. Revisado de nuevo el 2026-09-13 al añadir el modo reto
+  del editor: `?lesson=`, `?exercise=` y `?challenge=` se leen como **ids para
+  llamar a la API**, nunca como destino de `navigate()` o `<Link>`.
 - `nanoid`, `postcss` y `postcss-selector-parser` los marca Dependabot como
   `runtime`, pero en este repo **solo existen bajo la cadena de PostCSS/Tailwind**
   (`npm ls nanoid` → únicamente vía `postcss`): son build-time. La etiqueta de
@@ -92,7 +94,7 @@ un atacante ya controlase la entrada del build.
 |---|---|---|
 | #93 | `react-router` | Inyección vía `deserializeErrors()` en hidratación **SSR**. La app es SPA pura: no hay hidratación de servidor. |
 | #94 | `react-router` | Open redirect por backslash en `<Link>`/`useNavigate`. Ningún destino de navegación sale de entrada del usuario. |
-| #92 | `react-router-dom` | Open redirect → XSS. Igual que #94 **y además sin parche en la línea 6.x**: el arreglo está en 7.x, que es una migración con cambios de API. |
+| ~~#92~~ | `react-router-dom` | Open redirect → XSS. **Cerrada el 2026-09-13**: sí había parche en la línea 6.x (`6.30.6`, sin cambios de API), aplicado. Afectaba a 6.30.2–6.30.5. |
 
 > **Disparador que sube estas tres a P1**: en cuanto se añada cualquier
 > navegación cuyo destino venga de la URL o del usuario (un `?next=`, un
@@ -107,8 +109,10 @@ un atacante ya controlase la entrada del build.
 3. Una tanda única de devDependencies (P3) con `npm audit fix` y `npm run build`
    + `npm run test` en verde. `vite` y `vitest` son los que más riesgo de rotura
    tienen: van en su propio commit.
-4. Dejar `react-router` en 6.30.4 y **releer este documento** cuando se toque el
-   routing.
+4. ~~Dejar `react-router` en 6.30.4~~ — subido a **6.30.6** (cierra #92). #93 y #94
+   solo tienen parche en 7.18, que es una migración mayor: se quedan en 6.x
+   mientras no se cumpla el disparador de arriba. **Releer este documento**
+   cuando se toque el routing.
 
 CI ya corre `pip-audit` y `npm audit` en el job `audit`, y Dependabot abre PRs
 semanales para pip, npm y actions.

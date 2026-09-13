@@ -127,6 +127,15 @@ Los otros tres son del criterio P3-P4 de
 [SEGURIDAD_DEPENDENCIAS.md](SEGURIDAD_DEPENDENCIAS.md): severidad alta, alcance
 nulo.
 
+**Resuelto y reclasificado (2026-09-13)**: el aviso de `react-router-dom`
+(GHSA-jjmj, open redirect → XSS) tenía parche en la línea 6 y se aplicó
+(`6.30.6`). Los dos restantes de `react-router` solo se corrigen en 7.18 y, como
+ya decía [SEGURIDAD_DEPENDENCIAS.md](SEGURIDAD_DEPENDENCIAS.md), no tienen
+alcance: uno es de hidratación SSR (la app es SPA) y el otro necesita que un
+destino de navegación salga de entrada del usuario, y ninguno lo hace. El "P1"
+de este barrido contradecía esa clasificación; el disparador para migrar a v7
+sigue siendo el mismo.
+
 ---
 
 ## P2 — deuda que crece
