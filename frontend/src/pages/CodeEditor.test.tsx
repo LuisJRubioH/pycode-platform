@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 import CodeEditor from './CodeEditor'
@@ -281,6 +281,53 @@ describe('CodeEditor — salida separada de stdout y stderr', () => {
     expect(screen.getByText(/La salida aparecera aqui/)).toBeInTheDocument()
     expect(screen.getByTestId('monaco')).toHaveValue(codigo)
     expect(limpiar).toBeDisabled()
+  })
+})
+
+describe('CodeEditor — atajo Ctrl+Enter', () => {
+  beforeEach(() => {
+    getMock.mockReset()
+    postMock.mockReset()
+    runPythonCodeMock.mockReset()
+    localStorage.clear()
+  })
+
+  it('Ctrl+Enter y Cmd+Enter ejecutan el codigo; con algo corriendo no lanzan otro', async () => {
+    let terminar!: () => void
+    runPythonCodeMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          terminar = () =>
+            resolve({ ok: true, stdout: 'hola', stderr: '', images: [], durationMs: 1, timedOut: false })
+        })
+    )
+    renderEditor('/editor')
+    await waitFor(() => expect(screen.getByTestId('monaco')).toBeInTheDocument())
+
+    const evento = fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true })
+    expect(runPythonCodeMock).toHaveBeenCalledTimes(1)
+    // preventDefault: dentro de Monaco no debe insertar ademas una linea.
+    expect(evento).toBe(false)
+
+    // Mientras corre, repetir el atajo no lanza una segunda ejecucion.
+    await screen.findByRole('button', { name: /Ejecutando/ })
+    fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true })
+    expect(runPythonCodeMock).toHaveBeenCalledTimes(1)
+
+    act(() => terminar())
+    await screen.findByText('hola')
+
+    fireEvent.keyDown(window, { key: 'Enter', metaKey: true })
+    expect(runPythonCodeMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('Enter solo o Shift+Ctrl+Enter no ejecutan', async () => {
+    renderEditor('/editor')
+    await waitFor(() => expect(screen.getByTestId('monaco')).toBeInTheDocument())
+
+    fireEvent.keyDown(window, { key: 'Enter' })
+    fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true, shiftKey: true })
+    expect(runPythonCodeMock).not.toHaveBeenCalled()
   })
 })
 

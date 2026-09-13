@@ -104,6 +104,9 @@ const EMPTY_SOLUTION = '# Escribe tu solucion aqui\n'
 // final, que es lo que el alumno necesita ver.
 const MAX_CHARS_SALIDA = 50_000
 const PINTAR_SALIDA_MS = 100
+
+const ES_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+const ATAJO_EJECUTAR = ES_MAC ? '⌘+Enter' : 'Ctrl+Enter'
 const MARCA_RECORTE = '[... salida anterior recortada ...]'
 const recortarSalida = (texto: string) => {
   if (texto.length <= MAX_CHARS_SALIDA) return texto
@@ -363,6 +366,27 @@ const CodeEditor: React.FC = () => {
     }
   }
 
+  // Ctrl+Enter (⌘+Enter en Mac) ejecuta, como en Jupyter, Colab o VS Code.
+  // Se escucha en fase de captura: Monaco usa Ctrl+Enter para "insertar linea
+  // debajo" y, si le llegara antes, se tragaria el atajo cuando el foco esta
+  // en el editor. El ref evita registrar el listener en cada render sin que
+  // se quede con un `code` viejo.
+  const atajoRef = useRef({ runCode, isRunning })
+  atajoRef.current = { runCode, isRunning }
+  useEffect(() => {
+    const alPulsar = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return
+      e.preventDefault()
+      e.stopPropagation()
+      if (atajoRef.current.isRunning) return
+      void atajoRef.current.runCode()
+    }
+    window.addEventListener('keydown', alPulsar, true)
+    return () => window.removeEventListener('keydown', alPulsar, true)
+  }, [])
+
+  const haySalida = Boolean(output || errorOutput || outputNote || outputImages.length > 0)
+
   // Vacia el panel de salida sin tocar el codigo. Tambien sirve mientras corre:
   // lo que siga imprimiendo se pinta sobre el panel ya vacio.
   const clearOutput = () => {
@@ -535,9 +559,16 @@ const CodeEditor: React.FC = () => {
             onClick={runCode}
             disabled={isRunning}
             className="btn-primary disabled:opacity-50"
+            title={`Ejecutar (${ATAJO_EJECUTAR})`}
+            aria-keyshortcuts="Control+Enter Meta+Enter"
           >
             <Play className="h-4 w-4 mr-2" />
             {isRunning ? 'Ejecutando...' : 'Ejecutar'}
+            {!isRunning && (
+              <kbd aria-hidden="true" className="ml-2 hidden sm:inline rounded bg-white/20 px-1.5 py-0.5 font-sans text-[10px] font-medium">
+                {ATAJO_EJECUTAR}
+              </kbd>
+            )}
           </button>
 
           {/* Solo con codigo del alumno corriendo: durante la carga de Pyodide
@@ -860,10 +891,15 @@ const CodeEditor: React.FC = () => {
           <div className="p-3 bg-slate-800 border-b border-slate-700 flex items-center gap-2">
             <Terminal className="h-4 w-4" />
             <span className="text-sm font-medium">Salida</span>
+            {/* Resalta en ambar cuando hay algo que limpiar; apagado si no. */}
             <button
               onClick={clearOutput}
-              disabled={!output && !errorOutput && !outputNote && outputImages.length === 0}
-              className="ml-auto inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white disabled:opacity-40 disabled:hover:bg-transparent"
+              disabled={!haySalida}
+              className={`ml-auto inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+                haySalida
+                  ? 'bg-amber-400 text-slate-900 shadow hover:bg-amber-300'
+                  : 'text-slate-500 cursor-not-allowed'
+              }`}
               title="Borrar la salida del panel (el codigo no se toca)"
             >
               <Eraser className="h-3.5 w-3.5" />
@@ -915,7 +951,7 @@ const CodeEditor: React.FC = () => {
               <p className="text-slate-400 text-sm">
                 {isRunning
                   ? 'Ejecutando... lo que imprima tu codigo aparecera aqui en cuanto lo imprima.'
-                  : 'La salida aparecera aqui despues de ejecutar el codigo...'}
+                  : `La salida aparecera aqui despues de ejecutar el codigo (boton Ejecutar o ${ATAJO_EJECUTAR}).`}
               </p>
             )}
           </div>
