@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.challenge import CodingChallenge
 from app.models.elo_models import Puzzle
+from app.services.retos_validacion import VALIDACION_GENERADOS
 
 CURATED_SOURCE = "pycode-curated-open"
 
@@ -916,6 +917,7 @@ async def seed_generated_challenges(db: AsyncSession) -> int:
     for idx, template in enumerate(CHALLENGE_TEMPLATES):
         for difficulty, difficulty_slug, _nivel in NIVELES:
             nivel_reto: NivelReto = getattr(template, difficulty)
+            validacion = VALIDACION_GENERADOS[(template.slug_base, difficulty)]
             slug = slug_nivel(template.slug_base, difficulty_slug)
             vigentes.add(slug)
             campos = {
@@ -926,6 +928,10 @@ async def seed_generated_challenges(db: AsyncSession) -> int:
                 "topic": template.topic,
                 "prompt": nivel_reto.prompt,
                 "starter_code": nivel_reto.starter_code,
+                # Tests y solucion viven en retos_validacion.py; el guard rail
+                # comprueba que los tests aprueban con ella y no con el starter.
+                "reference_solution": validacion.reference_solution,
+                "hidden_tests": list(validacion.hidden_tests),
                 "order_index": ORDEN_BASE_GENERADOS + idx,
                 "is_active": True,
             }
@@ -935,7 +941,7 @@ async def seed_generated_challenges(db: AsyncSession) -> int:
             )
             challenge = row.scalar_one_or_none()
             if challenge is None:
-                db.add(CodingChallenge(slug=slug, reference_solution=None, **campos))
+                db.add(CodingChallenge(slug=slug, **campos))
                 inserted += 1
                 cambios = True
                 continue

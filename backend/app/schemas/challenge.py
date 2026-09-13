@@ -2,7 +2,7 @@
 Pydantic schemas for coding challenge endpoints.
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CodingChallengeSummary(BaseModel):
@@ -55,3 +55,26 @@ class CodingChallengeListOut(BaseModel):
     items: list[CodingChallengeSummary]
     total: int
     recommended_difficulty: str
+
+
+class ChallengeHiddenTest(BaseModel):
+    name: str
+    code: str
+
+
+class ChallengeHiddenTestsOut(BaseModel):
+    challenge_id: int
+    tests: list[ChallengeHiddenTest]
+
+
+class ChallengeCompleteIn(BaseModel):
+    """Resultado de correr los tests del reto en Pyodide.
+
+    El backend nunca ejecuta codigo del alumno, asi que confia en lo que reporta
+    el cliente, igual que con los ejercicios de las lecciones. Lo que si exige es
+    que el total coincida con los tests del reto y que hayan pasado todos: el
+    boton de la UI ya no puede marcar un reto sin resolverlo.
+    """
+
+    passed_tests: int = Field(ge=0)
+    total_tests: int = Field(ge=0)

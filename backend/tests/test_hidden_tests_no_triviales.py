@@ -1,4 +1,5 @@
-"""Guard rail: ningun hidden_test puede aprobar con el starter intacto.
+"""Guard rail: ningun hidden_test aprueba con el starter intacto, y los de los
+retos aprueban con su solucion de referencia.
 
 Un test que pasa sin que el alumno escriba nada da el ejercicio por hecho, y
 con el sus puntos. El barrido vive en `scripts/check_hidden_tests_triviales.py`
@@ -47,3 +48,10 @@ def test_ningun_hidden_test_aprueba_con_el_starter():
     assert (
         not triviales
     ), "hidden_tests que aprueban con el starter intacto:\n" + "\n".join(triviales)
+
+    rotos = [
+        f"[{r['track']}] {r['leccion']} / {r['ejercicio']} / {r['test']}"
+        for r in resultados
+        if r["aprueba_con_solucion"] is False
+    ]
+    assert not rotos, "tests de retos que fallan con su solucion:\n" + "\n".join(rotos)

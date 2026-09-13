@@ -20,7 +20,12 @@ from sqlalchemy import func, select
 
 from app.core.database import async_session_maker
 from app.models.challenge import CodingChallenge
-from app.services.curated_retos import RETOS_SOURCE, seed_curated_retos
+from app.services.curated_retos import (
+    CURATED_RETOS,
+    RETOS_SOURCE,
+    seed_curated_retos,
+)
+from app.services.retos_validacion import TESTS_CURADOS, VALIDACION_GENERADOS
 from app.services.generated_bank import (
     CHALLENGE_TEMPLATES,
     CURATED_SOURCE,
@@ -165,9 +170,16 @@ async def test_niveles_en_listado_y_progresion_en_detalle(client, auth_headers):
     assert por_id[ids["medium"]]["level"] == 2
     assert por_id[ids["medium"]]["title"] == "Two Sum"
 
-    # Marcar el nivel 1 se refleja en la progresion vista desde el nivel 2.
+    # Resolver el nivel 1 (todos sus tests) se refleja en la progresion vista
+    # desde el nivel 2.
+    tests_facil = await client.get(
+        f"/api/v1/challenges/{ids['easy']}/hidden-tests", headers=auth_headers
+    )
+    total = len(tests_facil.json()["tests"])
     r = await client.post(
-        f"/api/v1/challenges/{ids['easy']}/complete", headers=auth_headers
+        f"/api/v1/challenges/{ids['easy']}/complete",
+        headers=auth_headers,
+        json={"passed_tests": total, "total_tests": total},
     )
     assert r.status_code == 204, r.text
 
@@ -187,3 +199,50 @@ async def test_niveles_en_listado_y_progresion_en_detalle(client, auth_headers):
     assert r.status_code == 200, r.text
     assert r.json()["level"] is None
     assert r.json()["levels"] == []
+
+
+def test_cada_reto_tiene_tests_y_solucion():
+    """Los 70 retos se validan con tests. Que aprueben con la solucion y no con
+    el starter lo comprueba el barrido de CI (test_hidden_tests_no_triviales)."""
+    for template in CHALLENGE_TEMPLATES:
+        for difficulty, _, _ in NIVELES:
+            validacion = VALIDACION_GENERADOS.get((template.slug_base, difficulty))
+            assert validacion, f"{template.slug_base}/{difficulty} sin validacion"
+            assert validacion.hidden_tests
+            assert validacion.reference_solution.strip()
+    for reto in CURATED_RETOS:
+        assert len(TESTS_CURADOS.get(reto.slug_suffix, [])) >= 2, reto.slug_suffix
+    # Y ninguna validacion huerfana de un reto que ya no existe.
+    assert len(VALIDACION_GENERADOS) == len(CHALLENGE_TEMPLATES) * 3
+    assert set(TESTS_CURADOS) == {r.slug_suffix for r in CURATED_RETOS}
+
+
+@pytest.mark.asyncio
+async def test_hidden_tests_salen_por_su_endpoint_y_no_por_el_detalle(
+    client, auth_headers
+):
+    async with async_session_maker() as session:
+        await seed_generated_challenges(session)
+        row = await session.execute(
+            select(CodingChallenge).where(
+                CodingChallenge.slug == slug_nivel("arrays-two-sum", "medio")
+            )
+        )
+        reto = row.scalar_one()
+        cid, solucion, tests = reto.id, reto.reference_solution, reto.hidden_tests
+
+    r = await client.get(f"/api/v1/challenges/{cid}/hidden-tests", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    assert [t["name"] for t in r.json()["tests"]] == [t["name"] for t in tests]
+
+    # Una linea distintiva de la solucion, y el codigo de los tests, no salen
+    # ni por el detalle ni por el listado.
+    assert "vistos.setdefault(x, j)" in solucion
+    primera_linea_test = tests[0]["code"].strip().splitlines()[0]
+    for url in (f"/api/v1/challenges/{cid}", "/api/v1/challenges?limit=100"):
+        r = await client.get(url, headers=auth_headers)
+        assert r.status_code == 200, r.text
+        assert "hidden_tests" not in r.text
+        assert "reference_solution" not in r.text
+        assert "vistos.setdefault(x, j)" not in r.text
+        assert primera_linea_test not in r.text

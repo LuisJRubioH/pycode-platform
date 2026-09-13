@@ -104,6 +104,8 @@ interface ChallengeContext {
   prompt: string
   starter_code: string
   level: number | null
+  // Los tres niveles del problema (vacio en retos sueltos).
+  levels: { id: number; level: number; difficulty: string; completed: boolean }[]
 }
 
 interface LessonSummary {
@@ -164,6 +166,8 @@ const CodeEditor: React.FC = () => {
 
   const [challenge, setChallenge] = useState<ChallengeContext | null>(null)
   const [challengeError, setChallengeError] = useState('')
+  // True cuando el reto quedo registrado como resuelto en esta sesion.
+  const [retoResuelto, setRetoResuelto] = useState(false)
 
   const [searchParams, setSearchParams] = useSearchParams()
   const lessonParam = searchParams.get('lesson')
@@ -207,9 +211,8 @@ const CodeEditor: React.FC = () => {
     setEvaluationError('')
   }, [lessonParam, challengeParam])
 
-  // Modo reto (`/editor?challenge=<id>`): enunciado y starter del reto. No tiene
-  // tests ocultos, asi que no hay "Ejecutar tests"; el alumno lo marca como
-  // hecho en la pagina de Retos.
+  // Modo reto (`/editor?challenge=<id>`): enunciado y starter del reto. Se
+  // resuelve con "Ejecutar tests": si pasan todos, el reto queda hecho.
   useEffect(() => {
     if (!challengeParam) {
       setChallenge(null)
@@ -228,6 +231,7 @@ const CodeEditor: React.FC = () => {
         const key = `reto:${data.id}`
         if (loadedExerciseRef.current === key) return
         loadedExerciseRef.current = key
+        setRetoResuelto(false)
         setCode(data.starter_code || EMPTY_SOLUTION)
         setProblemDescription(`${data.title}\n\n${data.prompt}`.trim())
         setExpectedOutput('')
@@ -316,6 +320,10 @@ const CodeEditor: React.FC = () => {
     setEvaluation(null)
     setEvaluationError('')
   }, [lesson, activeExercise])
+
+  // Siguiente nivel del mismo problema, para ofrecerlo al resolver el reto.
+  const siguienteNivel =
+    challenge?.level ? challenge.levels.find((l) => l.level === challenge.level! + 1) ?? null : null
 
   // Enunciado que viene de la plataforma (lección o reto); null en modo libre.
   const enunciadoFijo = activeExercise
@@ -521,13 +529,40 @@ const CodeEditor: React.FC = () => {
     }
   }
 
+  // Los tests ocultos existen para ejercicios de leccion y para retos: mismo
+  // runner, distinto endpoint y distinta forma de registrar el resultado.
+  const testsUrl =
+    exerciseId !== null
+      ? `/exercises/${exerciseId}/hidden-tests`
+      : challenge
+      ? `/challenges/${challenge.id}/hidden-tests`
+      : null
+
+  const registrarReto = async (reto: ChallengeContext, passed: number, total: number) => {
+    const res = await api.post(`/challenges/${reto.id}/complete`, {
+      passed_tests: passed,
+      total_tests: total,
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setTestsError(
+        typeof data.detail === 'string' ? data.detail : 'No se pudo registrar el reto como resuelto.'
+      )
+      return
+    }
+    setRetoResuelto(true)
+    // Refresca la progresion de niveles para ofrecer el siguiente.
+    const detalle = await api.get(`/challenges/${reto.id}`)
+    if (detalle.ok) setChallenge((await detalle.json()) as ChallengeContext)
+  }
+
   const runTests = async () => {
-    if (exerciseId === null) return
+    if (testsUrl === null) return
     setTestsError('')
     setTestsResult(null)
     setIsRunningTests(true)
     try {
-      const res = await api.get(`/exercises/${exerciseId}/hidden-tests`)
+      const res = await api.get(testsUrl)
       if (!res.ok) {
         setTestsError('No se pudieron obtener los tests del ejercicio.')
         return
@@ -541,7 +576,9 @@ const CodeEditor: React.FC = () => {
       setTestsResult(result)
       // Si todos los tests pasan, registra la submission: el backend marca
       // el ejercicio como completado (result=success) y suma los puntos.
-      if (result.total > 0 && result.passed === result.total) {
+      if (result.total > 0 && result.passed === result.total && exerciseId === null && challenge) {
+        await registrarReto(challenge, result.passed, result.total)
+      } else if (result.total > 0 && result.passed === result.total) {
         try {
           await api.post(`/exercises/${exerciseId}/submit`, {
             exercise_id: exerciseId,
@@ -675,7 +712,7 @@ const CodeEditor: React.FC = () => {
             <Share2 className="h-4 w-4" />
           </button>
 
-          {exerciseId !== null && (
+          {testsUrl !== null && (
             <div className="flex items-center gap-2">
               <button
                 onClick={runTests}
@@ -991,6 +1028,23 @@ const CodeEditor: React.FC = () => {
               </li>
             ))}
           </ul>
+          {retoResuelto && challenge && (
+            <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-emerald-200 pt-3">
+              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-800">
+                <Trophy className="h-4 w-4" />
+                Reto resuelto: queda marcado como hecho y suma a tu ELO de retos.
+              </span>
+              {siguienteNivel && (
+                <button
+                  onClick={() => setSearchParams({ challenge: String(siguienteNivel.id) })}
+                  className="btn-primary"
+                >
+                  Ir al Nivel {siguienteNivel.level}
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

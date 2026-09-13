@@ -13,6 +13,9 @@ from app.models.challenge_completion import ChallengeCompletion
 from app.models.elo_models import EloRating
 from app.models.user import User, UserProfile
 from app.schemas.challenge import (
+    ChallengeCompleteIn,
+    ChallengeHiddenTest,
+    ChallengeHiddenTestsOut,
     ChallengeLevel,
     CodingChallengeDetail,
     CodingChallengeListOut,
@@ -158,20 +161,68 @@ async def get_challenge(
     return detail
 
 
-@router.post("/{challenge_id}/complete", status_code=status.HTTP_204_NO_CONTENT)
-async def mark_challenge_completed(
+def _tests_del_reto(challenge: CodingChallenge) -> list[ChallengeHiddenTest]:
+    return [
+        ChallengeHiddenTest(name=t.get("name", ""), code=t.get("code", ""))
+        for t in (challenge.hidden_tests or [])
+        if isinstance(t, dict) and t.get("code")
+    ]
+
+
+@router.get("/{challenge_id}/hidden-tests", response_model=ChallengeHiddenTestsOut)
+async def get_challenge_hidden_tests(
     challenge_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Marca el reto como hecho y otorga ELO a la track `challenge:<dificultad>`.
+    """Tests ocultos del reto para que el editor los corra en Pyodide.
 
-    Idempotente: si ya estaba marcado, no re-otorga. El ELO concedido se guarda
-    en la completación para poder revertirlo exacto al desmarcar.
+    Mismo patron que `/exercises/{id}/hidden-tests`: el cliente los pide al
+    pulsar "Ejecutar tests" y la UI solo muestra el veredicto. El detalle y el
+    listado de retos NO los exponen, y la solucion de referencia no sale nunca.
     """
     challenge = await db.get(CodingChallenge, challenge_id)
     if not challenge or not challenge.is_active:
         raise HTTPException(status_code=404, detail="Challenge not found")
+    return ChallengeHiddenTestsOut(
+        challenge_id=challenge_id, tests=_tests_del_reto(challenge)
+    )
+
+
+@router.post("/{challenge_id}/complete", status_code=status.HTTP_204_NO_CONTENT)
+async def mark_challenge_completed(
+    challenge_id: int,
+    resultado: ChallengeCompleteIn,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Registra el reto como resuelto y otorga ELO a `challenge:<dificultad>`.
+
+    Exige el resultado de sus tests: el total tiene que coincidir con los tests
+    del reto y tienen que haber pasado todos. Antes bastaba un boton, asi que el
+    ELO de retos se podia inflar sin resolver nada.
+
+    Idempotente: si ya estaba completado, no re-otorga. El ELO concedido se
+    guarda en la completacion para poder revertirlo exacto al desmarcar.
+    """
+    challenge = await db.get(CodingChallenge, challenge_id)
+    if not challenge or not challenge.is_active:
+        raise HTTPException(status_code=404, detail="Challenge not found")
+
+    total_reto = len(_tests_del_reto(challenge))
+    if total_reto == 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Este reto todavia no tiene tests: no se puede completar.",
+        )
+    if resultado.total_tests != total_reto or resultado.passed_tests != total_reto:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Para completar el reto tienen que pasar sus {total_reto} tests "
+                f"(recibido {resultado.passed_tests}/{resultado.total_tests})."
+            ),
+        )
 
     existing = await db.execute(
         select(ChallengeCompletion).where(

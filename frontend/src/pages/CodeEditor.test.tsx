@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import CodeEditor from './CodeEditor'
 
 // Monaco no corre en jsdom: lo sustituimos por un textarea que expone el
@@ -15,9 +15,10 @@ vi.mock('@monaco-editor/react', () => ({
 }))
 
 const runPythonCodeMock = vi.fn()
+const runHiddenTestsMock = vi.fn()
 vi.mock('../services/codeRunner', () => ({
   runPythonCode: (...args: unknown[]) => runPythonCodeMock(...args),
-  runHiddenTests: vi.fn(),
+  runHiddenTests: (...args: unknown[]) => runHiddenTestsMock(...args),
   abortExecution: vi.fn(),
   isSandboxInterruption: () => false,
   getCodeRunner: () => ({
@@ -82,6 +83,12 @@ const lesson = {
       completed: false,
     },
   ],
+}
+
+// Expone la URL actual para comprobar navegaciones con setSearchParams.
+function UbicacionActual() {
+  const location = useLocation()
+  return <span data-testid="ubicacion">{location.search}</span>
 }
 
 function renderEditor(url: string) {
@@ -287,6 +294,10 @@ describe('CodeEditor — salida separada de stdout y stderr', () => {
 })
 
 describe('CodeEditor — modo reto', () => {
+  beforeEach(() => {
+    runHiddenTestsMock.mockReset()
+  })
+
   const reto = {
     id: 42,
     title: 'Contar vocales',
@@ -299,6 +310,11 @@ describe('CodeEditor — modo reto', () => {
     starter_code: 'def contar_vocales(texto):\n    ...\n',
     order_index: 1,
     level: 1,
+    levels: [
+      { id: 42, level: 1, difficulty: 'easy', completed: false },
+      { id: 43, level: 2, difficulty: 'medium', completed: false },
+      { id: 44, level: 3, difficulty: 'hard', completed: false },
+    ],
   }
 
   beforeEach(() => {
@@ -314,7 +330,7 @@ describe('CodeEditor — modo reto', () => {
     })
   })
 
-  it('carga el enunciado y el starter del reto, sin "Ejecutar tests"', async () => {
+  it('carga el enunciado y el starter del reto, con "Ejecutar tests"', async () => {
     renderEditor('/editor?challenge=42')
 
     await screen.findByText('Contar vocales')
@@ -328,7 +344,76 @@ describe('CodeEditor — modo reto', () => {
     expect(screen.getByText('vocales').tagName).toBe('STRONG')
     expect(screen.queryByLabelText(/Enunciado del ejercicio/)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Volver a retos/ })).toHaveAttribute('href', '/challenges')
-    expect(screen.queryByRole('button', { name: /Ejecutar tests/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Ejecutar tests/ })).toBeInTheDocument()
+  })
+
+  it('pasar todos los tests registra el reto y ofrece el siguiente nivel', async () => {
+    const user = userEvent.setup()
+    const tests = [
+      { name: 'uno', code: 'assert True' },
+      { name: 'dos', code: 'assert True' },
+    ]
+    getMock.mockImplementation((path: string) => {
+      if (path === '/challenges/42') return Promise.resolve({ ok: true, json: async () => reto })
+      if (path === '/challenges/42/hidden-tests') {
+        return Promise.resolve({ ok: true, json: async () => ({ challenge_id: 42, tests }) })
+      }
+      return Promise.resolve({ ok: false, json: async () => ({}) })
+    })
+    postMock.mockResolvedValue({ ok: true, json: async () => ({}) })
+    runHiddenTestsMock.mockResolvedValue({
+      total: 2,
+      passed: 2,
+      durationMs: 5,
+      verdicts: tests.map((t) => ({ name: t.name, passed: true })),
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/editor?challenge=42']}>
+        <Routes>
+          <Route path="/editor" element={<CodeEditor />} />
+        </Routes>
+        <UbicacionActual />
+      </MemoryRouter>
+    )
+    await screen.findByText('Contar vocales')
+    await user.click(screen.getByRole('button', { name: /Ejecutar tests/ }))
+
+    await screen.findByText(/Reto resuelto/)
+    expect(postMock).toHaveBeenCalledWith('/challenges/42/complete', {
+      passed_tests: 2,
+      total_tests: 2,
+    })
+    await user.click(screen.getByRole('button', { name: /Ir al Nivel 2/ }))
+    expect(screen.getByTestId('ubicacion')).toHaveTextContent('?challenge=43')
+  })
+
+  it('con tests fallidos no registra el reto', async () => {
+    const user = userEvent.setup()
+    getMock.mockImplementation((path: string) => {
+      if (path === '/challenges/42') return Promise.resolve({ ok: true, json: async () => reto })
+      if (path === '/challenges/42/hidden-tests') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ challenge_id: 42, tests: [{ name: 'uno', code: 'x' }] }),
+        })
+      }
+      return Promise.resolve({ ok: false, json: async () => ({}) })
+    })
+    runHiddenTestsMock.mockResolvedValue({
+      total: 1,
+      passed: 0,
+      durationMs: 5,
+      verdicts: [{ name: 'uno', passed: false, errorMessage: 'AssertionError' }],
+    })
+
+    renderEditor('/editor?challenge=42')
+    await screen.findByText('Contar vocales')
+    await user.click(screen.getByRole('button', { name: /Ejecutar tests/ }))
+
+    await screen.findByText(/Tests: 0 \/ 1 pasaron/)
+    expect(postMock).not.toHaveBeenCalled()
+    expect(screen.queryByText(/Reto resuelto/)).not.toBeInTheDocument()
   })
 
   it('ir del reto a "Editor" deja el editor limpio', async () => {

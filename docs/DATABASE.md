@@ -1,6 +1,6 @@
 # Esquema de base de datos — PyCode Platform
 
-Referencia del modelo de datos. Postgres 17 (Supabase en prod), gestionado con **Alembic** (migraciones `0001`→`0014`). El schema lo introspecta este documento desde la DB de producción; para el diseño técnico general ver [ARCHITECTURE.md](ARCHITECTURE.md).
+Referencia del modelo de datos. Postgres 17 (Supabase en prod), gestionado con **Alembic** (migraciones `0001`→`0015`). El schema lo introspecta este documento desde la DB de producción; para el diseño técnico general ver [ARCHITECTURE.md](ARCHITECTURE.md).
 
 - **22 tablas** de dominio + `alembic_version` (bookkeeping de migraciones).
 - Todas las PK son `id integer` autoincremental.
@@ -57,8 +57,8 @@ Referencia del modelo de datos. Postgres 17 (Supabase en prod), gestionado con *
 ### `datasets` — datasets servidos como CSV a Pyodide (Track 2)
 `slug`, `name`, `description`, `source_url`, `license` · `columns_schema` (json), `sample_rows` (json), **`csv_content` (text)**, `row_count`, `is_active`. Servido por `GET /api/v1/datasets/{slug}/csv`.
 
-### `coding_challenges` — retos autoevaluados
-`title`, `slug`, `source`, `source_path`, `difficulty`, `topic`, `prompt`, `starter_code` · **`reference_solution` (text)** — no se sirve en el detalle (guard rail) · `order_index`, `is_active`.
+### `coding_challenges` — retos (20 problemas × 3 niveles + 10 curados)
+`title`, `slug`, `source`, `source_path`, `difficulty`, `topic`, `prompt`, `starter_code` · **`reference_solution` (text)** — no se sirve nunca (guard rail) · **`hidden_tests` (json)** (migración `0015`) — los pide el editor en `GET /challenges/{id}/hidden-tests` · `order_index`, `is_active`. El contenido lo sincroniza el seed desde `generated_bank.py`, `curated_retos.py` y `retos_validacion.py`.
 
 ### `puzzles` — puzzles ELO (predice-la-salida, estilo Finxter)
 `title`, `slug`, `category`, `topic`, `code_snippet` · **`correct_output`, `explanation`, `hint`** — no se filtran en endpoints públicos (puzzle del día) · `elo_rating`, `elo_initial`, `times_attempted`, `times_correct`, `is_advanced`, `is_active` · `finxter_id`, `source_book`.
@@ -88,8 +88,8 @@ Referencia del modelo de datos. Postgres 17 (Supabase en prod), gestionado con *
 ### `capstone_submissions` — envíos de capstone (uno por user/capstone)
 `user_id` FK, `capstone_id` FK · `files` (jsonb, código del alumno) · `status` (`passed`/`failed`), `tests_passed`, `tests_total`, `test_results` (jsonb). `status="passed"` desbloquea el certificado del track.
 
-### `challenge_completions` — auto-marcado de retos
-`user_id` FK, `challenge_id` FK · `completed_at` · **`elo_delta`** (migración `0011`) — permite revertir el ELO exacto al des-completar.
+### `challenge_completions` — retos resueltos
+`user_id` FK, `challenge_id` FK · `completed_at` · **`elo_delta`** (migración `0011`) — permite revertir el ELO exacto al des-completar. Desde `0015` una fila solo se crea si el cliente reporta todos los tests del reto aprobados.
 
 ### `certificates` — certificados verificables (públicos)
 `user_id` FK, `capstone_id` FK (nullable), `track`, `title` · **`recipient_name`** (snapshot del username al emitir) · **`verification_code`** (`PYC-XXXX-XXXX`, capacidad impredecible), `issued_at`. `UniqueConstraint(user_id, track)`. Verificable sin auth en `GET /certificates/verify/{code}`. **Tabla pública (sin RLS)** — ver caveat §5.
@@ -128,7 +128,7 @@ Tres capas conviven (backward-compatible):
 | 0003 | cascade_user_fks | `ON DELETE CASCADE` en FKs a users (Postgres) |
 | 0004 | enable_rls_per_user_tables | Políticas RLS (Postgres-only) |
 | 0005 | code_evaluations | Evaluaciones del tutor evaluador |
-| 0006 | challenge_completions | Auto-marcado de retos |
+| 0006 | challenge_completions | Completado de retos (auto-marcado hasta `0015`) |
 | 0007 | exercise_hidden_tests | Columna `exercises.hidden_tests` |
 | 0008 | capstones | `capstones` + `capstone_submissions` |
 | 0009 | certificates | Certificados verificables |
@@ -137,6 +137,7 @@ Tres capas conviven (backward-compatible):
 | 0012 | code_quality_snapshots | Snapshots de calidad de código |
 | 0013 | lesson_track | Columna `lessons.track` (multi-track) |
 | 0014 | datasets | Datasets seedeables servidos como CSV |
+| 0015 | challenge_hidden_tests | Columna `coding_challenges.hidden_tests`: completar un reto exige pasar sus tests |
 
 Los Tracks 3, 4 y 5 (incluido el proxy LLM) **no añadieron migraciones**: el contenido nuevo son filas seedeadas y el proxy LLM no persiste datos.
 

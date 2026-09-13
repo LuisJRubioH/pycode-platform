@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { BrainCircuit, Filter, Gauge, ArrowRight, CheckCircle2, Undo2 } from 'lucide-react'
+import { BrainCircuit, Filter, Gauge, ArrowRight, CheckCircle2, TestTube2 } from 'lucide-react'
 import { api } from '../services/api'
 import Markdown from '../components/Markdown'
 
@@ -127,29 +127,12 @@ const Challenges: React.FC = () => {
     navigate(`/editor?challenge=${selected.id}`)
   }
 
-  const isSelectedCompleted = items.find((c) => c.id === selected?.id)?.completed || false
-
-  const setCompleted = async (challengeId: number, completed: boolean) => {
-    const method = completed ? 'post' : 'delete'
-    try {
-      const res = await api[method](`/challenges/${challengeId}/complete`)
-      if (!res.ok) return
-      setItems((prev) =>
-        prev.map((c) => (c.id === challengeId ? { ...c, completed } : c))
-      )
-      // La progresion del detalle tambien marca el nivel.
-      setSelected((prev) =>
-        prev
-          ? {
-              ...prev,
-              levels: prev.levels.map((l) => (l.id === challengeId ? { ...l, completed } : l)),
-            }
-          : prev
-      )
-    } catch (err) {
-      console.error('Error toggling completion:', err)
-    }
-  }
+  // El estado de hecho sale de la progresion (retos por niveles) o del listado
+  // (retos sueltos). Ya no hay boton para marcarlo: se marca al pasar sus tests.
+  const isSelectedCompleted =
+    selected?.levels.find((l) => l.id === selected.id)?.completed ??
+    items.find((c) => c.id === selected?.id)?.completed ??
+    false
 
   return (
     <div className="space-y-8">
@@ -314,35 +297,26 @@ const Challenges: React.FC = () => {
               <Markdown className="prose prose-slate max-w-none">{selected.prompt}</Markdown>
 
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                <p className="text-sm font-medium text-slate-900">Al resolver este reto:</p>
+                <p className="text-sm font-medium text-slate-900 flex items-center gap-2">
+                  <TestTube2 className="h-4 w-4 text-primary-600" />
+                  Como se resuelve
+                </p>
                 <p className="text-sm text-slate-600 mt-1">
-                  Enviaremos el enunciado al editor para que puedas empezar y luego pedir retroalimentacion al tutor.
+                  En el editor, con <strong>Ejecutar tests</strong>. Cuando pasan todos, el reto queda
+                  marcado como hecho y suma a tu ELO de retos.
                 </p>
               </div>
 
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <button onClick={solveInEditor} className="btn-primary">
-                  Resolver en el editor
+                  {isSelectedCompleted ? 'Volver a resolverlo' : 'Resolver en el editor'}
                   <ArrowRight className="h-4 w-4 ml-2" />
                 </button>
-                {isSelectedCompleted ? (
-                  <button
-                    onClick={() => setCompleted(selected.id, false)}
-                    className="btn-secondary"
-                    title="Desmarcar este reto como hecho"
-                  >
-                    <Undo2 className="h-4 w-4 mr-2" />
-                    Desmarcar
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setCompleted(selected.id, true)}
-                    className="btn-secondary text-emerald-700 border-emerald-300 hover:bg-emerald-50"
-                    title="Marcar este reto como hecho"
-                  >
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Marcar como hecho
-                  </button>
+                {isSelectedCompleted && (
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-700">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Resuelto
+                  </span>
                 )}
               </div>
             </div>

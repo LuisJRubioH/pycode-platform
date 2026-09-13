@@ -52,7 +52,7 @@ FastAPI + SQLAlchemy 2.0 async + asyncpg. Entry point: [`backend/app/main.py`](.
 
 - Dev/test default: `sqlite+aiosqlite`. Prod: `postgresql+asyncpg://...?sslmode=require`.
 - `_get_engine_args(db_url, environment)` en [`core/database.py`](../backend/app/core/database.py) **rechaza SQLite si `ENVIRONMENT=production`** — sin fallback silencioso.
-- Migraciones Alembic `0001`→`0014` (monotónicas):
+- Migraciones Alembic `0001`→`0015` (monotónicas):
 
 | # | Migración | Contenido |
 |---|---|---|
@@ -61,7 +61,7 @@ FastAPI + SQLAlchemy 2.0 async + asyncpg. Entry point: [`backend/app/main.py`](.
 | 0003 | cascade_user_fks | `ON DELETE CASCADE` en FKs a users (Postgres) |
 | 0004 | enable_rls_per_user_tables | Políticas RLS (Postgres-only) |
 | 0005 | code_evaluations | Evaluaciones del tutor evaluador |
-| 0006 | challenge_completions | Auto-marcado de retos |
+| 0006 | challenge_completions | Completado de retos (auto-marcado hasta `0015`) |
 | 0007 | exercise_hidden_tests | Columna `hidden_tests` JSON |
 | 0008 | capstones | `capstones` + `capstone_submissions` (RLS) |
 | 0009 | certificates | Certificados (tabla pública, sin RLS) |
@@ -70,6 +70,7 @@ FastAPI + SQLAlchemy 2.0 async + asyncpg. Entry point: [`backend/app/main.py`](.
 | 0012 | code_quality_snapshots | Snapshots de calidad de código (RLS) |
 | 0013 | lesson_track | Columna `lessons.track` (habilita multi-track) |
 | 0014 | datasets | Datasets seedeables servidos como CSV |
+| 0015 | challenge_hidden_tests | Columna `coding_challenges.hidden_tests`: completar un reto exige pasar sus tests |
 
 - **Regla DDL Postgres-only** (RLS, constraints sin nombre estable): empezar el `upgrade()` con
   ```python
@@ -179,7 +180,7 @@ Dos capas coexisten (backward-compatible):
   
   Lazy-init desde el ELO global para no romper la continuidad. `GET /elo/ratings` devuelve tracks hoja + agregados por dominio + overall. UI: `EloTracks.tsx` en el Dashboard.
 
-El ELO de retos por auto-marcado es *gameable* por diseño (decisión de producto aceptada); `uncomplete` revierte el delta exacto vía la columna `challenge_completions.elo_delta`.
+El ELO de retos **ya no es auto-marcado** (2026-09-13, migración `0015`): `POST /challenges/{id}/complete` exige el resultado de los tests ocultos del reto, todos aprobados. Como con los ejercicios, el backend confía en lo que reporta Pyodide (nunca ejecuta código del alumno), así que sigue siendo falsificable llamando a la API a mano, pero ya no con un botón. `uncomplete` revierte el delta exacto vía `challenge_completions.elo_delta`.
 
 ---
 

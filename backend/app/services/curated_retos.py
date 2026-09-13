@@ -10,10 +10,10 @@ norte de la plataforma.
 A diferencia de `seed_generated_challenges` (que explota plantillas en
 3 dificultades × 3 variantes), aquí cada reto es único y autocontenido.
 
-Se evalúan por auto-marcado (`/challenges/{id}/complete`); no hay grading
-automático. Cada reto guarda una `reference_solution` correcta que el
-endpoint de detalle NUNCA sirve (ver `CodingChallengeDetail`), reservada
-para un futuro "ver solución".
+Se completan pasando sus tests ocultos en el editor (`retos_validacion.py`).
+Cada reto guarda una `reference_solution` correcta que el endpoint de detalle
+NUNCA sirve (ver `CodingChallengeDetail`); el guard rail la usa para comprobar
+que los tests aprueban con una solucion correcta.
 """
 
 # flake8: noqa: E501 -- contenido curado: enunciados largos en español.
@@ -26,6 +26,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.challenge import CodingChallenge
+from app.services.retos_validacion import TESTS_CURADOS
 
 RETOS_SOURCE = "pycode-retos-curados"
 
@@ -281,37 +282,46 @@ CURATED_RETOS: list[CuratedReto] = [
 
 
 async def seed_curated_retos(db: AsyncSession) -> int:
-    """Inserta los retos curados que falten (idempotente por slug)."""
+    """Sincroniza los retos curados (idempotente por slug).
+
+    Inserta los que falten y actualiza el contenido de los existentes,
+    conservando su id: asi les llegan los tests ocultos que se anaden despues.
+    Devuelve cuantos inserto.
+    """
     max_order = await db.execute(select(func.max(CodingChallenge.order_index)))
     order_index = (max_order.scalar_one_or_none() or 0) + 1
 
     inserted = 0
+    cambios = False
     for reto in CURATED_RETOS:
         slug = f"{RETOS_SOURCE}-{reto.slug_suffix}"
+        campos = {
+            "title": reto.title,
+            "source": RETOS_SOURCE,
+            "source_path": f"retos-curados/{reto.topic}/{reto.slug_suffix}.md",
+            "difficulty": reto.difficulty,
+            "topic": reto.topic,
+            "prompt": reto.prompt,
+            "starter_code": reto.starter_code,
+            "reference_solution": reto.reference_solution,
+            "hidden_tests": list(TESTS_CURADOS[reto.slug_suffix]),
+        }
         existing = await db.execute(
-            select(CodingChallenge.id).where(CodingChallenge.slug == slug)
+            select(CodingChallenge).where(CodingChallenge.slug == slug)
         )
-        if existing.scalar_one_or_none() is not None:
+        challenge = existing.scalar_one_or_none()
+        if challenge is None:
+            db.add(CodingChallenge(slug=slug, order_index=order_index, **campos))
+            order_index += 1
+            inserted += 1
+            cambios = True
             continue
+        for campo, valor in campos.items():
+            if getattr(challenge, campo) != valor:
+                setattr(challenge, campo, valor)
+                cambios = True
 
-        db.add(
-            CodingChallenge(
-                title=reto.title,
-                slug=slug,
-                source=RETOS_SOURCE,
-                source_path=f"retos-curados/{reto.topic}/{reto.slug_suffix}.md",
-                difficulty=reto.difficulty,
-                topic=reto.topic,
-                prompt=reto.prompt,
-                starter_code=reto.starter_code,
-                reference_solution=reto.reference_solution,
-                order_index=order_index,
-            )
-        )
-        order_index += 1
-        inserted += 1
-
-    if inserted:
+    if cambios:
         await db.commit()
 
     return inserted

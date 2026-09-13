@@ -117,6 +117,20 @@ describe('Retos — progresion por niveles', () => {
     await screen.findByText('Nivel facil: dos bucles.')
   })
 
+  it('no hay boton para marcar a mano: se resuelve pasando los tests', async () => {
+    render(
+      <MemoryRouter>
+        <Challenges />
+      </MemoryRouter>
+    )
+    await screen.findByText('Nivel medio: en O(n).')
+    expect(screen.queryByRole('button', { name: /Marcar como hecho/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Desmarcar/ })).not.toBeInTheDocument()
+    expect(screen.getByText(/Ejecutar tests/)).toBeInTheDocument()
+    // El nivel 2 no esta resuelto; el 1 si, pero no es el seleccionado.
+    expect(screen.queryByText('Resuelto')).not.toBeInTheDocument()
+  })
+
   it('"Resolver en el editor" lleva el reto en la URL', async () => {
     const user = userEvent.setup()
     render(
