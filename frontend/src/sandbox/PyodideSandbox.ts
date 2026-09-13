@@ -28,7 +28,11 @@ export class PyodideSandbox {
   private worker: Worker | null = null;
   private kernel: Comlink.Remote<{
     init(): Promise<KernelInfo>;
-    run(req: RunRequest, latido?: () => void): Promise<RunResult>;
+    run(
+      req: RunRequest,
+      latido?: () => void,
+      salida?: (lineas: string[]) => void,
+    ): Promise<RunResult>;
     runTests(req: RunTestsRequest, latido?: () => void): Promise<RunTestsResult>;
     runCapstoneTests(
       req: RunCapstoneTestsRequest,
@@ -125,13 +129,26 @@ export class PyodideSandbox {
     }
   }
 
-  async run(code: string, timeoutMs = 30_000): Promise<RunResult> {
+  /**
+   * @param onSalida recibe las lineas de stdout mientras el codigo corre. Es lo
+   *   que deja ver que un bucle no acaba antes de que lo corte el watchdog; si la
+   *   ejecucion termina bien, el `stdout` del resultado es la version completa.
+   */
+  async run(
+    code: string,
+    timeoutMs = 30_000,
+    onSalida?: (lineas: string[]) => void,
+  ): Promise<RunResult> {
     await this.init();
     this.setStatus("running");
     try {
       const result = await this.vigilada(
         (latido) =>
-          this.kernel!.run({ code, timeoutMs }, Comlink.proxy(latido)),
+          this.kernel!.run(
+            { code, timeoutMs },
+            Comlink.proxy(latido),
+            onSalida ? Comlink.proxy(onSalida) : undefined,
+          ),
         timeoutMs,
       );
       this.setStatus(result.ok ? "ready" : "error");

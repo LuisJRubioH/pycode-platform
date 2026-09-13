@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import CodeEditor from './CodeEditor'
@@ -209,5 +209,50 @@ describe('CodeEditor — salida separada de stdout y stderr', () => {
 
     await screen.findByText('(sin salida)')
     expect(screen.queryByText('stderr / warnings')).not.toBeInTheDocument()
+  })
+})
+
+describe('CodeEditor — salida en vivo (issue #32)', () => {
+  beforeEach(() => {
+    getMock.mockReset()
+    postMock.mockReset()
+    runPythonCodeMock.mockReset()
+    localStorage.clear()
+  })
+
+  it('muestra lo impreso mientras corre y lo conserva si la ejecucion se corta', async () => {
+    const user = userEvent.setup()
+    let emitir!: (lineas: string[]) => void
+    let cortar!: (e: Error) => void
+    runPythonCodeMock.mockImplementation(
+      (_code: string, _timeout: number | undefined, onSalida: (l: string[]) => void) => {
+        emitir = onSalida
+        return new Promise((_, reject) => {
+          cortar = reject
+        })
+      }
+    )
+
+    renderEditor('/editor')
+    await user.click(screen.getByRole('button', { name: /Ejecutar/ }))
+
+    // Un bucle con print: la salida aparece antes de que termine nada.
+    // (se pinta agrupado cada 100 ms, de ahi el findByText).
+    act(() => emitir(['retirando...', 'retirando...']))
+    expect(await screen.findByText(/retirando\.\.\.\s+retirando\.\.\./)).toBeInTheDocument()
+    act(() => emitir(['retirando...']))
+    expect(await screen.findByText(/(retirando\.\.\.\s+){2}retirando\.\.\./)).toBeInTheDocument()
+
+    // El alumno pulsa Detener justo tras una tanda que aun no se habia
+    // pintado: se muestra igual, y lo anterior sigue a la vista.
+    act(() => emitir(['ultima']))
+    act(() => cortar(new Error('Ejecucion detenida.')))
+    await screen.findByText(/Ejecucion detenida\./)
+    expect(screen.getByText(/(retirando\.\.\.\s+){2}retirando\.\.\.\s+ultima/)).toBeInTheDocument()
+
+    // Una tanda rezagada que llega tras el corte no se pega a la salida.
+    act(() => emitir(['rezagada']))
+    await new Promise((r) => setTimeout(r, 150))
+    expect(screen.queryByText(/rezagada/)).not.toBeInTheDocument()
   })
 })

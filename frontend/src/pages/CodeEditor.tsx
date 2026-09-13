@@ -103,6 +103,20 @@ interface LessonSummary {
 
 const EMPTY_SOLUTION = '# Escribe tu solucion aqui\n'
 
+// Tope de caracteres del panel de salida. Un `print` dentro de un bucle
+// infinito genera texto sin fin y el navegador no lo aguanta: se conserva el
+// final, que es lo que el alumno necesita ver.
+const MAX_CHARS_SALIDA = 50_000
+const PINTAR_SALIDA_MS = 100
+const MARCA_RECORTE = '[... salida anterior recortada ...]'
+const recortarSalida = (texto: string) => {
+  if (texto.length <= MAX_CHARS_SALIDA) return texto
+  const cola = texto.slice(-MAX_CHARS_SALIDA)
+  // Se corta en un salto de linea para no dejar media linea colgando.
+  const salto = cola.indexOf('\n')
+  return `${MARCA_RECORTE}\n${salto >= 0 ? cola.slice(salto + 1) : cola}`
+}
+
 const CodeEditor: React.FC = () => {
   const [code, setCode] = useState(INITIAL_CODE)
   const [output, setOutput] = useState('')
@@ -274,16 +288,54 @@ const CodeEditor: React.FC = () => {
     return runner.onStatusChange(setSandboxStatus)
   }, [])
 
+  // El panel sigue al final como una terminal: mientras llega salida en vivo y
+  // tambien al cortar, que es cuando el aviso de "detenida" queda debajo de
+  // todo lo impreso y el alumno no lo veria sin bajar.
+  const salidaRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!salidaRef.current) return
+    salidaRef.current.scrollTop = salidaRef.current.scrollHeight
+  }, [output, errorOutput])
+
   const runCode = async () => {
     setOutput('')
     setErrorOutput('')
     setOutputNote('')
     setOutputImages([])
     setIsRunning(true)
+    // Salida en vivo: si el codigo no termina, el alumno ve el print repetirse
+    // y sabe que tiene que pulsar Detener. Si lo detiene, lo impreso se queda.
+    // Las tandas se acumulan y se pintan como mucho cada PINTAR_SALIDA_MS:
+    // repintar en cada tanda un `print` dentro de un bucle infinito dejaba el
+    // hilo principal segundos sin responder, y con el el boton Detener.
+    let pendientes: string[] = []
+    let pintado: ReturnType<typeof setTimeout> | undefined
+    const pintar = () => {
+      pintado = undefined
+      const nuevas = pendientes.join('\n')
+      pendientes = []
+      setOutput((prev) => recortarSalida(prev ? `${prev}\n${nuevas}` : nuevas))
+    }
+    // La salida en vivo viaja por un canal distinto al del resultado, asi que
+    // una tanda rezagada podria llegar despues y duplicarse sobre el stdout
+    // final: al terminar se cierra el grifo.
+    let enVivo = true
+    const onSalida = (lineas: string[]) => {
+      if (!enVivo) return
+      pendientes.push(...lineas)
+      if (pintado === undefined) pintado = setTimeout(pintar, PINTAR_SALIDA_MS)
+    }
     try {
-      const result = await runPythonCode(code)
+      const result = await runPythonCode(code, undefined, onSalida).finally(() => {
+        enVivo = false
+        // Si se corta, lo que quedaba por pintar tambien se muestra.
+        if (pintado !== undefined) {
+          clearTimeout(pintado)
+          pintar()
+        }
+      })
       const hasImages = (result.images || []).length > 0
-      setOutput(result.stdout || '')
+      setOutput(recortarSalida(result.stdout || ''))
       setErrorOutput(result.stderr || (result.ok ? '' : 'Error de ejecución'))
       setOutputImages(result.images || [])
       if (!result.stdout && !result.stderr && result.ok) {
@@ -764,7 +816,9 @@ const CodeEditor: React.FC = () => {
         </div>
       )}
 
-      <div className="flex-1 flex">
+      {/* min-h-0: sin el, un hijo flex no baja de la altura de su contenido y
+          una salida larga estiraba la pagina en vez de hacer scroll en el panel. */}
+      <div className="flex-1 flex min-h-0">
         <div className="flex-1">
           <Editor
             height="100%"
@@ -798,7 +852,7 @@ const CodeEditor: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex-1 p-4 overflow-auto">
+          <div ref={salidaRef} className="flex-1 min-h-0 p-4 overflow-auto">
             {output || errorOutput || outputNote || outputImages.length > 0 ? (
               <div className="space-y-3">
                 {output && (
@@ -833,7 +887,9 @@ const CodeEditor: React.FC = () => {
               </div>
             ) : (
               <p className="text-slate-400 text-sm">
-                La salida aparecera aqui despues de ejecutar el codigo...
+                {isRunning
+                  ? 'Ejecutando... lo que imprima tu codigo aparecera aqui en cuanto lo imprima.'
+                  : 'La salida aparecera aqui despues de ejecutar el codigo...'}
               </p>
             )}
           </div>

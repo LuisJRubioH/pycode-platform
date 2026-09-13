@@ -12,6 +12,7 @@ export type { RunResult, RunTestsResult, HiddenTest };
 export async function runPythonCode(
   code: string,
   timeoutMs = 30_000,
+  onSalida?: (lineas: string[]) => void,
 ): Promise<RunResult> {
   const sandbox = getSandbox();
   // Empuja el token de sesion al worker para que `pycode.llm_complete`
@@ -19,7 +20,7 @@ export async function runPythonCode(
   // leer localStorage, asi que lo pasamos desde el hilo principal.
   const token = localStorage.getItem("pycode_access_token") || "";
   await sandbox.setAuthToken(token);
-  return sandbox.run(code, timeoutMs);
+  return sandbox.run(code, timeoutMs, onSalida);
 }
 
 export async function runHiddenTests(

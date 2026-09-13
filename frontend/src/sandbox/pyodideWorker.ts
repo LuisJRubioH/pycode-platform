@@ -13,16 +13,36 @@ import type {
 
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 
+/**
+ * Salida en vivo. Con el worker bloqueado en codigo sincrono no hay temporizador
+ * que valga, asi que el ritmo se decide al escribir cada linea: dentro de cada
+ * ventana se envian las primeras tandas al momento (un programa que imprime
+ * poco se ve linea a linea) y el resto se acumula hasta la siguiente ventana.
+ * Sin este tope, un `print` dentro de un `while True:` mandaria millones de
+ * mensajes y saturaria el hilo principal, boton Detener incluido.
+ */
+const VENTANA_SALIDA_MS = 250;
+const ENVIOS_POR_VENTANA = 25;
+/** Tanda maxima en vivo: basta para ver que un bucle se repite. */
+const MAX_LINEAS_EN_VIVO = 200;
+/** Lineas de stdout que se guardan; de ahi para arriba se olvidan las antiguas. */
+const MAX_LINEAS_STDOUT = 10_000;
+
 class Kernel {
   private py: PyodideInterface | null = null;
   private stdoutBuf: string[] = [];
   private stderrBuf: string[] = [];
+  private stdoutOmitidas = 0;
+  private enVivo: ((lineas: string[]) => void) | null = null;
+  private pendientes: string[] = [];
+  private inicioVentana = 0;
+  private enviosEnVentana = 0;
 
   async init(): Promise<KernelInfo> {
     if (this.py) return { ready: true, pyodideVersion: this.py.version };
     this.py = await loadPyodide({
       indexURL: PYODIDE_INDEX_URL,
-      stdout: (line) => this.stdoutBuf.push(line),
+      stdout: (line) => this.alEscribir(line),
       stderr: (line) => this.stderrBuf.push(line),
     });
     // Registra el modulo `pycode` con helpers para Track 2 (datasets).
@@ -100,6 +120,39 @@ if 'pycode' not in sys.modules:
     return { ready: true, pyodideVersion: this.py.version };
   }
 
+  private alEscribir(line: string): void {
+    this.stdoutBuf.push(line);
+    if (this.stdoutBuf.length > 2 * MAX_LINEAS_STDOUT) {
+      const sobran = this.stdoutBuf.length - MAX_LINEAS_STDOUT;
+      this.stdoutBuf.splice(0, sobran);
+      this.stdoutOmitidas += sobran;
+    }
+    // Los PNG de matplotlib viajan por stdout pero se muestran como imagen al
+    // terminar; en vivo solo estorbarian.
+    if (!this.enVivo || line.startsWith("<<MATPLOTLIB_PNG:")) return;
+    this.pendientes.push(line);
+    if (this.pendientes.length > 2 * MAX_LINEAS_EN_VIVO) {
+      this.pendientes.splice(0, this.pendientes.length - MAX_LINEAS_EN_VIVO);
+    }
+    const ahora = performance.now();
+    if (ahora - this.inicioVentana >= VENTANA_SALIDA_MS) {
+      this.inicioVentana = ahora;
+      this.enviosEnVentana = 0;
+    }
+    if (this.enviosEnVentana < ENVIOS_POR_VENTANA) {
+      this.enVivo(this.pendientes);
+      this.pendientes = [];
+      this.enviosEnVentana++;
+    }
+  }
+
+  /** stdout completo, avisando si hubo que olvidar el principio. */
+  private stdoutFinal(): string {
+    const texto = this.stdoutBuf.join("\n");
+    if (this.stdoutOmitidas === 0) return texto;
+    return `[... ${this.stdoutOmitidas} lineas anteriores omitidas ...]\n${texto}`;
+  }
+
   /**
    * Guarda el token de acceso del usuario en el scope global del worker para
    * que `pycode.llm_complete` lo incluya en el header Authorization al llamar
@@ -149,10 +202,17 @@ if not getattr(_plt.show, '_pycode_patched', False):
   async run(
     { code, timeoutMs = 30_000 }: RunRequest,
     latido?: () => void,
+    salida?: (lineas: string[]) => void,
   ): Promise<RunResult> {
     if (!this.py) await this.init();
     this.stdoutBuf = [];
     this.stderrBuf = [];
+    this.stdoutOmitidas = 0;
+    this.pendientes = [];
+    this.enviosEnVentana = 0;
+    // La salida en vivo NO es un latido: si lo fuera, un `print` dentro de un
+    // bucle infinito mantendria vivo el worker para siempre.
+    this.enVivo = salida ?? null;
     const start = performance.now();
     let timedOut = false;
     let timer: number | undefined;
@@ -174,9 +234,7 @@ if not getattr(_plt.show, '_pycode_patched', False):
       // principal (issue #32).
       latido?.();
       await Promise.race([this.py!.runPythonAsync(code), timeoutPromise]);
-      const { stdout, images } = extractImagesFromStdout(
-        this.stdoutBuf.join("\n"),
-      );
+      const { stdout, images } = extractImagesFromStdout(this.stdoutFinal());
       return {
         ok: true,
         stdout,
@@ -187,9 +245,7 @@ if not getattr(_plt.show, '_pycode_patched', False):
       };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      const { stdout, images } = extractImagesFromStdout(
-        this.stdoutBuf.join("\n"),
-      );
+      const { stdout, images } = extractImagesFromStdout(this.stdoutFinal());
       return {
         ok: false,
         stdout,
@@ -204,6 +260,8 @@ if not getattr(_plt.show, '_pycode_patched', False):
       };
     } finally {
       if (timer !== undefined) self.clearTimeout(timer);
+      this.enVivo = null;
+      this.pendientes = [];
     }
   }
 
