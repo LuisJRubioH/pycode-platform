@@ -24,6 +24,15 @@ import {
  */
 const MARGEN_WATCHDOG_MS = 3_000;
 
+/**
+ * Estado tras una ejecucion que no devolvio resultado. Si el alumno pulso
+ * Detener no fallo nada: el sandbox queda listo y pintarlo en rojo como "error"
+ * confundia. El corte por tiempo si es un fallo de su codigo y se queda en error.
+ */
+function estadoTrasCorte(e: unknown): RunStatus {
+  return e instanceof SandboxAbortedError ? "ready" : "error";
+}
+
 export class PyodideSandbox {
   private worker: Worker | null = null;
   private kernel: Comlink.Remote<{
@@ -154,7 +163,7 @@ export class PyodideSandbox {
       this.setStatus(result.ok ? "ready" : "error");
       return result;
     } catch (e) {
-      this.setStatus("error");
+      this.setStatus(estadoTrasCorte(e));
       throw e;
     }
   }
@@ -178,7 +187,7 @@ export class PyodideSandbox {
       this.setStatus(result.passed === result.total ? "ready" : "error");
       return result;
     } catch (e) {
-      this.setStatus("error");
+      this.setStatus(estadoTrasCorte(e));
       throw e;
     }
   }
@@ -202,7 +211,7 @@ export class PyodideSandbox {
       this.setStatus(result.passed === result.total ? "ready" : "error");
       return result;
     } catch (e) {
-      this.setStatus("error");
+      this.setStatus(estadoTrasCorte(e));
       throw e;
     }
   }

@@ -69,6 +69,8 @@ describe('PyodideSandbox — limite duro (issue #32)', () => {
     await va
     await vb
     expect(terminados).toHaveLength(1)
+    // Detener no es un fallo: la cabecera no debe quedar en rojo.
+    expect(sandbox.status).toBe('ready')
   })
 
   it('el temporizador de un worker ya abortado no mata al worker nuevo', async () => {
