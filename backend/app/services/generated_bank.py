@@ -856,6 +856,230 @@ CHALLENGE_TEMPLATES: list[ChallengeTemplate] = [
             starter_code="import numpy as np\n\n\ndef distancia_coseno_filas(a: np.ndarray, b: np.ndarray) -> np.ndarray:\n    # TODO\n    pass\n",
         ),
     ),
+    # --------------------------------------------------------------------------
+    # Problemas de datos y ML (Bloque B, parte 2): la rampa hacia Tracks 2-4.
+    # Todo con la libreria estandar o NumPy, sin scikit-learn: la idea es
+    # construir a mano lo que despues se usara ya hecho.
+    # --------------------------------------------------------------------------
+    ChallengeTemplate(
+        slug_base="ml-train-test-split",
+        title="Train/Test Split",
+        topic="ml",
+        easy=NivelReto(
+            prompt=(
+                "Antes de entrenar un modelo se separan los datos: con unos se entrena y "
+                "con otros, que el modelo nunca vio, se evalúa.\n\n"
+                "Escribe `dividir(datos, proporcion_test)` que devuelva una tupla "
+                "`(train, test)`: los **últimos** `round(len(datos) * proporcion_test)` "
+                "elementos van a `test` y el resto a `train`, sin cambiar el orden.\n\n"
+                "Ejemplo: `dividir([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 0.2)` → "
+                "`([1, 2, 3, 4, 5, 6, 7, 8], [9, 10])`"
+            ),
+            starter_code="def dividir(datos: list, proporcion_test: float) -> tuple[list, list]:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Cortar siempre por el final es peligroso: si los datos vienen ordenados "
+                "(por fecha, por clase), el test no se parece al train.\n\n"
+                "Escribe `dividir_aleatorio(datos, proporcion_test, semilla)` que baraje "
+                "una **copia** de los datos con `random.Random(semilla).shuffle(...)` y "
+                "luego corte como en el nivel anterior.\n\n"
+                "- La lista original no se toca.\n"
+                "- Con la misma semilla, el resultado es siempre el mismo: así un "
+                "experimento se puede repetir."
+            ),
+            starter_code="import random\n\n\ndef dividir_aleatorio(datos: list, proporcion_test: float, semilla: int) -> tuple[list, list]:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Con clases desbalanceadas, un corte aleatorio puede dejar el test casi "
+                "sin ejemplos de la clase rara. La solución es **estratificar**.\n\n"
+                "Escribe `dividir_estratificado(etiquetas, proporcion_test, semilla)` que "
+                "devuelva dos listas **ordenadas** de índices, `(idx_train, idx_test)`:\n\n"
+                "- para cada clase, baraja sus índices con `random.Random(semilla)` y manda "
+                "`round(n_clase * proporcion_test)` de ellos a test;\n"
+                "- cada índice aparece exactamente en una de las dos listas.\n\n"
+                "Ejemplo: con 8 etiquetas `0` y 2 etiquetas `1` y `proporcion_test=0.5`, "
+                "el test tiene 4 índices de la clase `0` y 1 de la clase `1`."
+            ),
+            starter_code="import random\n\n\ndef dividir_estratificado(etiquetas: list, proporcion_test: float, semilla: int) -> tuple[list[int], list[int]]:\n    # TODO\n    pass\n",
+        ),
+    ),
+    ChallengeTemplate(
+        slug_base="ml-metricas",
+        title="Metricas de Clasificacion",
+        topic="ml",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `accuracy(y_true, y_pred)`: la fracción de predicciones que "
+                "aciertan. Si las listas tienen distinto largo o están vacías, lanza "
+                "`ValueError`.\n\n"
+                "Ejemplo: `accuracy([1, 0, 1, 1], [1, 0, 0, 1])` → `0.75`"
+            ),
+            starter_code="def accuracy(y_true: list[int], y_pred: list[int]) -> float:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "La accuracy engaña con clases desbalanceadas: un modelo que dice siempre "
+                "`0` acierta el 95 % si solo el 5 % son `1`.\n\n"
+                "Escribe `precision_recall_f1(y_true, y_pred)` para clasificación binaria "
+                "(la clase positiva es `1`) que devuelva `(precision, recall, f1)`:\n\n"
+                "- `precision = tp / (tp + fp)`, o `0.0` si no predijo ningún positivo;\n"
+                "- `recall = tp / (tp + fn)`, o `0.0` si no hay positivos reales;\n"
+                "- `f1 = 2 * p * r / (p + r)`, o `0.0` si `p + r == 0`.\n\n"
+                "Ejemplo: `precision_recall_f1([1, 0, 1, 1, 0], [1, 0, 0, 1, 1])` → "
+                "`(0.666..., 0.666..., 0.666...)`"
+            ),
+            starter_code="def precision_recall_f1(y_true: list[int], y_pred: list[int]) -> tuple[float, float, float]:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `auc_roc(y_true, scores)`: el área bajo la curva ROC, calculada "
+                "como la probabilidad de que un positivo al azar tenga **más** score que "
+                "un negativo al azar. Compara todas las parejas (positivo, negativo): "
+                "gana 1 si el positivo tiene más score, 0.5 si empatan y 0 si tiene "
+                "menos, y promedia.\n\n"
+                "Si solo hay una clase, lanza `ValueError`: el AUC no está definido.\n\n"
+                "Ejemplo: `auc_roc([0, 0, 1, 1], [0.1, 0.4, 0.35, 0.8])` → `0.75`\n\n"
+                "Un AUC de 0.5 es tirar una moneda; 1.0 separa las clases perfectamente."
+            ),
+            starter_code="def auc_roc(y_true: list[int], scores: list[float]) -> float:\n    # TODO\n    pass\n",
+        ),
+    ),
+    ChallengeTemplate(
+        slug_base="ml-regresion-lineal",
+        title="Regresion Lineal con NumPy",
+        topic="ml",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `ajustar_recta(x, y)` que devuelva `(pendiente, intercepto)` de la "
+                "recta de mínimos cuadrados, con las fórmulas cerradas:\n\n"
+                "- `pendiente = Σ(x - x̄)(y - ȳ) / Σ(x - x̄)²`\n"
+                "- `intercepto = ȳ - pendiente * x̄`\n\n"
+                "Devuelve `float` de Python.\n\n"
+                "Ejemplo: `ajustar_recta(np.array([0, 1, 2, 3]), np.array([1, 3, 5, 7]))` → "
+                "`(2.0, 1.0)`"
+            ),
+            starter_code="import numpy as np\n\n\ndef ajustar_recta(x: np.ndarray, y: np.ndarray) -> tuple[float, float]:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Las fórmulas cerradas no escalan a millones de datos o a modelos no "
+                "lineales; el **descenso de gradiente** sí. Escribe "
+                "`descenso_gradiente(x, y, lr, epocas)` que ajuste `y ≈ w*x + b` "
+                "empezando en `w = 0`, `b = 0` y repitiendo `epocas` veces:\n\n"
+                "```\n"
+                "error = (w*x + b) - y\n"
+                "w = w - lr * 2 * mean(error * x)\n"
+                "b = b - lr * 2 * mean(error)\n"
+                "```\n\n"
+                "Devuelve `(w, b)` como `float`. Con `epocas=0` tiene que devolver "
+                "`(0.0, 0.0)`: todavía no aprendió nada."
+            ),
+            starter_code="import numpy as np\n\n\ndef descenso_gradiente(x: np.ndarray, y: np.ndarray, lr: float, epocas: int) -> tuple[float, float]:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `ridge(X, y, alpha)` para regresión lineal **multivariable** con "
+                "regularización L2, que devuelva `(coef, intercepto)`: `coef` es un array "
+                "de forma `(d,)` e `intercepto` un `float`.\n\n"
+                "El intercepto **no** se regulariza. La forma limpia es centrar primero:\n\n"
+                "```\n"
+                "Xc = X - X.mean(axis=0)\n"
+                "yc = y - y.mean()\n"
+                "coef = resolver (Xc.T @ Xc + alpha * I) coef = Xc.T @ yc\n"
+                "intercepto = y.mean() - X.mean(axis=0) @ coef\n"
+                "```\n\n"
+                "Usa `np.linalg.solve`, no `inv`. Con `alpha=0` es la regresión lineal de "
+                "siempre; al subir `alpha`, los coeficientes se encogen hacia 0."
+            ),
+            starter_code="import numpy as np\n\n\ndef ridge(X: np.ndarray, y: np.ndarray, alpha: float) -> tuple[np.ndarray, float]:\n    # TODO\n    pass\n",
+        ),
+    ),
+    ChallengeTemplate(
+        slug_base="ml-knn",
+        title="KNN desde Cero",
+        topic="ml",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `distancias(punto, puntos)` que devuelva un array con la distancia "
+                "euclídea de `punto` (forma `(d,)`) a cada fila de `puntos` (forma "
+                "`(n, d)`), **sin bucles**.\n\n"
+                "Ejemplo: `distancias(np.array([0, 0]), np.array([[3, 4], [0, 1]]))` → "
+                "`array([5., 1.])`"
+            ),
+            starter_code="import numpy as np\n\n\ndef distancias(punto: np.ndarray, puntos: np.ndarray) -> np.ndarray:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `knn_predecir(X_train, y_train, punto, k)`: busca los `k` puntos "
+                "de entrenamiento más cercanos a `punto` y devuelve la clase más votada "
+                "entre ellos.\n\n"
+                "Si hay empate en votos, gana la clase empatada que tenga el vecino **más "
+                "cercano**.\n\n"
+                "Pista: `np.argsort` de las distancias da los índices de los vecinos en "
+                "orden."
+            ),
+            starter_code="import numpy as np\n\n\ndef knn_predecir(X_train: np.ndarray, y_train: np.ndarray, punto: np.ndarray, k: int):\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Evalúa tu KNN con **validación cruzada**. Escribe "
+                "`kfold_accuracy(X, y, k_vecinos, n_folds)`:\n\n"
+                "1. Parte los índices `0..n-1` en `n_folds` bloques seguidos con "
+                "`np.array_split(np.arange(n), n_folds)`.\n"
+                "2. Para cada bloque: entrena con el resto de los datos, predice cada "
+                "punto del bloque con KNN (mismo desempate que el nivel anterior) y "
+                "calcula la accuracy del bloque.\n"
+                "3. Devuelve la media de las accuracies como `float`.\n\n"
+                "Si `n_folds` es menor que 2 o mayor que `n`, lanza `ValueError`."
+            ),
+            starter_code="import numpy as np\n\n\ndef kfold_accuracy(X: np.ndarray, y: np.ndarray, k_vecinos: int, n_folds: int) -> float:\n    # TODO\n    pass\n",
+        ),
+    ),
+    ChallengeTemplate(
+        slug_base="ml-anomalias",
+        title="Deteccion de Anomalias",
+        topic="ml",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `anomalias_zscore(valores, umbral)` que devuelva la lista de "
+                "**índices** de los valores cuyo z-score, `|x - media| / desviacion`, sea "
+                "mayor que `umbral`. Usa la desviación poblacional (`np.std`). Si la "
+                "desviación es 0, no hay anomalías.\n\n"
+                "Ejemplo: `anomalias_zscore([10] * 20 + [50], 3.0)` → `[20]`"
+            ),
+            starter_code="import numpy as np\n\n\ndef anomalias_zscore(valores: list[float], umbral: float) -> list[int]:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "En una serie temporal, lo normal cambia con el tiempo: comparar con la "
+                "media de toda la serie no sirve. Escribe "
+                "`anomalias_media_movil(valores, ventana, umbral)`:\n\n"
+                "- para cada `i >= ventana`, toma los `ventana` valores **anteriores**;\n"
+                "- `valores[i]` es anómalo si se aleja de su media más de `umbral` veces "
+                "su desviación (poblacional);\n"
+                "- si esa desviación es 0, es anómalo si es distinto de la media.\n\n"
+                "Devuelve la lista de índices.\n\n"
+                "Ejemplo: `anomalias_media_movil([1, 1, 1, 1, 9, 1, 1], 3, 2.0)` → `[4]`"
+            ),
+            starter_code="import numpy as np\n\n\ndef anomalias_media_movil(valores: list[float], ventana: int, umbral: float) -> list[int]:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "La media y la desviación se contaminan con los propios outliers; el "
+                "**IQR** es más robusto. Escribe `anomalias_iqr_ventana(valores, ventana)`:\n\n"
+                "- para cada `i >= ventana`, calcula `Q1` y `Q3` de los `ventana` valores "
+                "anteriores con `np.percentile`;\n"
+                "- `valores[i]` es anómalo si queda fuera de "
+                "`[Q1 - 1.5*IQR, Q3 + 1.5*IQR]`, con `IQR = Q3 - Q1`.\n\n"
+                "Devuelve la lista de índices.\n\n"
+                "Ejemplo: `anomalias_iqr_ventana([5] * 10 + [20] * 10, 5)` → `[10, 11]`: "
+                "el salto se detecta al principio y la ventana se adapta al nuevo nivel."
+            ),
+            starter_code="import numpy as np\n\n\ndef anomalias_iqr_ventana(valores: list[float], ventana: int) -> list[int]:\n    # TODO\n    pass\n",
+        ),
+    ),
 ]
 
 

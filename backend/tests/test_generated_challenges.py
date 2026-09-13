@@ -104,7 +104,7 @@ async def test_seed_actualiza_conserva_ids_y_borra_obsoletos():
     async with async_session_maker() as session:
         await seed_generated_challenges(session)
     antes = {c.slug: c.id for c in await _generados()}
-    assert len(antes) == 60
+    assert len(antes) == len(CHALLENGE_TEMPLATES) * 3
 
     slug_two_sum_dificil = slug_nivel("arrays-two-sum", "dificil")
     async with async_session_maker() as session:

@@ -57,7 +57,7 @@ Referencia del modelo de datos. Postgres 17 (Supabase en prod), gestionado con *
 ### `datasets` — datasets servidos como CSV a Pyodide (Track 2)
 `slug`, `name`, `description`, `source_url`, `license` · `columns_schema` (json), `sample_rows` (json), **`csv_content` (text)**, `row_count`, `is_active`. Servido por `GET /api/v1/datasets/{slug}/csv`.
 
-### `coding_challenges` — retos (20 problemas × 3 niveles + 10 curados)
+### `coding_challenges` — retos (25 problemas × 3 niveles + 10 curados)
 `title`, `slug`, `source`, `source_path`, `difficulty`, `topic`, `prompt`, `starter_code` · **`reference_solution` (text)** — no se sirve nunca (guard rail) · **`hidden_tests` (json)** (migración `0015`) — los pide el editor en `GET /challenges/{id}/hidden-tests` · `order_index`, `is_active`. El contenido lo sincroniza el seed desde `generated_bank.py`, `curated_retos.py` y `retos_validacion.py`.
 
 ### `puzzles` — puzzles ELO (predice-la-salida, estilo Finxter)

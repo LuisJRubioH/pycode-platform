@@ -2094,6 +2094,656 @@ VALIDACION_GENERADOS: dict[tuple[str, str], ValidacionReto] = {
             ),
         ],
     ),
+    # ------------------------------------------------------ ml: train/test split
+    ("ml-train-test-split", "easy"): ValidacionReto(
+        _s("""
+            def dividir(datos: list, proporcion_test: float) -> tuple[list, list]:
+                n_test = round(len(datos) * proporcion_test)
+                corte = len(datos) - n_test
+                return (list(datos[:corte]), list(datos[corte:]))
+        """),
+        [
+            _t(
+                "los ultimos van a test, en orden",
+                """
+                assert dividir([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 0.2) == ([1, 2, 3, 4, 5, 6, 7, 8], [9, 10])
+            """,
+            ),
+            _t(
+                "redondea el tamano de test",
+                """
+                train, test = dividir(list('abcdefg'), 0.3)
+                assert (len(train), len(test)) == (5, 2), f'tamanos {len(train)}, {len(test)}'
+                assert train + test == list('abcdefg')
+            """,
+            ),
+            _t(
+                "proporcion 0 deja test vacio",
+                """
+                assert dividir([1, 2, 3], 0.0) == ([1, 2, 3], [])
+            """,
+            ),
+        ],
+    ),
+    ("ml-train-test-split", "medium"): ValidacionReto(
+        _s("""
+            import random
+
+
+            def dividir_aleatorio(datos: list, proporcion_test: float, semilla: int) -> tuple[list, list]:
+                copia = list(datos)
+                random.Random(semilla).shuffle(copia)
+                corte = len(copia) - round(len(copia) * proporcion_test)
+                return (copia[:corte], copia[corte:])
+        """),
+        [
+            _t(
+                "baraja y respeta los tamanos",
+                """
+                datos = list(range(20))
+                train, test = dividir_aleatorio(datos, 0.25, semilla=0)
+                assert (len(train), len(test)) == (15, 5)
+                assert sorted(train + test) == datos, 'se perdieron o duplicaron elementos'
+                assert train + test != datos, 'no barajaste: el orden es el original'
+            """,
+            ),
+            _t(
+                "misma semilla, mismo resultado",
+                """
+                datos = list(range(30))
+                assert dividir_aleatorio(datos, 0.2, 7) == dividir_aleatorio(datos, 0.2, 7)
+                assert dividir_aleatorio(datos, 0.2, 7) != dividir_aleatorio(datos, 0.2, 8)
+            """,
+            ),
+            _t(
+                "no toca la lista original",
+                """
+                datos = list(range(10))
+                train, test = dividir_aleatorio(datos, 0.5, 1)
+                assert len(test) == 5
+                assert datos == list(range(10)), 'barajaste la lista original, no una copia'
+            """,
+            ),
+            _t(
+                "usa random.Random(semilla).shuffle",
+                """
+                import random
+                esperado = list(range(10))
+                random.Random(3).shuffle(esperado)
+                assert dividir_aleatorio(list(range(10)), 0.3, 3) == (esperado[:7], esperado[7:])
+            """,
+            ),
+        ],
+    ),
+    ("ml-train-test-split", "hard"): ValidacionReto(
+        _s("""
+            import random
+
+
+            def dividir_estratificado(etiquetas: list, proporcion_test: float, semilla: int) -> tuple[list[int], list[int]]:
+                rng = random.Random(semilla)
+                por_clase = {}
+                for i, etiqueta in enumerate(etiquetas):
+                    por_clase.setdefault(etiqueta, []).append(i)
+                idx_test = []
+                for clase in sorted(por_clase, key=str):
+                    indices = por_clase[clase]
+                    rng.shuffle(indices)
+                    idx_test.extend(indices[:round(len(indices) * proporcion_test)])
+                idx_test = sorted(idx_test)
+                en_test = set(idx_test)
+                idx_train = [i for i in range(len(etiquetas)) if i not in en_test]
+                return (idx_train, idx_test)
+        """),
+        [
+            _t(
+                "mantiene la proporcion de cada clase",
+                """
+                etiquetas = [0] * 8 + [1] * 2
+                train, test = dividir_estratificado(etiquetas, 0.5, 0)
+                assert sorted(etiquetas[i] for i in test) == [0, 0, 0, 0, 1], f'test tiene {[etiquetas[i] for i in test]}'
+            """,
+            ),
+            _t(
+                "particion completa, sin repetir y ordenada",
+                """
+                etiquetas = ['a'] * 12 + ['b'] * 6 + ['c'] * 3
+                train, test = dividir_estratificado(etiquetas, 1 / 3, 5)
+                assert sorted(train + test) == list(range(len(etiquetas)))
+                assert train == sorted(train) and test == sorted(test)
+                assert [etiquetas[i] for i in test].count('b') == 2
+            """,
+            ),
+            _t(
+                "reproducible con la semilla",
+                """
+                etiquetas = [0, 1] * 15
+                primera = dividir_estratificado(etiquetas, 0.2, 9)
+                assert len(primera[1]) == 6, 'tiene que devolver (idx_train, idx_test)'
+                assert primera == dividir_estratificado(etiquetas, 0.2, 9)
+            """,
+            ),
+        ],
+    ),
+    # --------------------------------------------------------------- ml: metricas
+    ("ml-metricas", "easy"): ValidacionReto(
+        _s("""
+            def accuracy(y_true: list[int], y_pred: list[int]) -> float:
+                if len(y_true) != len(y_pred) or not y_true:
+                    raise ValueError('listas vacias o de distinto largo')
+                return sum(a == b for a, b in zip(y_true, y_pred)) / len(y_true)
+        """),
+        [
+            _t(
+                "fraccion de aciertos",
+                """
+                assert accuracy([1, 0, 1, 1], [1, 0, 0, 1]) == 0.75
+                assert accuracy(['gato', 'perro'], ['gato', 'perro']) == 1.0
+            """,
+            ),
+            _t(
+                "largos distintos o vacias lanzan ValueError",
+                """
+                for a, b in (([1, 0], [1]), ([], [])):
+                    try:
+                        accuracy(a, b)
+                    except ValueError:
+                        pass
+                    else:
+                        raise AssertionError(f'accuracy({a}, {b}) deberia lanzar ValueError')
+            """,
+            ),
+        ],
+    ),
+    ("ml-metricas", "medium"): ValidacionReto(
+        _s("""
+            def precision_recall_f1(y_true: list[int], y_pred: list[int]) -> tuple[float, float, float]:
+                tp = sum(1 for t, p in zip(y_true, y_pred) if t == 1 and p == 1)
+                fp = sum(1 for t, p in zip(y_true, y_pred) if t == 0 and p == 1)
+                fn = sum(1 for t, p in zip(y_true, y_pred) if t == 1 and p == 0)
+                precision = tp / (tp + fp) if tp + fp else 0.0
+                recall = tp / (tp + fn) if tp + fn else 0.0
+                f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+                return (precision, recall, f1)
+        """),
+        [
+            _t(
+                "el ejemplo del enunciado",
+                """
+                p, r, f = precision_recall_f1([1, 0, 1, 1, 0], [1, 0, 0, 1, 1])
+                assert abs(p - 2 / 3) < 1e-9 and abs(r - 2 / 3) < 1e-9 and abs(f - 2 / 3) < 1e-9
+            """,
+            ),
+            _t(
+                "precision y recall distintas",
+                """
+                p, r, f = precision_recall_f1([1, 1, 1, 1, 0], [1, 0, 0, 0, 0])
+                assert (p, r) == (1.0, 0.25), f'devolvio {(p, r)}'
+                assert abs(f - 0.4) < 1e-9
+            """,
+            ),
+            _t(
+                "sin positivos predichos no divide por cero",
+                """
+                assert precision_recall_f1([1, 0, 1], [0, 0, 0]) == (0.0, 0.0, 0.0)
+            """,
+            ),
+        ],
+    ),
+    ("ml-metricas", "hard"): ValidacionReto(
+        _s("""
+            def auc_roc(y_true: list[int], scores: list[float]) -> float:
+                positivos = [s for s, y in zip(scores, y_true) if y == 1]
+                negativos = [s for s, y in zip(scores, y_true) if y == 0]
+                if not positivos or not negativos:
+                    raise ValueError('hacen falta las dos clases')
+                ganadas = 0.0
+                for p in positivos:
+                    for n in negativos:
+                        ganadas += 1.0 if p > n else 0.5 if p == n else 0.0
+                return ganadas / (len(positivos) * len(negativos))
+        """),
+        [
+            _t(
+                "el ejemplo del enunciado",
+                """
+                assert abs(auc_roc([0, 0, 1, 1], [0.1, 0.4, 0.35, 0.8]) - 0.75) < 1e-9
+            """,
+            ),
+            _t(
+                "separacion perfecta, invertida y empates",
+                """
+                assert auc_roc([0, 0, 1], [0.1, 0.2, 0.9]) == 1.0
+                assert auc_roc([0, 0, 1], [0.8, 0.9, 0.1]) == 0.0
+                assert auc_roc([0, 1, 0, 1], [0.5, 0.5, 0.5, 0.5]) == 0.5, 'los empates valen 0.5'
+            """,
+            ),
+            _t(
+                "una sola clase lanza ValueError",
+                """
+                try:
+                    auc_roc([1, 1], [0.3, 0.6])
+                except ValueError:
+                    pass
+                else:
+                    raise AssertionError('con una sola clase el AUC no esta definido')
+            """,
+            ),
+        ],
+    ),
+    # ----------------------------------------------------- ml: regresion lineal
+    ("ml-regresion-lineal", "easy"): ValidacionReto(
+        _s("""
+            import numpy as np
+
+
+            def ajustar_recta(x: np.ndarray, y: np.ndarray) -> tuple[float, float]:
+                x = np.asarray(x, dtype=float)
+                y = np.asarray(y, dtype=float)
+                dx = x - x.mean()
+                pendiente = float((dx * (y - y.mean())).sum() / (dx ** 2).sum())
+                return (pendiente, float(y.mean() - pendiente * x.mean()))
+        """),
+        [
+            _t(
+                "recta exacta",
+                """
+                import numpy as np
+                m, b = ajustar_recta(np.array([0, 1, 2, 3]), np.array([1, 3, 5, 7]))
+                assert abs(m - 2) < 1e-9 and abs(b - 1) < 1e-9, f'devolvio {(m, b)}'
+                assert type(m) is float and type(b) is float, 'devuelve float de Python'
+            """,
+            ),
+            _t(
+                "con ruido coincide con polyfit",
+                """
+                import numpy as np
+                rng = np.random.default_rng(0)
+                x = rng.uniform(0, 10, 100)
+                y = -1.5 * x + 4 + rng.normal(0, 1, 100)
+                m, b = ajustar_recta(x, y)
+                m_ref, b_ref = np.polyfit(x, y, 1)
+                assert abs(m - m_ref) < 1e-9 and abs(b - b_ref) < 1e-9
+            """,
+            ),
+        ],
+    ),
+    ("ml-regresion-lineal", "medium"): ValidacionReto(
+        _s("""
+            import numpy as np
+
+
+            def descenso_gradiente(x: np.ndarray, y: np.ndarray, lr: float, epocas: int) -> tuple[float, float]:
+                x = np.asarray(x, dtype=float)
+                y = np.asarray(y, dtype=float)
+                w = b = 0.0
+                for _ in range(epocas):
+                    error = (w * x + b) - y
+                    w -= lr * 2 * float(np.mean(error * x))
+                    b -= lr * 2 * float(np.mean(error))
+                return (float(w), float(b))
+        """),
+        [
+            _t(
+                "converge a la recta",
+                """
+                import numpy as np
+                x = np.linspace(0, 1, 50)
+                w, b = descenso_gradiente(x, 3 * x - 2, lr=0.5, epocas=3000)
+                assert abs(w - 3) < 1e-3 and abs(b + 2) < 1e-3, f'devolvio {(w, b)}'
+            """,
+            ),
+            _t(
+                "sin epocas no aprende nada",
+                """
+                import numpy as np
+                x = np.array([1.0, 2.0])
+                assert descenso_gradiente(x, 2 * x, lr=0.1, epocas=0) == (0.0, 0.0)
+            """,
+            ),
+            _t(
+                "una sola epoca da el primer paso exacto",
+                """
+                import numpy as np
+                x = np.array([1.0, 2.0, 3.0])
+                y = np.array([2.0, 4.0, 6.0])
+                w, b = descenso_gradiente(x, y, lr=0.1, epocas=1)
+                # error = -y -> w = 0.1 * 2 * mean([2, 8, 18]) = 28/15, b = 0.1 * 2 * mean(y) = 0.8
+                assert abs(w - 28 / 15) < 1e-9 and abs(b - 0.8) < 1e-9, f'devolvio {(w, b)}'
+            """,
+            ),
+        ],
+    ),
+    ("ml-regresion-lineal", "hard"): ValidacionReto(
+        _s("""
+            import numpy as np
+
+
+            def ridge(X: np.ndarray, y: np.ndarray, alpha: float) -> tuple[np.ndarray, float]:
+                X = np.asarray(X, dtype=float)
+                y = np.asarray(y, dtype=float)
+                media_x = X.mean(axis=0)
+                media_y = y.mean()
+                Xc = X - media_x
+                coef = np.linalg.solve(Xc.T @ Xc + alpha * np.eye(X.shape[1]), Xc.T @ (y - media_y))
+                return (coef, float(media_y - media_x @ coef))
+        """),
+        [
+            _t(
+                "con alpha 0 es la regresion lineal",
+                """
+                import numpy as np
+                rng = np.random.default_rng(1)
+                X = rng.normal(size=(80, 3))
+                y = X @ np.array([2.0, -1.0, 0.5]) + 3 + rng.normal(0, 0.1, 80)
+                coef, intercepto = ridge(X, y, 0.0)
+                A = np.column_stack([X, np.ones(80)])
+                ref = np.linalg.lstsq(A, y, rcond=None)[0]
+                assert coef.shape == (3,)
+                assert np.allclose(coef, ref[:3]) and abs(intercepto - ref[3]) < 1e-9
+            """,
+            ),
+            _t(
+                "mas alpha, coeficientes mas pequenos",
+                """
+                import numpy as np
+                rng = np.random.default_rng(2)
+                X = rng.normal(size=(60, 4))
+                y = X @ np.array([3.0, -2.0, 1.0, 0.5]) + rng.normal(0, 0.5, 60)
+                normas = [np.linalg.norm(ridge(X, y, a)[0]) for a in (0.0, 10.0, 1000.0)]
+                assert normas[0] > normas[1] > normas[2], f'normas {normas}'
+            """,
+            ),
+            _t(
+                "el intercepto no se regulariza",
+                """
+                import numpy as np
+                rng = np.random.default_rng(3)
+                X = rng.normal(size=(50, 2))
+                y = X @ np.array([1.0, 1.0]) + 10
+                coef, intercepto = ridge(X, y, 1e9)
+                assert np.allclose(coef, 0, atol=1e-6)
+                assert abs(intercepto - y.mean()) < 1e-6, 'con alpha enorme el intercepto tiende a la media de y'
+            """,
+            ),
+        ],
+    ),
+    # ------------------------------------------------------------------ ml: knn
+    ("ml-knn", "easy"): ValidacionReto(
+        _s("""
+            import numpy as np
+
+
+            def distancias(punto: np.ndarray, puntos: np.ndarray) -> np.ndarray:
+                return np.sqrt(((np.asarray(puntos, dtype=float) - np.asarray(punto, dtype=float)) ** 2).sum(axis=1))
+        """),
+        [
+            _t(
+                "distancia euclidea a cada fila",
+                """
+                import numpy as np
+                obtenido = distancias(np.array([0, 0]), np.array([[3, 4], [0, 1]]))
+                assert obtenido.shape == (2,)
+                assert np.allclose(obtenido, [5.0, 1.0]), f'devolvio {obtenido}'
+            """,
+            ),
+            _t(
+                "funciona en mas dimensiones",
+                """
+                import numpy as np
+                obtenido = distancias(np.array([1, 1, 1]), np.array([[1, 1, 1], [2, 3, 3]]))
+                assert np.allclose(obtenido, [0.0, 3.0])
+            """,
+            ),
+        ],
+    ),
+    ("ml-knn", "medium"): ValidacionReto(
+        _s("""
+            import numpy as np
+
+
+            def knn_predecir(X_train: np.ndarray, y_train: np.ndarray, punto: np.ndarray, k: int):
+                d = np.sqrt(((np.asarray(X_train, dtype=float) - np.asarray(punto, dtype=float)) ** 2).sum(axis=1))
+                orden = np.argsort(d, kind='stable')[:k]
+                votos = {}
+                primero = {}
+                for posicion, i in enumerate(orden):
+                    clase = y_train[i].item() if hasattr(y_train[i], 'item') else y_train[i]
+                    votos[clase] = votos.get(clase, 0) + 1
+                    primero.setdefault(clase, posicion)
+                maximo = max(votos.values())
+                empatadas = [c for c, v in votos.items() if v == maximo]
+                return min(empatadas, key=lambda c: primero[c])
+        """),
+        [
+            _t(
+                "gana la mayoria",
+                """
+                import numpy as np
+                X = np.array([[0, 0], [0, 1], [1, 0], [5, 5], [5, 6]])
+                y = np.array(['a', 'a', 'a', 'b', 'b'])
+                assert knn_predecir(X, y, np.array([0.5, 0.5]), 3) == 'a'
+                assert knn_predecir(X, y, np.array([5, 5.5]), 1) == 'b'
+            """,
+            ),
+            _t(
+                "con k grande manda la mayoria global",
+                """
+                import numpy as np
+                X = np.array([[0, 0], [10, 10], [11, 11], [12, 12]])
+                y = np.array([0, 1, 1, 1])
+                assert knn_predecir(X, y, np.array([0, 0]), 4) == 1
+            """,
+            ),
+            _t(
+                "empate: gana la clase del vecino mas cercano",
+                """
+                import numpy as np
+                X = np.array([[1, 0], [2, 0], [3, 0], [4, 0]])
+                y = np.array([1, 0, 0, 1])
+                assert knn_predecir(X, y, np.array([0, 0]), 4) == 1, 'el vecino mas cercano es de la clase 1'
+                assert knn_predecir(X, y, np.array([2.1, 0]), 2) == 0
+            """,
+            ),
+        ],
+    ),
+    ("ml-knn", "hard"): ValidacionReto(
+        _s("""
+            import numpy as np
+
+
+            def _predecir(X_train, y_train, punto, k):
+                d = np.sqrt(((X_train - punto) ** 2).sum(axis=1))
+                orden = np.argsort(d, kind='stable')[:k]
+                votos, primero = {}, {}
+                for posicion, i in enumerate(orden):
+                    clase = y_train[i].item() if hasattr(y_train[i], 'item') else y_train[i]
+                    votos[clase] = votos.get(clase, 0) + 1
+                    primero.setdefault(clase, posicion)
+                maximo = max(votos.values())
+                return min((c for c, v in votos.items() if v == maximo), key=lambda c: primero[c])
+
+
+            def kfold_accuracy(X: np.ndarray, y: np.ndarray, k_vecinos: int, n_folds: int) -> float:
+                X = np.asarray(X, dtype=float)
+                y = np.asarray(y)
+                n = len(X)
+                if n_folds < 2 or n_folds > n:
+                    raise ValueError('n_folds tiene que estar entre 2 y n')
+                accuracies = []
+                for bloque in np.array_split(np.arange(n), n_folds):
+                    resto = np.setdiff1d(np.arange(n), bloque)
+                    aciertos = sum(_predecir(X[resto], y[resto], X[i], k_vecinos) == y[i] for i in bloque)
+                    accuracies.append(aciertos / len(bloque))
+                return float(np.mean(accuracies))
+        """),
+        [
+            _t(
+                "clases separadas: accuracy 1",
+                """
+                import numpy as np
+                rng = np.random.default_rng(0)
+                X = np.vstack([rng.normal(0, 0.3, (15, 2)), rng.normal(10, 0.3, (15, 2))])
+                y = np.array([0] * 15 + [1] * 15)
+                orden = rng.permutation(30)
+                resultado = kfold_accuracy(X[orden], y[orden], 3, 5)
+                assert type(resultado) is float and resultado == 1.0, f'devolvio {resultado!r}'
+            """,
+            ),
+            _t(
+                "vecino siempre de la otra clase: accuracy 0",
+                """
+                import numpy as np
+                X = np.arange(12, dtype=float).reshape(-1, 1)
+                y = np.array([0, 1] * 6)
+                X[1::2] += 0.1   # cada punto tiene a su lado uno de la otra clase
+                assert kfold_accuracy(X, y, 1, 12) == 0.0
+            """,
+            ),
+            _t(
+                "usa bloques seguidos con array_split",
+                """
+                import numpy as np
+                # Con 3 bloques seguidos, el bloque del medio (clase 1) no tiene
+                # ningun ejemplo de su clase en train: todo el bloque falla.
+                X = np.array([[0.0], [0.1], [0.2], [5.0], [5.1], [5.2], [0.3], [0.4], [0.5]])
+                y = np.array([0, 0, 0, 1, 1, 1, 0, 0, 0])
+                resultado = kfold_accuracy(X, y, 1, 3)
+                assert abs(resultado - 2 / 3) < 1e-9, f'devolvio {resultado}'
+            """,
+            ),
+            _t(
+                "n_folds invalido lanza ValueError",
+                """
+                import numpy as np
+                X = np.zeros((4, 1))
+                y = np.array([0, 1, 0, 1])
+                for folds in (1, 5):
+                    try:
+                        kfold_accuracy(X, y, 1, folds)
+                    except ValueError:
+                        pass
+                    else:
+                        raise AssertionError(f'n_folds={folds} deberia lanzar ValueError')
+            """,
+            ),
+        ],
+    ),
+    # ------------------------------------------------------------ ml: anomalias
+    ("ml-anomalias", "easy"): ValidacionReto(
+        _s("""
+            import numpy as np
+
+
+            def anomalias_zscore(valores: list[float], umbral: float) -> list[int]:
+                v = np.asarray(valores, dtype=float)
+                desviacion = v.std()
+                if desviacion == 0:
+                    return []
+                return [int(i) for i in np.flatnonzero(np.abs(v - v.mean()) / desviacion > umbral)]
+        """),
+        [
+            _t(
+                "detecta el pico",
+                """
+                assert anomalias_zscore([10] * 20 + [50], 3.0) == [20]
+            """,
+            ),
+            _t(
+                "el umbral importa",
+                """
+                valores = [0, 0, 0, 0, 10]
+                assert anomalias_zscore(valores, 1.5) == [4]
+                assert anomalias_zscore(valores, 3.0) == []
+            """,
+            ),
+            _t(
+                "serie constante: sin anomalias",
+                """
+                assert anomalias_zscore([7, 7, 7], 1.0) == []
+            """,
+            ),
+        ],
+    ),
+    ("ml-anomalias", "medium"): ValidacionReto(
+        _s("""
+            import numpy as np
+
+
+            def anomalias_media_movil(valores: list[float], ventana: int, umbral: float) -> list[int]:
+                v = np.asarray(valores, dtype=float)
+                indices = []
+                for i in range(ventana, len(v)):
+                    previos = v[i - ventana:i]
+                    media, desviacion = previos.mean(), previos.std()
+                    if desviacion == 0:
+                        anomalo = v[i] != media
+                    else:
+                        anomalo = abs(v[i] - media) > umbral * desviacion
+                    if anomalo:
+                        indices.append(i)
+                return indices
+        """),
+        [
+            _t(
+                "el ejemplo del enunciado",
+                """
+                assert anomalias_media_movil([1, 1, 1, 1, 9, 1, 1], 3, 2.0) == [4]
+            """,
+            ),
+            _t(
+                "compara con los anteriores, no con toda la serie",
+                """
+                # Una tendencia suave no es anomala; un salto dentro de ella si.
+                serie = [10, 11, 12, 13, 14, 15, 30, 16, 17]
+                assert anomalias_media_movil(serie, 3, 3.0) == [6]
+            """,
+            ),
+            _t(
+                "los primeros 'ventana' puntos no se evaluan",
+                """
+                assert anomalias_media_movil([100, 1, 1, 1], 3, 1.0) == []
+            """,
+            ),
+        ],
+    ),
+    ("ml-anomalias", "hard"): ValidacionReto(
+        _s("""
+            import numpy as np
+
+
+            def anomalias_iqr_ventana(valores: list[float], ventana: int) -> list[int]:
+                v = np.asarray(valores, dtype=float)
+                indices = []
+                for i in range(ventana, len(v)):
+                    q1, q3 = np.percentile(v[i - ventana:i], [25, 75])
+                    iqr = q3 - q1
+                    if v[i] < q1 - 1.5 * iqr or v[i] > q3 + 1.5 * iqr:
+                        indices.append(i)
+                return indices
+        """),
+        [
+            _t(
+                "detecta el salto y se adapta",
+                """
+                assert anomalias_iqr_ventana([5] * 10 + [20] * 10, 5) == [10, 11]
+            """,
+            ),
+            _t(
+                "un outlier en la ventana no la contamina",
+                """
+                serie = [10, 11, 10, 12, 11, 90, 10, 11, 40, 12]
+                assert anomalias_iqr_ventana(serie, 5) == [5, 8], f'devolvio {anomalias_iqr_ventana(serie, 5)}'
+            """,
+            ),
+            _t(
+                "detecta tambien por abajo",
+                """
+                assert anomalias_iqr_ventana([50, 52, 51, 49, 50, 0, 51], 5) == [5]
+            """,
+            ),
+        ],
+    ),
 }
 
 
