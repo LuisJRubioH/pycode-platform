@@ -1,4 +1,5 @@
 export { PyodideSandbox, getSandbox } from "./PyodideSandbox";
+export { SandboxAbortedError, SandboxTimeoutError } from "./watchdog";
 export type {
   RunRequest,
   RunResult,

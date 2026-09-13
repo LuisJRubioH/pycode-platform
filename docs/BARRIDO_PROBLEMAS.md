@@ -181,6 +181,10 @@ código Python síncrono, así que un `while True:` deja el worker inservible ha
 recargar la página. La lección 4 lo avisa por escrito, que era el parche mientras
 duraba Track 1. Track 1 está cerrado: toca decidir.
 
+**Resuelto (2026-09-13)**: watchdog en el hilo principal que mata y relanza el
+worker, más un botón "Detener". Se descartó `setInterruptBuffer` porque exige
+COOP/COEP en Vercel. La lección 4 ya no pide recargar.
+
 ---
 
 ## P3 — limpieza

@@ -18,6 +18,8 @@ const runPythonCodeMock = vi.fn()
 vi.mock('../services/codeRunner', () => ({
   runPythonCode: (...args: unknown[]) => runPythonCodeMock(...args),
   runHiddenTests: vi.fn(),
+  abortExecution: vi.fn(),
+  isSandboxInterruption: () => false,
   getCodeRunner: () => ({
     status: 'idle' as const,
     onStatusChange: () => () => {},

@@ -146,7 +146,10 @@ if not getattr(_plt.show, '_pycode_patched', False):
 `);
   }
 
-  async run({ code, timeoutMs = 30_000 }: RunRequest): Promise<RunResult> {
+  async run(
+    { code, timeoutMs = 30_000 }: RunRequest,
+    latido?: () => void,
+  ): Promise<RunResult> {
     if (!this.py) await this.init();
     this.stdoutBuf = [];
     this.stderrBuf = [];
@@ -166,6 +169,10 @@ if not getattr(_plt.show, '_pycode_patched', False):
       await this.py!.loadPackagesFromImports(code);
       // Si matplotlib quedo cargado, monta el hook de plt.show().
       await this.setupMatplotlibHookIfLoaded();
+      // Ultimo aviso antes de meternos en el codigo del alumno: si es sincrono
+      // y no termina, este hilo no vuelve y el limite duro lo aplica el hilo
+      // principal (issue #32).
+      latido?.();
       await Promise.race([this.py!.runPythonAsync(code), timeoutPromise]);
       const { stdout, images } = extractImagesFromStdout(
         this.stdoutBuf.join("\n"),
@@ -200,11 +207,10 @@ if not getattr(_plt.show, '_pycode_patched', False):
     }
   }
 
-  async runTests({
-    studentCode,
-    tests,
-    timeoutMs = 30_000,
-  }: RunTestsRequest): Promise<RunTestsResult> {
+  async runTests(
+    { studentCode, tests, timeoutMs = 30_000 }: RunTestsRequest,
+    latido?: () => void,
+  ): Promise<RunTestsResult> {
     if (!this.py) await this.init();
     const start = performance.now();
     const verdicts: TestVerdict[] = [];
@@ -242,6 +248,10 @@ if not getattr(_plt.show, '_pycode_patched', False):
         }, timeoutMs);
       });
       try {
+        // Un latido por test: el limite duro del hilo principal es "tiempo sin
+        // dar senales", no tiempo total, asi que una tanda larga de tests
+        // lentos (sklearn) no se mata mientras siga avanzando.
+        latido?.();
         await Promise.race([
           this.py!.runPythonAsync(program, { globals: ns }),
           timeoutPromise,
@@ -272,11 +282,10 @@ if not getattr(_plt.show, '_pycode_patched', False):
     };
   }
 
-  async runCapstoneTests({
-    files,
-    tests,
-    timeoutMs = 30_000,
-  }: RunCapstoneTestsRequest): Promise<RunTestsResult> {
+  async runCapstoneTests(
+    { files, tests, timeoutMs = 30_000 }: RunCapstoneTestsRequest,
+    latido?: () => void,
+  ): Promise<RunTestsResult> {
     if (!this.py) await this.init();
     const start = performance.now();
     const verdicts: TestVerdict[] = [];
@@ -345,6 +354,7 @@ if not getattr(_plt.show, '_pycode_patched', False):
         }, timeoutMs);
       });
       try {
+        latido?.();
         await Promise.race([
           this.py!.runPythonAsync(program, { globals: ns }),
           timeoutPromise,

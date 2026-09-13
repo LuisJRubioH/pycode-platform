@@ -18,8 +18,15 @@ import {
   ChevronLeft,
   ChevronRight,
   BookOpen,
+  Square,
 } from 'lucide-react'
-import { runPythonCode, runHiddenTests, getCodeRunner } from '../services/codeRunner'
+import {
+  runPythonCode,
+  runHiddenTests,
+  getCodeRunner,
+  abortExecution,
+  isSandboxInterruption,
+} from '../services/codeRunner'
 import { api } from '../services/api'
 import { loadTutorContext } from '../services/tutorContext'
 import EvaluationHistoryModal from '../components/EvaluationHistoryModal'
@@ -283,8 +290,14 @@ const CodeEditor: React.FC = () => {
         setOutputNote(hasImages ? '(plot generado)' : '(sin salida)')
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      setErrorOutput(`Error: ${msg}`)
+      // Un corte del sandbox (bucle infinito o "Detener") trae un mensaje ya
+      // pensado para el alumno: no lo disfrazamos de error de Python.
+      if (isSandboxInterruption(err)) {
+        setErrorOutput(err.message)
+      } else {
+        const msg = err instanceof Error ? err.message : String(err)
+        setErrorOutput(`Error: ${msg}`)
+      }
     } finally {
       setIsRunning(false)
     }
@@ -376,8 +389,12 @@ const CodeEditor: React.FC = () => {
         }
       }
     } catch (err) {
-      console.error('Error al ejecutar tests:', err)
-      setTestsError('Error al ejecutar los tests en el sandbox.')
+      if (isSandboxInterruption(err)) {
+        setTestsError(err.message)
+      } else {
+        console.error('Error al ejecutar tests:', err)
+        setTestsError('Error al ejecutar los tests en el sandbox.')
+      }
     } finally {
       setIsRunningTests(false)
     }
@@ -453,6 +470,19 @@ const CodeEditor: React.FC = () => {
             <Play className="h-4 w-4 mr-2" />
             {isRunning ? 'Ejecutando...' : 'Ejecutar'}
           </button>
+
+          {/* Solo con codigo del alumno corriendo: durante la carga de Pyodide
+              no hay nada que detener y matar el worker dejaria la carga colgada. */}
+          {sandboxStatus === 'running' && (
+            <button
+              onClick={abortExecution}
+              className="btn-secondary text-red-700"
+              title="Detener la ejecucion y reiniciar el sandbox"
+            >
+              <Square className="h-4 w-4 mr-2" />
+              Detener
+            </button>
+          )}
 
           <button onClick={resetCode} className="btn-secondary" title="Reiniciar codigo">
             <RotateCcw className="h-4 w-4" />

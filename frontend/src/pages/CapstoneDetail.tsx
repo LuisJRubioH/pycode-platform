@@ -19,6 +19,7 @@ import {
 import toast from 'react-hot-toast'
 import { api } from '../services/api'
 import { getSandbox } from '../sandbox/PyodideSandbox'
+import { isSandboxInterruption } from '../services/codeRunner'
 import type { HiddenTest, TestVerdict } from '../sandbox/types'
 
 interface CapstoneRequirement {
@@ -225,8 +226,13 @@ const CapstoneDetail: React.FC = () => {
         })
       }
     } catch (err) {
-      console.error('Error enviando capstone:', err)
-      toast.error('Error durante la evaluacion. Revisa la consola.')
+      if (isSandboxInterruption(err)) {
+        // Bucle infinito en algun archivo: el mensaje ya explica que paso.
+        toast.error(err.message, { duration: 8000 })
+      } else {
+        console.error('Error enviando capstone:', err)
+        toast.error('Error durante la evaluacion. Revisa la consola.')
+      }
     } finally {
       setSubmitting(false)
       setSubmitPhase('')

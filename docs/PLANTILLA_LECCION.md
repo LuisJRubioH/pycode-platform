@@ -238,12 +238,15 @@ contrato no es respetar los tests: en "Refactor a modulo" tres de sus cuatro tes
 aprobaban con el starter intacto, y se endurecieron sin tocar lo que el ejercicio
 pide.
 
-### Limitación de plataforma pendiente
+### Bucles infinitos en el sandbox (issue #32, resuelto)
 
-Un bucle infinito bloquea el sandbox de forma permanente: el timeout del runner no
-puede interrumpir código Python síncrono. Está documentado con el diagnóstico y las
-mediciones en el **issue #32**, y se aborda **después** de Track 1. Mientras tanto la
-lección 4 lo avisa en el contenido.
+El timeout de dentro del worker no puede interrumpir código Python síncrono, así
+que el límite duro vive en el hilo principal (`frontend/src/sandbox/watchdog.ts`):
+si el worker pasa 33 s sin dar señales, se termina y se levanta otro, y el alumno
+tiene además un botón **Detener**. Un ejercicio puede, por tanto, invitar a ejecutar
+un bucle infinito sin romper nada. Coste a tener en cuenta: al matar el worker se
+pierden los paquetes cargados, y la siguiente ejecución vuelve a importar
+numpy/pandas.
 
 ## El caso del test vacío (lección 10)
 

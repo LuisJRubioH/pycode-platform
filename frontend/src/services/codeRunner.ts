@@ -1,5 +1,7 @@
 import {
   getSandbox,
+  SandboxAbortedError,
+  SandboxTimeoutError,
   type HiddenTest,
   type RunResult,
   type RunTestsResult,
@@ -27,6 +29,22 @@ export async function runHiddenTests(
 ): Promise<RunTestsResult> {
   const sandbox = getSandbox();
   return sandbox.runTests(studentCode, tests, timeoutMs);
+}
+
+/**
+ * Detiene lo que este corriendo en el sandbox (boton "Detener", issue #32).
+ * Las ejecuciones en curso se rechazan con `SandboxAbortedError`.
+ */
+export function abortExecution(): void {
+  getSandbox().abortRun();
+}
+
+/**
+ * True si el error viene del propio sandbox (limite de tiempo o detenido por
+ * el alumno). Su mensaje ya esta escrito para el alumno y se muestra tal cual.
+ */
+export function isSandboxInterruption(err: unknown): err is Error {
+  return err instanceof SandboxTimeoutError || err instanceof SandboxAbortedError;
 }
 
 export function getCodeRunner() {
