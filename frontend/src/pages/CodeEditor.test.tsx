@@ -156,6 +156,8 @@ describe('CodeEditor — navegación por lección', () => {
   it('sin parámetros de lección el editor sigue en modo libre', async () => {
     renderEditor('/editor')
     await waitFor(() => expect(screen.getByTestId('monaco')).toBeInTheDocument())
+    // Vacio: el modo libre es para el codigo propio del alumno.
+    expect(screen.getByTestId('monaco')).toHaveValue('')
     expect(screen.queryByText(/Ejercicio 1 de/)).not.toBeInTheDocument()
     expect(getMock).not.toHaveBeenCalled()
   })
@@ -196,7 +198,7 @@ describe('CodeEditor — navegación por lección', () => {
     await waitFor(() =>
       expect(screen.queryByText(/Ejercicio 1 de 3/)).not.toBeInTheDocument()
     )
-    expect(screen.getByTestId('monaco')).not.toHaveValue('# starter uno\n')
+    expect(screen.getByTestId('monaco')).toHaveValue('')
     expect(screen.queryByDisplayValue(/Series desde diccionario/)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Ejecutar tests/ })).not.toBeInTheDocument()
   })

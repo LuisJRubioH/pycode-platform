@@ -32,13 +32,9 @@ import { api } from '../services/api'
 import EvaluationHistoryModal from '../components/EvaluationHistoryModal'
 import type { HiddenTest, RunStatus, RunTestsResult } from '@/sandbox'
 
-const INITIAL_CODE = `# Escribe tu codigo Python aqui
-print("Hola, Mundo!")
-
-# Prueba con variables
-nombre = "Python"
-print(f"Estoy aprendiendo {nombre}")
-`
+// El modo libre arranca vacio: es para el codigo propio del alumno (ejemplos
+// suyos o ejercicios de fuera de la plataforma), no para un ejemplo nuestro.
+const INITIAL_CODE = ''
 
 const PLACEHOLDER_PROBLEM =
   'Describe aqui que deberia hacer tu codigo. Mientras mas claro sea el objetivo, mejor sera la evaluacion del tutor.'
