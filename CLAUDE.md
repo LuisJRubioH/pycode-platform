@@ -81,7 +81,7 @@ se recalcularon en producción el **2026-09-03**: 4 filas (users 6/7/8/9),
 `backend/scripts/backfill_legacy_progress.py` queda para futuros arrastres (sin
 `--apply` es de solo lectura).
 
-**Próximo trabajo**: cerrar lo que queda del plan de correcciones (Bloque 5: el índice con anclas de la lección; Bloque 7: barrido de problemas, solo listar) y el issue #32 (un bucle infinito bloquea el sandbox). Después, continuar Track 5 (AI 4 RAG end-to-end → agentes → evals → capstone "Nebula RAG"). Decisión pendiente aparte: Track 4b con PyTorch real (GPU remota vs Colab). Ver `docs/ARCHITECTURE.md` (diseño), `docs/DATABASE.md` (esquema) y `project_track5_piloto` / `project_track4_piloto` en memoria para el detalle vivo.
+**Próximo trabajo**: cerrar lo que queda del plan de correcciones (Bloque 5: el índice con anclas de la lección; Bloque 7: arreglar los P1 del barrido, empezando por los 14 hidden_tests que aprueban con el starter). El issue #32 (bucle infinito) quedó resuelto el 2026-09-13 con un watchdog en el hilo principal (`frontend/src/sandbox/watchdog.ts`) + botón "Detener". Después, continuar Track 5 (AI 4 RAG end-to-end → agentes → evals → capstone "Nebula RAG"). Decisión pendiente aparte: Track 4b con PyTorch real (GPU remota vs Colab). Ver `docs/ARCHITECTURE.md` (diseño), `docs/DATABASE.md` (esquema) y `project_track5_piloto` / `project_track4_piloto` en memoria para el detalle vivo.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the technical design, [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) for the vision, and [docs/historico/](docs/historico/) for the discarded initial design (Docker server-side, Kubernetes, microservices — **not** a source of truth).
 
