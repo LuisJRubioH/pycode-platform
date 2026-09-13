@@ -40,7 +40,7 @@ en uno). **Estado a 2026-09-09**:
 | 5 — Presentación de la lección | 🚧 typography + resaltado + copiar + ancho de línea hechos; queda decidir el índice con anclas |
 | **Contenido de Track 1** | ✅ **10 de 10 reescritas** con la plantilla ([PLANTILLA_LECCION.md](docs/PLANTILLA_LECCION.md)): Track 1 entero, de 18 a **60 ejercicios**. `HUECOS_CONOCIDOS` quedó vacío y el test de prerequisitos es ya un guard rail puro; saldadas también las deudas de f-strings, `split`, tuplas/`.get` y la relectura de las lecciones 5-8. El Bloque 4 quedó fusionado aquí: los ejercicios se escribieron con su lección, no aparte |
 | 6 — Documentación desalineada | ✅ cerrado (`docs/historico/`) |
-| 7 — Barrido de problemas | ✅ listado en [docs/BARRIDO_PROBLEMAS.md](docs/BARRIDO_PROBLEMAS.md): 14 problemas con evidencia y prioridad, **sin implementar ninguno**. Los tres P1: 14 hidden_tests que aprueban con el starter (7 en Track 1), los enunciados que no se renderizan como Markdown, y el open redirect de react-router |
+| 7 — Barrido de problemas | ✅ listado en [docs/BARRIDO_PROBLEMAS.md](docs/BARRIDO_PROBLEMAS.md): 14 problemas con evidencia y prioridad. **Los tres P1 resueltos el 2026-09-13**: hidden_tests triviales (con guard rail en CI), enunciados en Markdown, y react-router (6.30.6 + reclasificado: lo que queda solo se parchea en v7 y no tiene alcance). También el P2 #9 (issue #32, bucle infinito) y la mitad del #5 (enunciado editable) |
 
 **Verificación en producción del Bloque 1** (hecha por el usuario, no por un
 agente): los 3 ejercicios de "Pandas esencial" resueltos en
