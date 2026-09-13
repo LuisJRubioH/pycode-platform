@@ -105,6 +105,13 @@ contenido de la lección sí es Markdown con resaltado (eso se arregló en el Bl
 Al escribir Track 1 se compensó a mano (las salidas esperadas van indentadas en vez
 de en bloques de código), pero es una servidumbre que no debería existir.
 
+**Resuelto (2026-09-13)**: componente común `Markdown.tsx` en la lista de
+ejercicios, el editor (en modo lección y reto, además, de solo lectura) y los
+retos. Renderizados los 220 enunciados (150 de ejercicios, 70 de retos): 0 con
+marcas sueltas. Solo uno necesitó retoque (una frase pegada a una lista en
+Track 3). De paso se quitaron los backticks decorativos que el plugin de
+tipografía añadía al código inline, que también afectaban a las lecciones.
+
 ### 3. `react-router` con open redirect en producción
 
 `npm audit --omit=dev` sobre las dependencias que llegan al navegador:

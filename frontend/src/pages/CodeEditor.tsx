@@ -31,6 +31,7 @@ import {
 } from '../services/codeRunner'
 import { api } from '../services/api'
 import EvaluationHistoryModal from '../components/EvaluationHistoryModal'
+import Markdown from '../components/Markdown'
 import type { HiddenTest, RunStatus, RunTestsResult } from '@/sandbox'
 
 // El modo libre arranca vacio: es para el codigo propio del alumno (ejemplos
@@ -315,6 +316,13 @@ const CodeEditor: React.FC = () => {
     setEvaluation(null)
     setEvaluationError('')
   }, [lesson, activeExercise])
+
+  // Enunciado que viene de la plataforma (lección o reto); null en modo libre.
+  const enunciadoFijo = activeExercise
+    ? activeExercise.instructions || activeExercise.description || ''
+    : challenge
+    ? challenge.prompt
+    : null
 
   const isLastExercise = activeIndex >= 0 && activeIndex === exercises.length - 1
   const lessonCompleted = lesson?.status === 'completed'
@@ -873,16 +881,37 @@ const CodeEditor: React.FC = () => {
 
       <div className="grid lg:grid-cols-[1.4fr,1fr] gap-0 border-b border-slate-200 bg-slate-50">
         <div className="p-4 border-r border-slate-200">
-          <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2">
-            Enunciado del ejercicio (requerido para evaluar)
-          </label>
-          <textarea
-            value={problemDescription}
-            onChange={(e) => setProblemDescription(e.target.value)}
-            placeholder={PLACEHOLDER_PROBLEM}
-            className="w-full p-3 border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
-            rows={4}
-          />
+          {enunciadoFijo !== null ? (
+            <>
+              {/* Lección o reto: el enunciado es del ejercicio, no del alumno.
+                  Se muestra como Markdown y no se puede editar, que antes era
+                  un textarea que el alumno podia reescribir antes de pedir la
+                  evaluacion. */}
+              <p className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2">
+                Enunciado del ejercicio
+              </p>
+              <Markdown className="prose prose-sm prose-slate max-w-none max-h-40 overflow-auto rounded-lg border border-slate-300 bg-white px-3 py-2">
+                {enunciadoFijo}
+              </Markdown>
+            </>
+          ) : (
+            <>
+              <label
+                htmlFor="enunciado-libre"
+                className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2"
+              >
+                Enunciado del ejercicio (requerido para evaluar)
+              </label>
+              <textarea
+                id="enunciado-libre"
+                value={problemDescription}
+                onChange={(e) => setProblemDescription(e.target.value)}
+                placeholder={PLACEHOLDER_PROBLEM}
+                className="w-full p-3 border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+                rows={4}
+              />
+            </>
+          )}
         </div>
 
         <div className="p-4">

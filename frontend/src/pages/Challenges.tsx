@@ -2,6 +2,11 @@ import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { BrainCircuit, Filter, Gauge, ArrowRight, CheckCircle2, Undo2 } from 'lucide-react'
 import { api } from '../services/api'
+import Markdown from '../components/Markdown'
+
+// El resumen de la tarjeta corta el enunciado a mitad: renderizarlo como
+// Markdown dejaria bloques abiertos. Se quitan las marcas y queda texto.
+const sinMarcas = (texto: string) => texto.replace(/```\w*|`|\*\*/g, '').replace(/\s+/g, ' ')
 
 interface ChallengeSummary {
   id: number
@@ -247,7 +252,7 @@ const Challenges: React.FC = () => {
                       {difficultyLabel[challenge.difficulty] || challenge.difficulty}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-600 mt-3 line-clamp-3">{challenge.prompt_preview}</p>
+                  <p className="text-sm text-slate-600 mt-3 line-clamp-3">{sinMarcas(challenge.prompt_preview)}</p>
                 </button>
               ))}
             </div>
@@ -306,13 +311,7 @@ const Challenges: React.FC = () => {
                 </div>
               )}
 
-              <div className="prose prose-slate max-w-none">
-                {selected.prompt.split('\n').map((line, index) => (
-                  <p key={index} className="text-slate-700 whitespace-pre-wrap">
-                    {line}
-                  </p>
-                ))}
-              </div>
+              <Markdown className="prose prose-slate max-w-none">{selected.prompt}</Markdown>
 
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
                 <p className="text-sm font-medium text-slate-900">Al resolver este reto:</p>

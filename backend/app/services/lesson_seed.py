@@ -10744,7 +10744,7 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                     "- `pca`: `StandardScaler` + "
                     "`PCA(n_components=n_components, random_state=42)` "
                     "+ `LogisticRegression(max_iter=1000, "
-                    "random_state=42)`.\n"
+                    "random_state=42)`.\n\n"
                     "Ambas accuracies como `float` (no numpy)."
                 ),
                 starter_code=(

@@ -1,13 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import rehypeHighlight from 'rehype-highlight'
-// Tema del resaltado. Se empaqueta con el bundle: no sale ninguna peticion
-// a un CDN, asi que no hay que tocar la CSP.
-import 'highlight.js/styles/github-dark.css'
 import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Clock, Code2 } from 'lucide-react'
-import MarkdownCodeBlock from '../components/MarkdownCodeBlock'
+import Markdown from '../components/Markdown'
 import { api } from '../services/api'
 import { saveTutorContext } from '../services/tutorContext'
 
@@ -37,18 +31,6 @@ interface LessonDetailPayload {
   exercises: LessonExercise[]
   progress: number
   status: string
-}
-
-// Las tablas de markdown no traen scroll propio: al estrechar la columna
-// pueden desbordar la tarjeta y hacer que scrollee la pagina entera. Se
-// envuelven para que scrollee solo la tabla.
-const MARKDOWN_COMPONENTS = {
-  pre: MarkdownCodeBlock,
-  table: ({ children, ...props }: React.HTMLAttributes<HTMLTableElement>) => (
-    <div className="overflow-x-auto">
-      <table {...props}>{children}</table>
-    </div>
-  ),
 }
 
 const LessonDetail: React.FC = () => {
@@ -149,15 +131,7 @@ const LessonDetail: React.FC = () => {
           centrada y con la medida por defecto de `prose` (~65ch). Antes tenia
           `max-w-none`, que la estiraba a 110-120 caracteres por linea. */}
       <div className="card p-6">
-        <div className="prose prose-slate mx-auto">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={[rehypeHighlight]}
-            components={MARKDOWN_COMPONENTS}
-          >
-            {lesson.content || ''}
-          </ReactMarkdown>
-        </div>
+        <Markdown className="prose prose-slate mx-auto">{lesson.content || ''}</Markdown>
       </div>
 
       <div className="card p-6 space-y-4">
@@ -188,7 +162,11 @@ const LessonDetail: React.FC = () => {
                 </div>
 
                 <p className="text-sm text-slate-600 mt-2">{exercise.description}</p>
-                <p className="text-sm text-slate-700 mt-2 whitespace-pre-wrap">{exercise.instructions}</p>
+                {/* El enunciado es Markdown, como la leccion: antes salian los
+                    backticks y los ** literales. */}
+                <Markdown className="prose prose-sm prose-slate max-w-none mt-2">
+                  {exercise.instructions || ''}
+                </Markdown>
 
                 {exercise.hints?.length > 0 && (
                   <div className="mt-3 text-xs text-slate-500">

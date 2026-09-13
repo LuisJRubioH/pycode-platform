@@ -199,7 +199,9 @@ describe('CodeEditor — navegación por lección', () => {
       expect(screen.queryByText(/Ejercicio 1 de 3/)).not.toBeInTheDocument()
     )
     expect(screen.getByTestId('monaco')).toHaveValue('')
-    expect(screen.queryByDisplayValue(/Series desde diccionario/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Construye una Series/)).not.toBeInTheDocument()
+    // Vuelve el enunciado editable del modo libre, vacio.
+    expect(screen.getByLabelText(/Enunciado del ejercicio/)).toHaveValue('')
     expect(screen.queryByRole('button', { name: /Ejecutar tests/ })).not.toBeInTheDocument()
   })
 })
@@ -293,7 +295,7 @@ describe('CodeEditor — modo reto', () => {
     source_path: 'x',
     difficulty: 'easy',
     topic: 'strings',
-    prompt: 'Escribe una funcion que cuente las vocales de un texto.',
+    prompt: 'Escribe `contar_vocales(texto)` que cuente las **vocales** de un texto.',
     starter_code: 'def contar_vocales(texto):\n    ...\n',
     order_index: 1,
     level: 1,
@@ -321,7 +323,10 @@ describe('CodeEditor — modo reto', () => {
     await waitFor(() =>
       expect(screen.getByTestId('monaco')).toHaveValue('def contar_vocales(texto):\n    ...\n')
     )
-    expect(screen.getByDisplayValue(/cuente las vocales/)).toBeInTheDocument()
+    // El enunciado se renderiza como Markdown y no es editable.
+    expect(screen.getByText('contar_vocales(texto)').tagName).toBe('CODE')
+    expect(screen.getByText('vocales').tagName).toBe('STRONG')
+    expect(screen.queryByLabelText(/Enunciado del ejercicio/)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Volver a retos/ })).toHaveAttribute('href', '/challenges')
     expect(screen.queryByRole('button', { name: /Ejecutar tests/ })).not.toBeInTheDocument()
   })
@@ -345,7 +350,8 @@ describe('CodeEditor — modo reto', () => {
 
     await waitFor(() => expect(screen.queryByText('Contar vocales')).not.toBeInTheDocument())
     expect(screen.getByTestId('monaco')).toHaveValue('')
-    expect(screen.queryByDisplayValue(/cuente las vocales/)).not.toBeInTheDocument()
+    expect(screen.queryByText('contar_vocales(texto)')).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/Enunciado del ejercicio/)).toHaveValue('')
   })
 
   it('si el reto no existe lo dice, en vez de dejar el editor en blanco sin mas', async () => {

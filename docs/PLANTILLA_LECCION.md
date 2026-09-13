@@ -327,19 +327,22 @@ lecciones 1-3 lo hacen así:
 A partir de la lección 5 esto desaparece: con una función, el test la llama con los
 casos que quiera.
 
-## Los enunciados se muestran en texto plano
+## Los enunciados son Markdown
 
-`instructions` **no se renderiza como Markdown** en ninguna de las dos vistas: la
-lección lo pinta con `whitespace-pre-wrap`
-([LessonDetail.tsx](../frontend/src/pages/LessonDetail.tsx)) y el editor lo mete en
-un `textarea` de cuatro filas
-([CodeEditor.tsx](../frontend/src/pages/CodeEditor.tsx)), donde además es editable
-porque el mismo campo alimenta al evaluador.
+`instructions` se renderiza como Markdown, igual que el contenido de la lección:
+en la lista de ejercicios de [LessonDetail.tsx](../frontend/src/pages/LessonDetail.tsx)
+y en el editor, donde en modo lección es de solo lectura (antes era un `textarea`
+editable que alimentaba al evaluador). Los dos usan
+[Markdown.tsx](../frontend/src/components/Markdown.tsx).
 
-Consecuencia al escribir: los backticks y los `**` salen literales, y un bloque
-con triples backticks se ve como tres backticks. Para mostrar una salida esperada,
-indéntala cuatro espacios en vez de usar un bloque de código. El contenido de la
-**lección** sí es Markdown con resaltado de sintaxis: ahí no hay limitación.
+Consecuencias al escribir:
+
+- Backticks, `**` y bloques con ``` funcionan. Para una salida esperada, un bloque
+  de código es lo natural.
+- Un salto de línea **simple** no corta el párrafo: une las dos líneas. Para
+  separar, deja una línea en blanco.
+- Una frase justo debajo de una lista, sin línea en blanco, se pega al último
+  punto de la lista.
 
 ## Cómo llega a producción
 
