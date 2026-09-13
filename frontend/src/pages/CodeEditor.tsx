@@ -20,6 +20,7 @@ import {
   BookOpen,
   Square,
   Eraser,
+  Trophy,
 } from 'lucide-react'
 import {
   runPythonCode,
@@ -88,6 +89,21 @@ interface LessonContext {
   exercises: LessonExercise[]
 }
 
+const DIFICULTAD_RETO: Record<string, string> = {
+  easy: 'Facil',
+  medium: 'Medio',
+  hard: 'Dificil',
+}
+
+interface ChallengeContext {
+  id: number
+  title: string
+  difficulty: string
+  topic: string
+  prompt: string
+  starter_code: string
+}
+
 interface LessonSummary {
   id: number
   title: string
@@ -144,13 +160,19 @@ const CodeEditor: React.FC = () => {
   const [lessonError, setLessonError] = useState('')
   const [nextLesson, setNextLesson] = useState<LessonSummary | null>(null)
 
+  const [challenge, setChallenge] = useState<ChallengeContext | null>(null)
+  const [challengeError, setChallengeError] = useState('')
+
   const [searchParams, setSearchParams] = useSearchParams()
   const lessonParam = searchParams.get('lesson')
   const exerciseParam = searchParams.get('exercise')
+  // Si la URL trae las dos cosas, manda la lección.
+  const challengeParam = lessonParam ? null : searchParams.get('challenge')
 
   const monaco = useMonaco()
 
-  // Clave `leccion:ejercicio` del ejercicio cargado en el editor; null en modo libre.
+  // Qué hay cargado en el editor: `leccion:ejercicio`, `reto:<id>` o null en
+  // modo libre.
   const loadedExerciseRef = useRef<string | null>(null)
 
   // El modo libre ya no lee el contexto del tutor de localStorage: la lección
@@ -164,17 +186,48 @@ const CodeEditor: React.FC = () => {
     return (await res.json()) as LessonContext
   }, [])
 
-  // Carga la lección cuando la URL la referencia.
+  // Pasar de una lección o un reto a "Editor" en el menu no desmonta la pagina
+  // (es la misma ruta): sin esto el modo libre heredaba el ejercicio entero.
   useEffect(() => {
-    if (!lessonParam) {
-      setLesson(null)
-      setLessonError('')
-      // Pasar de una lección a "Editor" en el menu no desmonta la pagina (es
-      // la misma ruta): sin esto el modo libre heredaba el ejercicio entero.
-      if (loadedExerciseRef.current !== null) {
-        loadedExerciseRef.current = null
-        setCode(INITIAL_CODE)
-        setProblemDescription('')
+    if (lessonParam || challengeParam || loadedExerciseRef.current === null) return
+    loadedExerciseRef.current = null
+    setCode(INITIAL_CODE)
+    setProblemDescription('')
+    setExpectedOutput('')
+    setExerciseId(null)
+    setOutput('')
+    setErrorOutput('')
+    setOutputNote('')
+    setOutputImages([])
+    setTestsResult(null)
+    setTestsError('')
+    setEvaluation(null)
+    setEvaluationError('')
+  }, [lessonParam, challengeParam])
+
+  // Modo reto (`/editor?challenge=<id>`): enunciado y starter del reto. No tiene
+  // tests ocultos, asi que no hay "Ejecutar tests"; el alumno lo marca como
+  // hecho en la pagina de Retos.
+  useEffect(() => {
+    if (!challengeParam) {
+      setChallenge(null)
+      setChallengeError('')
+      return
+    }
+    let cancelled = false
+    setChallengeError('')
+    api
+      .get(`/challenges/${challengeParam}`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`status ${res.status}`)
+        const data = (await res.json()) as ChallengeContext
+        if (cancelled) return
+        setChallenge(data)
+        const key = `reto:${data.id}`
+        if (loadedExerciseRef.current === key) return
+        loadedExerciseRef.current = key
+        setCode(data.starter_code || EMPTY_SOLUTION)
+        setProblemDescription(`${data.title}\n\n${data.prompt}`.trim())
         setExpectedOutput('')
         setExerciseId(null)
         setOutput('')
@@ -185,7 +238,24 @@ const CodeEditor: React.FC = () => {
         setTestsError('')
         setEvaluation(null)
         setEvaluationError('')
-      }
+      })
+      .catch((err) => {
+        console.error('No se pudo cargar el reto:', err)
+        if (!cancelled) {
+          setChallenge(null)
+          setChallengeError('No pudimos cargar este reto.')
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [challengeParam])
+
+  // Carga la lección cuando la URL la referencia.
+  useEffect(() => {
+    if (!lessonParam) {
+      setLesson(null)
+      setLessonError('')
       return
     }
     let cancelled = false
@@ -701,6 +771,33 @@ const CodeEditor: React.FC = () => {
       {lessonError && (
         <div className="bg-rose-50 border-b border-rose-200 px-4 py-2 text-sm text-rose-700">
           {lessonError}
+        </div>
+      )}
+
+      {challengeError && (
+        <div className="bg-rose-50 border-b border-rose-200 px-4 py-2 text-sm text-rose-700">
+          {challengeError}
+        </div>
+      )}
+
+      {challenge && (
+        <div className="bg-white border-b border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <Trophy className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
+              <span>Reto · {challenge.topic}</span>
+            </div>
+            <div className="mt-1 flex items-center gap-2 flex-wrap">
+              <h2 className="text-base font-semibold text-slate-900">{challenge.title}</h2>
+              <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700">
+                {DIFICULTAD_RETO[challenge.difficulty] || challenge.difficulty}
+              </span>
+            </div>
+          </div>
+          <Link to="/challenges" className="btn-secondary">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Volver a retos
+          </Link>
         </div>
       )}
 

@@ -284,6 +284,75 @@ describe('CodeEditor — salida separada de stdout y stderr', () => {
   })
 })
 
+describe('CodeEditor — modo reto', () => {
+  const reto = {
+    id: 42,
+    title: 'Contar vocales',
+    slug: 'contar-vocales',
+    source: 'Retos_Python',
+    source_path: 'x',
+    difficulty: 'easy',
+    topic: 'strings',
+    prompt: 'Escribe una funcion que cuente las vocales de un texto.',
+    starter_code: 'def contar_vocales(texto):\n    ...\n',
+    order_index: 1,
+  }
+
+  beforeEach(() => {
+    getMock.mockReset()
+    postMock.mockReset()
+    runPythonCodeMock.mockReset()
+    localStorage.clear()
+    getMock.mockImplementation((path: string) => {
+      if (path === '/challenges/42') {
+        return Promise.resolve({ ok: true, json: async () => reto })
+      }
+      return Promise.resolve({ ok: false, json: async () => ({}) })
+    })
+  })
+
+  it('carga el enunciado y el starter del reto, sin "Ejecutar tests"', async () => {
+    renderEditor('/editor?challenge=42')
+
+    await screen.findByText('Contar vocales')
+    expect(screen.getByText('Reto · strings')).toBeInTheDocument()
+    expect(screen.getByText('Facil')).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.getByTestId('monaco')).toHaveValue('def contar_vocales(texto):\n    ...\n')
+    )
+    expect(screen.getByDisplayValue(/cuente las vocales/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Volver a retos/ })).toHaveAttribute('href', '/challenges')
+    expect(screen.queryByRole('button', { name: /Ejecutar tests/ })).not.toBeInTheDocument()
+  })
+
+  it('ir del reto a "Editor" deja el editor limpio', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/editor?challenge=42']}>
+        <Link to="/editor">Editor</Link>
+        <Routes>
+          <Route path="/editor" element={<CodeEditor />} />
+        </Routes>
+      </MemoryRouter>
+    )
+    await screen.findByText('Contar vocales')
+    await waitFor(() =>
+      expect(screen.getByTestId('monaco')).toHaveValue('def contar_vocales(texto):\n    ...\n')
+    )
+
+    await user.click(screen.getByRole('link', { name: 'Editor' }))
+
+    await waitFor(() => expect(screen.queryByText('Contar vocales')).not.toBeInTheDocument())
+    expect(screen.getByTestId('monaco')).toHaveValue('')
+    expect(screen.queryByDisplayValue(/cuente las vocales/)).not.toBeInTheDocument()
+  })
+
+  it('si el reto no existe lo dice, en vez de dejar el editor en blanco sin mas', async () => {
+    renderEditor('/editor?challenge=999')
+    await screen.findByText('No pudimos cargar este reto.')
+  })
+})
+
 describe('CodeEditor — atajo Ctrl+Enter', () => {
   beforeEach(() => {
     getMock.mockReset()

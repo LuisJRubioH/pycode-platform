@@ -55,7 +55,9 @@ const Challenges: React.FC = () => {
       setLoading(true)
       setError('')
       try {
-        const query = filter === 'all' ? '/challenges/recommended?limit=60' : `/challenges?difficulty=${filter}&limit=60`
+        // /recommended admite como mucho limit=50 (le=50 en el endpoint): con 60
+        // devolvia 422 y la pestaña por defecto, "Recomendados", salia en error.
+        const query = filter === 'all' ? '/challenges/recommended?limit=50' : `/challenges?difficulty=${filter}&limit=60`
         const listRes = await api.get(query)
         if (!listRes.ok) {
           setItems([])
@@ -102,9 +104,11 @@ const Challenges: React.FC = () => {
     setSelected(await detailRes.json())
   }
 
+  // El reto viaja en la URL, como el ejercicio de una lección: el editor
+  // carga su enunciado y su starter, y el enlace se puede recargar.
   const solveInEditor = () => {
     if (!selected) return
-    navigate('/editor')
+    navigate(`/editor?challenge=${selected.id}`)
   }
 
   const isSelectedCompleted = items.find((c) => c.id === selected?.id)?.completed || false
