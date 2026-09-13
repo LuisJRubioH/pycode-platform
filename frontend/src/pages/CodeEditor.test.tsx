@@ -296,6 +296,7 @@ describe('CodeEditor — modo reto', () => {
     prompt: 'Escribe una funcion que cuente las vocales de un texto.',
     starter_code: 'def contar_vocales(texto):\n    ...\n',
     order_index: 1,
+    level: 1,
   }
 
   beforeEach(() => {
@@ -315,7 +316,7 @@ describe('CodeEditor — modo reto', () => {
     renderEditor('/editor?challenge=42')
 
     await screen.findByText('Contar vocales')
-    expect(screen.getByText('Reto · strings')).toBeInTheDocument()
+    expect(screen.getByText(/Reto · strings\s*· Nivel 1 de 3/)).toBeInTheDocument()
     expect(screen.getByText('Facil')).toBeInTheDocument()
     await waitFor(() =>
       expect(screen.getByTestId('monaco')).toHaveValue('def contar_vocales(texto):\n    ...\n')

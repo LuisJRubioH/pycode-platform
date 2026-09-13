@@ -60,12 +60,12 @@ interface EvaluationResult {
   model_used: string | null
 }
 
-// El editor tiene dos modos:
-//   - libre: `/editor`, el alumno escribe lo que quiera (contexto opcional
-//     desde localStorage cuando viene del tutor).
+// El editor tiene tres modos, y lo que se carga sale solo de la URL:
+//   - libre: `/editor`, vacio, para el codigo propio del alumno.
 //   - lección: `/editor?lesson=<id>&exercise=<id>`, con el ejercicio activo
 //     en la URL para que sea compartible y recargable. En este modo el
 //     editor conoce la lección entera y puede navegar entre ejercicios.
+//   - reto: `/editor?challenge=<id>`, con el enunciado y el starter del reto.
 interface LessonExercise {
   id: number
   lesson_id: number
@@ -102,6 +102,7 @@ interface ChallengeContext {
   topic: string
   prompt: string
   starter_code: string
+  level: number | null
 }
 
 interface LessonSummary {
@@ -785,7 +786,10 @@ const CodeEditor: React.FC = () => {
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <Trophy className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
-              <span>Reto · {challenge.topic}</span>
+              <span>
+                Reto · {challenge.topic}
+                {challenge.level ? <> · Nivel {challenge.level} de 3</> : null}
+              </span>
             </div>
             <div className="mt-1 flex items-center gap-2 flex-wrap">
               <h2 className="text-base font-semibold text-slate-900">{challenge.title}</h2>

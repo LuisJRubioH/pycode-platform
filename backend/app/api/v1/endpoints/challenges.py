@@ -13,11 +13,13 @@ from app.models.challenge_completion import ChallengeCompletion
 from app.models.elo_models import EloRating
 from app.models.user import User, UserProfile
 from app.schemas.challenge import (
+    ChallengeLevel,
     CodingChallengeDetail,
     CodingChallengeListOut,
     CodingChallengeSummary,
 )
 from app.services.challenge_importer import recommended_difficulty_for_elo
+from app.services.generated_bank import nivel_de_slug, niveles_del_mismo_problema
 from app.services.elo_rating_service import (
     DOMAIN_CHALLENGE,
     apply_result_to_rating,
@@ -90,6 +92,7 @@ async def list_challenges(
             prompt_preview=challenge.prompt[:220],
             order_index=challenge.order_index,
             completed=challenge.id in completed_ids,
+            level=nivel_de_slug(challenge.slug),
         )
         for challenge in challenges
     ]
@@ -126,7 +129,33 @@ async def get_challenge(
     if not challenge or not challenge.is_active:
         raise HTTPException(status_code=404, detail="Challenge not found")
 
-    return CodingChallengeDetail.model_validate(challenge)
+    detail = CodingChallengeDetail.model_validate(challenge)
+    detail.level = nivel_de_slug(challenge.slug)
+
+    niveles = niveles_del_mismo_problema(challenge.slug)
+    if niveles:
+        rows = await db.execute(
+            select(CodingChallenge.id, CodingChallenge.slug).where(
+                CodingChallenge.slug.in_([slug for _, _, slug in niveles]),
+                CodingChallenge.is_active.is_(True),
+            )
+        )
+        id_por_slug = {slug: cid for cid, slug in rows.all()}
+        completed_ids = await _completed_ids_for_user(
+            db, current_user.id, list(id_por_slug.values())
+        )
+        detail.levels = [
+            ChallengeLevel(
+                id=id_por_slug[slug],
+                level=nivel,
+                difficulty=difficulty,
+                completed=id_por_slug[slug] in completed_ids,
+            )
+            for difficulty, nivel, slug in niveles
+            if slug in id_por_slug
+        ]
+
+    return detail
 
 
 @router.post("/{challenge_id}/complete", status_code=status.HTTP_204_NO_CONTENT)

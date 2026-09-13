@@ -20,14 +20,28 @@ CURATED_SOURCE = "pycode-curated-open"
 
 
 @dataclass(frozen=True)
+class NivelReto:
+    """Un nivel de un problema: su enunciado y SU starter.
+
+    Cada nivel pide una funcion distinta (`two_sum` -> `two_sum_rapido` ->
+    `two_sum_todos`), asi que el starter no puede compartirse: antes el nivel
+    dificil pedia `two_sum_todos` y el starter definia `two_sum`.
+    """
+
+    prompt: str
+    starter_code: str
+
+
+@dataclass(frozen=True)
 class ChallengeTemplate:
+    """Un problema con tres niveles que suben la exigencia sobre la misma idea."""
+
     slug_base: str
     title: str
     topic: str
-    easy_prompt: str
-    medium_prompt: str
-    hard_prompt: str
-    starter_code: str
+    easy: NivelReto
+    medium: NivelReto
+    hard: NivelReto
 
 
 CHALLENGE_TEMPLATES: list[ChallengeTemplate] = [
@@ -35,238 +49,913 @@ CHALLENGE_TEMPLATES: list[ChallengeTemplate] = [
         slug_base="strings-anagrama",
         title="Anagramas Normalizados",
         topic="strings",
-        easy_prompt="Escribe una funcion `son_anagramas(a, b)` que retorne True si dos strings son anagramas ignorando mayusculas.",
-        medium_prompt="Extiende `son_anagramas(a, b)` para ignorar espacios y tildes comunes. Debe funcionar en tiempo lineal respecto al largo del texto.",
-        hard_prompt="Implementa `son_anagramas(a, b)` soportando caracteres unicode y signos. Explica complejidad temporal y espacial.",
-        starter_code="def son_anagramas(a: str, b: str) -> bool:\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `son_anagramas(a, b)` que devuelva `True` si los dos textos tienen "
+                "exactamente las mismas letras, sin importar mayúsculas.\n\n"
+                "Ejemplos:\n"
+                "- `son_anagramas('Roma', 'amor')` → `True`\n"
+                "- `son_anagramas('hola', 'hoja')` → `False`"
+            ),
+            starter_code="def son_anagramas(a: str, b: str) -> bool:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `son_anagramas_frase(a, b)` que además ignore los espacios y las "
+                "tildes (`á é í ó ú` cuentan como `a e i o u`).\n\n"
+                "Resuélvelo contando letras con un diccionario o `Counter`, sin ordenar: "
+                "tiene que ser lineal respecto al largo del texto.\n\n"
+                "Ejemplos:\n"
+                "- `son_anagramas_frase('Mónica', 'Camión')` → `True`\n"
+                "- `son_anagramas_frase('La ropa', 'Parola')` → `True`\n"
+                "- `son_anagramas_frase('sal', 'las s')` → `False`"
+            ),
+            starter_code="def son_anagramas_frase(a: str, b: str) -> bool:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `agrupar_anagramas(palabras)` que agrupe las palabras que son "
+                "anagramas entre sí, ignorando mayúsculas, tildes y signos de puntuación.\n\n"
+                "- Cada grupo conserva las palabras tal como llegaron y en su orden.\n"
+                "- Los grupos salen en el orden en que apareció su primera palabra.\n\n"
+                "Ejemplo:\n"
+                "`agrupar_anagramas(['Roma', 'amor', 'sol', 'mora', '¡los!'])`\n"
+                "→ `[['Roma', 'amor', 'mora'], ['sol', '¡los!']]`\n\n"
+                "Pista: `unicodedata.normalize('NFD', texto)` separa la tilde de su letra."
+            ),
+            starter_code="def agrupar_anagramas(palabras: list[str]) -> list[list[str]]:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="strings-palindromo",
         title="Palindromo Robusto",
         topic="strings",
-        easy_prompt="Crea `es_palindromo(texto)` que ignore mayusculas y retorne si el texto se lee igual al reves.",
-        medium_prompt="Mejora `es_palindromo(texto)` para ignorar signos y espacios usando dos punteros.",
-        hard_prompt="Implementa `es_palindromo(texto)` con normalizacion unicode, sin crear una copia invertida completa.",
-        starter_code="def es_palindromo(texto: str) -> bool:\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `es_palindromo(texto)` que devuelva `True` si el texto se lee igual "
+                "al derecho y al revés, sin importar mayúsculas.\n\n"
+                "Ejemplos:\n"
+                "- `es_palindromo('Ana')` → `True`\n"
+                "- `es_palindromo('Hola')` → `False`"
+            ),
+            starter_code="def es_palindromo(texto: str) -> bool:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `es_palindromo_frase(texto)` que ignore mayúsculas, espacios y "
+                "signos de puntuación.\n\n"
+                "Hazlo con **dos punteros** (uno al principio y otro al final, que avanzan "
+                "saltándose lo que no es letra ni número), sin construir el texto invertido.\n\n"
+                "Ejemplos:\n"
+                "- `es_palindromo_frase('Anita lava la tina.')` → `True`\n"
+                "- `es_palindromo_frase('Hola, aloh?')` → `True`\n"
+                "- `es_palindromo_frase('No es, no.')` → `False`"
+            ),
+            starter_code="def es_palindromo_frase(texto: str) -> bool:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `es_palindromo_unicode(texto)` que, además de lo anterior, trate "
+                "igual una letra con tilde que sin ella (`é` = `e`), y que funcione con dos "
+                "punteros sin crear una copia invertida del texto.\n\n"
+                "Ejemplos:\n"
+                "- `es_palindromo_unicode('¡Sé verlas al revés!')` → `True`\n"
+                "- `es_palindromo_unicode('Dábale arroz a la zorra el abad')` → `True`\n"
+                "- `es_palindromo_unicode('Árbol')` → `False`\n\n"
+                "Pista: `unicodedata.normalize('NFD', letra)[0]` devuelve la letra sin tilde."
+            ),
+            starter_code="def es_palindromo_unicode(texto: str) -> bool:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="arrays-two-sum",
         title="Two Sum",
         topic="arrays",
-        easy_prompt="Implementa `two_sum(nums, target)` que retorne los indices de dos valores que suman target.",
-        medium_prompt="Implementa `two_sum(nums, target)` en O(n) usando hash map. Si no existe pareja, retorna None.",
-        hard_prompt="Implementa `two_sum_todos(nums, target)` retornando todas las parejas de indices unicas sin repetir.",
-        starter_code="def two_sum(nums: list[int], target: int):\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `two_sum(nums, target)` que devuelva una tupla `(i, j)` con `i < j` "
+                "y `nums[i] + nums[j] == target`. Siempre existe exactamente una pareja; "
+                "puedes usar dos bucles.\n\n"
+                "Ejemplo: `two_sum([2, 7, 11, 15], 9)` → `(0, 1)`"
+            ),
+            starter_code="def two_sum(nums: list[int], target: int) -> tuple[int, int]:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `two_sum_rapido(nums, target)` en **O(n)**: un solo recorrido y un "
+                "diccionario valor → índice.\n\n"
+                "- Devuelve `(i, j)` con `i < j`. Si hay varias parejas, la que tenga el `j` "
+                "más pequeño.\n"
+                "- Si no hay ninguna, devuelve `None`.\n\n"
+                "Ejemplos:\n"
+                "- `two_sum_rapido([3, 2, 4], 6)` → `(1, 2)`\n"
+                "- `two_sum_rapido([1, 2], 10)` → `None`"
+            ),
+            starter_code="def two_sum_rapido(nums: list[int], target: int) -> tuple[int, int] | None:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `two_sum_todos(nums, target)` que devuelva **todas** las parejas de "
+                "índices `(i, j)` con `i < j` que suman `target`, sin repetir ninguna y "
+                "ordenadas.\n\n"
+                "Ejemplo: `two_sum_todos([1, 5, 3, 3, 1], 4)` → `[(0, 2), (0, 3), (2, 4), (3, 4)]`\n\n"
+                "Reto extra: con valores repetidos, un diccionario valor → lista de índices "
+                "evita comparar todas las parejas."
+            ),
+            starter_code="def two_sum_todos(nums: list[int], target: int) -> list[tuple[int, int]]:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="arrays-rotacion",
         title="Rotacion de Arreglo",
         topic="arrays",
-        easy_prompt="Crea `rotar(nums, k)` que rote una lista a la derecha k posiciones.",
-        medium_prompt="Implementa `rotar(nums, k)` in-place y en O(1) memoria extra.",
-        hard_prompt="Implementa `rotar_segmento(nums, k, inicio, fin)` para rotar solo un subarreglo validando bordes.",
-        starter_code="def rotar(nums: list[int], k: int) -> list[int]:\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `rotar(nums, k)` que devuelva una lista **nueva** con los elementos "
+                "desplazados `k` posiciones a la derecha. `k` puede ser mayor que el largo "
+                "de la lista.\n\n"
+                "Ejemplos:\n"
+                "- `rotar([1, 2, 3, 4, 5], 2)` → `[4, 5, 1, 2, 3]`\n"
+                "- `rotar([1, 2, 3], 4)` → `[3, 1, 2]`"
+            ),
+            starter_code="def rotar(nums: list[int], k: int) -> list[int]:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `rotar_en_sitio(nums, k)` que rote la lista **en el mismo objeto**, "
+                "sin crear otra lista (nada de slicing tipo `nums[-k:] + nums[:-k]`), y que "
+                "devuelva `None`.\n\n"
+                "Ejemplo:\n"
+                "```\n"
+                "nums = [1, 2, 3, 4, 5]\n"
+                "rotar_en_sitio(nums, 2)\n"
+                "nums  # [4, 5, 1, 2, 3]\n"
+                "```\n\n"
+                "Pista: invertir toda la lista y luego invertir cada una de las dos partes."
+            ),
+            starter_code="def rotar_en_sitio(nums: list[int], k: int) -> None:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `rotar_segmento(nums, k, inicio, fin)` que rote en sitio solo el "
+                "tramo `nums[inicio..fin]` (ambos incluidos) `k` posiciones a la derecha.\n\n"
+                "Si `inicio` o `fin` están fuera de la lista, o `inicio > fin`, lanza "
+                "`ValueError` sin modificar nada.\n\n"
+                "Ejemplo:\n"
+                "```\n"
+                "nums = [1, 2, 3, 4, 5, 6]\n"
+                "rotar_segmento(nums, 1, 1, 4)\n"
+                "nums  # [1, 5, 2, 3, 4, 6]\n"
+                "```"
+            ),
+            starter_code="def rotar_segmento(nums: list[int], k: int, inicio: int, fin: int) -> None:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="dicts-frecuencia",
         title="Frecuencia de Tokens",
         topic="dicts",
-        easy_prompt="Crea `contar_tokens(texto)` que retorne un diccionario token->frecuencia separado por espacios.",
-        medium_prompt="Normaliza minusculas y elimina puntuacion basica antes de contar tokens.",
-        hard_prompt="Retorna top-k tokens por frecuencia y, en empate, orden alfabetico.",
-        starter_code="def contar_tokens(texto: str) -> dict[str, int]:\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `contar_tokens(texto)` que separe el texto por espacios y devuelva "
+                "un diccionario token → cuántas veces aparece.\n\n"
+                "Ejemplo: `contar_tokens('el gato y el perro')` → "
+                "`{'el': 2, 'gato': 1, 'y': 1, 'perro': 1}`"
+            ),
+            starter_code="def contar_tokens(texto: str) -> dict[str, int]:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `contar_tokens_limpios(texto)` que, antes de contar, pase todo a "
+                "minúsculas y quite los signos `. , ; : ! ? ¡ ¿`.\n\n"
+                "Ejemplo: `contar_tokens_limpios('Hola, hola. ¿Qué tal?')` → "
+                "`{'hola': 2, 'qué': 1, 'tal': 1}`"
+            ),
+            starter_code="def contar_tokens_limpios(texto: str) -> dict[str, int]:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `top_k_tokens(texto, k)` que limpie el texto como en el nivel "
+                "anterior y devuelva una lista con los `k` tokens más frecuentes como tuplas "
+                "`(token, frecuencia)`: de más a menos frecuente y, en empate, en orden "
+                "alfabético.\n\n"
+                "Ejemplo: `top_k_tokens('b a c b a d', 2)` → `[('a', 2), ('b', 2)]`"
+            ),
+            starter_code="def top_k_tokens(texto: str, k: int) -> list[tuple[str, int]]:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="sets-diferencia",
         title="Diferencias de Inventario",
         topic="sets",
-        easy_prompt="Implementa `faltantes(requeridos, presentes)` para retornar elementos requeridos que faltan.",
-        medium_prompt="Implementa `delta_inventario(a, b)` retornando agregados y removidos entre dos snapshots.",
-        hard_prompt="Implementa comparacion entre inventarios con ids repetidos y retorna diferencias con conteos.",
-        starter_code="def faltantes(requeridos: set[str], presentes: set[str]) -> set[str]:\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `faltantes(requeridos, presentes)` que devuelva el conjunto de "
+                "elementos requeridos que no están presentes.\n\n"
+                "Ejemplo: `faltantes({'casco', 'guantes', 'botas'}, {'guantes'})` → "
+                "`{'casco', 'botas'}`"
+            ),
+            starter_code="def faltantes(requeridos: set[str], presentes: set[str]) -> set[str]:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `delta_inventario(antes, despues)` que compare dos snapshots "
+                "(conjuntos) y devuelva un diccionario con dos conjuntos: `'agregados'` "
+                "(están ahora y antes no) y `'removidos'` (estaban y ya no).\n\n"
+                "Ejemplo: `delta_inventario({'a', 'b'}, {'b', 'c'})` → "
+                "`{'agregados': {'c'}, 'removidos': {'a'}}`"
+            ),
+            starter_code="def delta_inventario(antes: set[str], despues: set[str]) -> dict[str, set[str]]:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Ahora los inventarios son **listas con repetidos**. Escribe "
+                "`diferencias_con_conteo(antes, despues)` que devuelva un diccionario "
+                "artículo → cambio de cantidad (`despues - antes`), sin incluir los "
+                "artículos cuyo cambio sea 0.\n\n"
+                "Ejemplo:\n"
+                "`diferencias_con_conteo(['tornillo', 'tornillo', 'tuerca'], ['tornillo', 'clavo'])`\n"
+                "→ `{'tornillo': -1, 'tuerca': -1, 'clavo': 1}`"
+            ),
+            starter_code="def diferencias_con_conteo(antes: list[str], despues: list[str]) -> dict[str, int]:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="sorting-custom",
         title="Ordenamiento Personalizado",
         topic="sorting",
-        easy_prompt="Ordena una lista de tuplas `(nombre, edad)` por edad ascendente.",
-        medium_prompt="Ordena empleados por salario descendente y nombre ascendente en empate.",
-        hard_prompt="Implementa `ordenar_por_campos(registros, campos)` para criterios dinamicos con prioridad.",
-        starter_code="def ordenar_registros(registros):\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `ordenar_por_edad(personas)` que reciba tuplas `(nombre, edad)` y "
+                "devuelva una lista **nueva** ordenada por edad, de menor a mayor.\n\n"
+                "Ejemplo: `ordenar_por_edad([('Ana', 30), ('Beto', 25)])` → "
+                "`[('Beto', 25), ('Ana', 30)]`"
+            ),
+            starter_code="def ordenar_por_edad(personas: list[tuple[str, int]]) -> list[tuple[str, int]]:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `ordenar_empleados(empleados)` que reciba diccionarios con "
+                "`'nombre'` y `'salario'` y los ordene por salario de mayor a menor y, si "
+                "empatan, por nombre alfabéticamente.\n\n"
+                "Ejemplo:\n"
+                "`ordenar_empleados([{'nombre': 'Luz', 'salario': 900}, {'nombre': 'Ana', 'salario': 900}, "
+                "{'nombre': 'Eva', 'salario': 1200}])`\n"
+                "→ Eva (1200), Ana (900), Luz (900)"
+            ),
+            starter_code="def ordenar_empleados(empleados: list[dict]) -> list[dict]:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `ordenar_por_campos(registros, campos)` donde `campos` es una lista "
+                "de `(campo, sentido)` con sentido `'asc'` o `'desc'`, en orden de "
+                "prioridad. Devuelve una lista nueva.\n\n"
+                "Ejemplo: `ordenar_por_campos(registros, [('ciudad', 'asc'), ('edad', 'desc')])` "
+                "ordena por ciudad y, dentro de cada ciudad, del mayor al menor.\n\n"
+                "Pista: `sorted` es estable; ordenar varias veces empezando por el campo de "
+                "menor prioridad resuelve los sentidos mezclados, incluso con textos."
+            ),
+            starter_code="def ordenar_por_campos(registros: list[dict], campos: list[tuple[str, str]]) -> list[dict]:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="search-binary",
         title="Busqueda Binaria",
         topic="search",
-        easy_prompt="Implementa `binary_search(nums, target)` en lista ordenada y retorna indice o -1.",
-        medium_prompt="Retorna la primera ocurrencia de target cuando hay duplicados.",
-        hard_prompt="Retorna rango [inicio, fin] de ocurrencias de target en O(log n).",
-        starter_code="def binary_search(nums: list[int], target: int) -> int:\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `binary_search(nums, target)` para una lista ordenada: devuelve el "
+                "índice de `target` o `-1` si no está. Nada de `in` ni `.index()`: parte el "
+                "rango por la mitad en cada paso.\n\n"
+                "Ejemplos:\n"
+                "- `binary_search([1, 3, 5, 7, 9], 7)` → `3`\n"
+                "- `binary_search([1, 3, 5], 4)` → `-1`"
+            ),
+            starter_code="def binary_search(nums: list[int], target: int) -> int:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `primera_ocurrencia(nums, target)`: la lista está ordenada pero "
+                "puede tener repetidos. Devuelve el índice de la **primera** aparición de "
+                "`target`, o `-1`, en O(log n).\n\n"
+                "Ejemplo: `primera_ocurrencia([1, 2, 2, 2, 3], 2)` → `1`"
+            ),
+            starter_code="def primera_ocurrencia(nums: list[int], target: int) -> int:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `rango_ocurrencias(nums, target)` que devuelva `[inicio, fin]` con "
+                "la primera y la última posición de `target` en una lista ordenada, o "
+                "`[-1, -1]` si no está. Tiene que ser O(log n): dos búsquedas binarias, no "
+                "una búsqueda y luego recorrer.\n\n"
+                "Ejemplo: `rango_ocurrencias([5, 7, 7, 8, 8, 10], 8)` → `[3, 4]`"
+            ),
+            starter_code="def rango_ocurrencias(nums: list[int], target: int) -> list[int]:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="recursion-factorial",
         title="Factorial y Memoizacion",
         topic="recursion",
-        easy_prompt="Implementa `factorial(n)` de forma recursiva con casos base correctos.",
-        medium_prompt="Implementa version iterativa y recursiva, y compara para n grandes.",
-        hard_prompt="Implementa memoizacion para factorial y calcula multiples consultas eficientemente.",
-        starter_code="def factorial(n: int) -> int:\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `factorial(n)` de forma **recursiva**. El caso base es "
+                "`factorial(0) == 1`.\n\n"
+                "Ejemplo: `factorial(5)` → `120`"
+            ),
+            starter_code="def factorial(n: int) -> int:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `factorial_iterativo(n)` con un bucle, sin recursión, que lance "
+                "`ValueError` si `n` es negativo.\n\n"
+                "Tiene que funcionar con `factorial_iterativo(3000)`: la versión recursiva "
+                "revienta ahí con `RecursionError`, porque Python limita la profundidad de "
+                "llamadas. Pruébalo con las dos."
+            ),
+            starter_code="def factorial_iterativo(n: int) -> int:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `factoriales(consultas)` que reciba una lista de enteros y devuelva "
+                "la lista de sus factoriales, en el mismo orden.\n\n"
+                "La gracia está en no recalcular: si ya tienes `5!`, `6!` es `5! * 6`. "
+                "Calcula cada factorial una sola vez aunque haya miles de consultas.\n\n"
+                "Ejemplo: `factoriales([5, 3, 6, 3])` → `[120, 6, 720, 6]`"
+            ),
+            starter_code="def factoriales(consultas: list[int]) -> list[int]:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="recursion-fibonacci",
         title="Fibonacci Eficiente",
         topic="recursion",
-        easy_prompt="Implementa `fib(n)` iterativo para n>=0.",
-        medium_prompt="Implementa `fib(n)` con memoizacion y valida entradas negativas.",
-        hard_prompt="Implementa `fib_rapido(n)` con fast doubling para O(log n).",
-        starter_code="def fib(n: int) -> int:\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `fib(n)` **iterativo** que devuelva el n-ésimo número de Fibonacci, "
+                "con `fib(0) == 0` y `fib(1) == 1`.\n\n"
+                "Ejemplo: `fib(10)` → `55`"
+            ),
+            starter_code="def fib(n: int) -> int:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `fib_memo(n)` **recursivo con memoización** (un diccionario o "
+                "`functools.lru_cache`) que lance `ValueError` si `n` es negativo.\n\n"
+                "Sin memoria, `fib_memo(80)` tardaría años; con ella, un instante."
+            ),
+            starter_code="def fib_memo(n: int) -> int:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `fib_rapido(n)` en O(log n) con *fast doubling*:\n\n"
+                "- `F(2k) = F(k) * (2*F(k+1) - F(k))`\n"
+                "- `F(2k+1) = F(k)**2 + F(k+1)**2`\n\n"
+                "Ejemplo: `fib_rapido(100)` → `354224848179261915075`. Tiene que resolver "
+                "`fib_rapido(100_000)` en menos de un segundo."
+            ),
+            starter_code="def fib_rapido(n: int) -> int:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="window-max-sum",
         title="Ventana Deslizante",
         topic="sliding-window",
-        easy_prompt="Dado `nums` y `k`, retorna la suma maxima de una sublista contigua de largo k.",
-        medium_prompt="Retorna tambien los indices [inicio, fin] de la mejor ventana.",
-        hard_prompt="Extiende para ventanas variables segun un umbral y minimiza longitud.",
-        starter_code="def max_suma_ventana(nums: list[int], k: int) -> int:\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `max_suma_ventana(nums, k)` que devuelva la mayor suma de `k` "
+                "elementos seguidos. Puedes asumir `1 <= k <= len(nums)`.\n\n"
+                "Ejemplo: `max_suma_ventana([2, 1, 5, 1, 3, 2], 3)` → `9` (5 + 1 + 3)"
+            ),
+            starter_code="def max_suma_ventana(nums: list[int], k: int) -> int:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `mejor_ventana(nums, k)` que devuelva `(suma, inicio, fin)` de la "
+                "mejor ventana, y la primera si empatan. En O(n): al mover la ventana, suma "
+                "el que entra y resta el que sale, en vez de volver a sumar todo.\n\n"
+                "Ejemplo: `mejor_ventana([2, 1, 5, 1, 3, 2], 3)` → `(9, 2, 4)`"
+            ),
+            starter_code="def mejor_ventana(nums: list[int], k: int) -> tuple[int, int, int]:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `ventana_minima(nums, umbral)`: con todos los números positivos, "
+                "devuelve la longitud del tramo seguido **más corto** cuya suma sea mayor "
+                "o igual que `umbral`, o `0` si no existe. La ventana ahora cambia de "
+                "tamaño: crece por la derecha y se encoge por la izquierda.\n\n"
+                "Ejemplo: `ventana_minima([2, 3, 1, 2, 4, 3], 7)` → `2` (el tramo `[4, 3]`)"
+            ),
+            starter_code="def ventana_minima(nums: list[int], umbral: int) -> int:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="stack-parentesis",
         title="Parentesis Balanceados",
         topic="stacks",
-        easy_prompt="Implementa `balanceado(texto)` para parentesis `()`.",
-        medium_prompt="Soporta `()[]{} ` y retorna False si algun cierre no coincide.",
-        hard_prompt="Retorna posicion exacta del primer error de balanceo.",
-        starter_code="def balanceado(texto: str):\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `balanceado(texto)` que devuelva `True` si los paréntesis `()` "
+                "están bien abiertos y cerrados.\n\n"
+                "Ejemplos:\n"
+                "- `balanceado('(())()')` → `True`\n"
+                "- `balanceado('(()')` → `False`\n"
+                "- `balanceado(')(')` → `False`"
+            ),
+            starter_code="def balanceado(texto: str) -> bool:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `balanceado_mixto(texto)` que admita `()`, `[]` y `{}` e ignore "
+                "cualquier otro carácter. Cada cierre tiene que corresponder con la última "
+                "apertura pendiente: usa una pila.\n\n"
+                "Ejemplos:\n"
+                "- `balanceado_mixto('{[a(b)]}')` → `True`\n"
+                "- `balanceado_mixto('([)]')` → `False`"
+            ),
+            starter_code="def balanceado_mixto(texto: str) -> bool:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `primer_error(texto)` con los mismos tres tipos de paréntesis, pero "
+                "que diga **dónde** falla:\n\n"
+                "- si un cierre no corresponde (o no hay nada que cerrar), su índice;\n"
+                "- si al final quedan aperturas sin cerrar, el índice de la primera de ellas;\n"
+                "- si todo está bien, `-1`.\n\n"
+                "Ejemplos:\n"
+                "- `primer_error('(a[b)c]')` → `4`\n"
+                "- `primer_error('((x)')` → `0`\n"
+                "- `primer_error('(ok)')` → `-1`"
+            ),
+            starter_code="def primer_error(texto: str) -> int:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="queue-scheduler",
         title="Simulador de Cola",
         topic="queues",
-        easy_prompt="Simula una cola FIFO con operaciones enqueue/dequeue basicas.",
-        medium_prompt="Agrega prioridad numerica y procesa primero menor valor.",
-        hard_prompt="Simula round-robin con quantum y calcula tiempos de espera.",
-        starter_code="def simular_cola(operaciones):\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `simular_cola(operaciones)` para una cola FIFO. Cada operación es "
+                "`('entra', nombre)` o `('sale',)`. Devuelve la lista de nombres en el orden "
+                "en que salieron. Un `'sale'` con la cola vacía no hace nada.\n\n"
+                "Ejemplo: `simular_cola([('entra', 'Ana'), ('entra', 'Beto'), ('sale',), ('sale',), ('sale',)])` "
+                "→ `['Ana', 'Beto']`\n\n"
+                "Pista: `collections.deque` saca por la izquierda en O(1)."
+            ),
+            starter_code="def simular_cola(operaciones: list[tuple]) -> list[str]:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `simular_cola_prioridad(operaciones)`: ahora se entra con "
+                "`('entra', nombre, prioridad)` y sale primero la prioridad **más baja**. "
+                "Si empatan, sale antes quien llegó antes.\n\n"
+                "Ejemplo: `simular_cola_prioridad([('entra', 'A', 2), ('entra', 'B', 1), ('entra', 'C', 2), "
+                "('sale',), ('sale',), ('sale',)])` → `['B', 'A', 'C']`\n\n"
+                "Pista: `heapq` con tuplas `(prioridad, orden_de_llegada, nombre)`."
+            ),
+            starter_code="def simular_cola_prioridad(operaciones: list[tuple]) -> list[str]:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `round_robin(procesos, quantum)`: `procesos` es una lista de "
+                "`(nombre, duracion)` que llegan todos en el instante 0. Cada proceso usa la "
+                "CPU como mucho `quantum` unidades y, si no terminó, vuelve al final de la "
+                "cola.\n\n"
+                "Devuelve un diccionario nombre → tiempo de espera (instante en que termina "
+                "menos su duración).\n\n"
+                "Ejemplo: `round_robin([('A', 5), ('B', 3)], 2)` → `{'A': 3, 'B': 4}`\n"
+                "(A 0-2, B 2-4, A 4-6, B 6-7 termina, A 7-8 termina)"
+            ),
+            starter_code="def round_robin(procesos: list[tuple[str, int]], quantum: int) -> dict[str, int]:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="regex-validacion",
         title="Validacion con Regex",
         topic="regex",
-        easy_prompt="Valida correos simples con una expresion regular basica.",
-        medium_prompt="Extrae todos los hashtags validos de un texto.",
-        hard_prompt="Valida patrones compuestos (id, fecha, codigo) con grupos nombrados.",
-        starter_code="import re\n\ndef validar(valor: str) -> bool:\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `es_correo(valor)` con una expresión regular y `re.fullmatch`: "
+                "texto sin espacios, una sola `@`, un dominio y una extensión de al menos 2 "
+                "letras.\n\n"
+                "Ejemplos:\n"
+                "- `es_correo('ana@mail.com')` → `True`\n"
+                "- `es_correo('ana@mail')` → `False`\n"
+                "- `es_correo('ana lopez@mail.com')` → `False`"
+            ),
+            starter_code="import re\n\n\ndef es_correo(valor: str) -> bool:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `extraer_hashtags(texto)` que devuelva, en orden y sin la `#`, los "
+                "hashtags válidos: una `#` seguida de una letra y luego letras, dígitos o `_`.\n\n"
+                "Ejemplo: `extraer_hashtags('Aprendo #Python y #ML_101, no #123')` → "
+                "`['Python', 'ML_101']`"
+            ),
+            starter_code="import re\n\n\ndef extraer_hashtags(texto: str) -> list[str]:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `parsear_codigo(valor)` para códigos de producto con el formato "
+                "`CAT-AAAA-MM-DD-NNNN`: 3 letras mayúsculas, una fecha y 4 dígitos. Usa "
+                "**grupos con nombre** (`(?P<nombre>...)`) y devuelve un diccionario, o "
+                "`None` si el formato no encaja.\n\n"
+                "Ejemplo: `parsear_codigo('PRD-2026-06-14-0042')` → "
+                "`{'categoria': 'PRD', 'fecha': '2026-06-14', 'numero': 42}`"
+            ),
+            starter_code="import re\n\n\ndef parsear_codigo(valor: str) -> dict | None:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="files-logs",
         title="Procesador de Logs",
-        topic="files",
-        easy_prompt="Lee un archivo y cuenta lineas por nivel INFO/WARN/ERROR.",
-        medium_prompt="Calcula top endpoints por numero de errores en un log.",
-        hard_prompt="Implementa parser tolerante a lineas corruptas y genera resumen JSON.",
-        starter_code="def procesar_log(path: str):\n    # TODO\n    pass\n",
+        topic="logs",
+        easy=NivelReto(
+            prompt=(
+                "Un log tiene líneas como `'2026-06-14 10:00:01 ERROR /api/pagos timeout'`: "
+                "fecha, hora, nivel, endpoint y mensaje, separados por espacios.\n\n"
+                "Escribe `contar_niveles(lineas)` que reciba la lista de líneas y devuelva "
+                "cuántas hay de cada nivel.\n\n"
+                "Ejemplo: `contar_niveles(['2026-06-14 10:00:01 INFO /api/login ok', "
+                "'2026-06-14 10:00:02 ERROR /api/pagos timeout'])` → `{'INFO': 1, 'ERROR': 1}`"
+            ),
+            starter_code="def contar_niveles(lineas: list[str]) -> dict[str, int]:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Con el mismo formato de log, escribe `top_endpoints_con_error(lineas, k)` "
+                "que devuelva los `k` endpoints con más líneas `ERROR`, como tuplas "
+                "`(endpoint, errores)`, de más a menos y, en empate, alfabéticamente."
+            ),
+            starter_code="def top_endpoints_con_error(lineas: list[str], k: int) -> list[tuple[str, int]]:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Los logs reales traen basura. Escribe `resumir_log(lineas)` que no se rompa "
+                "con líneas corruptas (menos de 4 campos, o un nivel que no sea `INFO`, "
+                "`WARN` o `ERROR`) y devuelva:\n\n"
+                "```\n"
+                "{\n"
+                "    'niveles': {'INFO': 3, 'ERROR': 1},\n"
+                "    'corruptas': 2,\n"
+                "    'primer_error': '2026-06-14 10:00:02',  # fecha y hora, o None\n"
+                "}\n"
+                "```\n\n"
+                "El resultado tiene que poder pasarse a `json.dumps` sin error."
+            ),
+            starter_code="def resumir_log(lineas: list[str]) -> dict:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="datetime-reportes",
         title="Reportes por Fecha",
         topic="datetime",
-        easy_prompt="Agrupa eventos por dia y cuenta ocurrencias.",
-        medium_prompt="Calcula rachas consecutivas de actividad diaria.",
-        hard_prompt="Soporta zonas horarias y cortes semanales ISO.",
-        starter_code="from datetime import datetime\n\ndef agrupar_eventos(fechas: list[str]):\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `eventos_por_dia(fechas)` que reciba fechas en formato ISO "
+                "(`'2026-06-14T10:30:00'`) y devuelva un diccionario `'AAAA-MM-DD'` → "
+                "cuántos eventos hubo ese día.\n\n"
+                "Pista: `datetime.fromisoformat(texto).date().isoformat()`."
+            ),
+            starter_code="from datetime import datetime\n\n\ndef eventos_por_dia(fechas: list[str]) -> dict[str, int]:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `racha_maxima(fechas)` que devuelva la racha más larga de **días "
+                "consecutivos** con al menos un evento. Varios eventos el mismo día cuentan "
+                "una vez, y las fechas pueden venir desordenadas. Sin fechas, `0`.\n\n"
+                "Ejemplo: eventos el 1, 2, 3 y 5 de junio → `3`"
+            ),
+            starter_code="from datetime import date, datetime, timedelta\n\n\ndef racha_maxima(fechas: list[str]) -> int:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `eventos_por_semana_iso(fechas)`: las fechas ahora traen zona "
+                "horaria (`'2026-06-15T01:00:00+02:00'`). Pásalas a UTC antes de agrupar y "
+                "devuelve un diccionario semana ISO (`'2026-W24'`) → cuántos eventos.\n\n"
+                "Ojo con el borde: `'2026-06-15T01:00:00+02:00'` es lunes en Madrid pero "
+                "domingo 14 en UTC, así que cuenta en la semana 24, no en la 25.\n\n"
+                "Pista: `.astimezone(timezone.utc).isocalendar()`."
+            ),
+            starter_code="from datetime import datetime, timezone\n\n\ndef eventos_por_semana_iso(fechas: list[str]) -> dict[str, int]:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="oop-bank-account",
         title="Cuenta Bancaria OOP",
         topic="oop",
-        easy_prompt="Crea clase `Cuenta` con depositar y retirar.",
-        medium_prompt="Agrega validaciones, historial y excepciones propias.",
-        hard_prompt="Implementa transferencias atomicas entre cuentas y auditoria.",
-        starter_code="class Cuenta:\n    def __init__(self, saldo: float = 0):\n        self.saldo = saldo\n",
+        easy=NivelReto(
+            prompt=(
+                "Crea la clase `Cuenta` con un atributo `saldo` (0 por defecto) y dos "
+                "métodos: `depositar(monto)` y `retirar(monto)`. Retirar más de lo que hay "
+                "lanza `ValueError` y deja el saldo como estaba.\n\n"
+                "Ejemplo:\n"
+                "```\n"
+                "c = Cuenta()\n"
+                "c.depositar(100)\n"
+                "c.retirar(30)\n"
+                "c.saldo  # 70\n"
+                "```"
+            ),
+            starter_code=(
+                "class Cuenta:\n"
+                "    def __init__(self, saldo: float = 0):\n"
+                "        self.saldo = saldo\n\n"
+                "    def depositar(self, monto: float) -> None:\n"
+                "        # TODO\n"
+                "        pass\n\n"
+                "    def retirar(self, monto: float) -> None:\n"
+                "        # TODO\n"
+                "        pass\n"
+            ),
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Crea `CuentaConHistorial`, con `depositar` y `retirar` como en el nivel "
+                "anterior, pero:\n\n"
+                "- un monto menor o igual a 0 lanza `ValueError`;\n"
+                "- retirar más que el saldo lanza tu propia excepción `SaldoInsuficiente`;\n"
+                "- cada operación que sale bien se anota en `historial` como "
+                "`('deposito', monto)` o `('retiro', monto)`; las que fallan, no."
+            ),
+            starter_code=(
+                "class SaldoInsuficiente(Exception):\n"
+                "    pass\n\n\n"
+                "class CuentaConHistorial:\n"
+                "    def __init__(self, saldo: float = 0):\n"
+                "        self.saldo = saldo\n"
+                "        self.historial = []\n\n"
+                "    # TODO: depositar(monto) y retirar(monto)\n"
+            ),
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `transferir(origen, destino, monto)` de forma **atómica**: o se "
+                "mueven los dos saldos, o no se mueve ninguno.\n\n"
+                "La trampa está en el starter: una cuenta con `activa = False` rechaza los "
+                "depósitos. Si retiras del origen y el depósito falla, el dinero "
+                "desaparece: tienes que devolverlo y relanzar el error.\n\n"
+                "Además, anota cada transferencia que termine bien en la lista global "
+                "`auditoria` como `(origen.titular, destino.titular, monto)`."
+            ),
+            starter_code=(
+                "auditoria = []\n\n\n"
+                "class Cuenta:\n"
+                "    def __init__(self, titular: str, saldo: float = 0, activa: bool = True):\n"
+                "        self.titular = titular\n"
+                "        self.saldo = saldo\n"
+                "        self.activa = activa\n\n"
+                "    def depositar(self, monto: float) -> None:\n"
+                "        if not self.activa:\n"
+                "            raise ValueError(f'la cuenta de {self.titular} esta inactiva')\n"
+                "        self.saldo += monto\n\n"
+                "    def retirar(self, monto: float) -> None:\n"
+                "        if monto > self.saldo:\n"
+                "            raise ValueError('saldo insuficiente')\n"
+                "        self.saldo -= monto\n\n\n"
+                "def transferir(origen: Cuenta, destino: Cuenta, monto: float) -> None:\n"
+                "    # TODO\n"
+                "    pass\n"
+            ),
+        ),
     ),
     ChallengeTemplate(
         slug_base="testing-pytest",
         title="Refactor con Pruebas",
         topic="testing",
-        easy_prompt="Escribe pruebas para una funcion que calcula descuento.",
-        medium_prompt="Agrega casos borde y parametrizacion con pytest.",
-        hard_prompt="Refactoriza una funcion larga guiado por tests y cobertura minima 90%.",
-        starter_code="def calcular_descuento(total: float, porcentaje: float) -> float:\n    return total - (total * porcentaje / 100)\n",
+        easy=NivelReto(
+            prompt=(
+                "La función `calcular_descuento` ya está escrita. Tu trabajo es escribir "
+                "`test_descuento_basico()` con al menos tres `assert` que comprueben "
+                "resultados concretos (por ejemplo, 200 con un 10 % da 180).\n\n"
+                "Un buen test falla si alguien rompe la función: prueba a cambiar el `-` "
+                "por un `+` y comprueba que tu test se entera."
+            ),
+            starter_code=(
+                "def calcular_descuento(total: float, porcentaje: float) -> float:\n"
+                "    return total - (total * porcentaje / 100)\n\n\n"
+                "def test_descuento_basico():\n"
+                "    # TODO: al menos tres assert\n"
+                "    ...\n"
+            ),
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Ahora `calcular_descuento` rechaza porcentajes fuera de `[0, 100]`. "
+                "Escribe `test_casos_borde()` que cubra el 0 %, el 100 % y que un "
+                "porcentaje de 150 lance `ValueError`.\n\n"
+                "Sin pytest a mano, haz la parametrización tú: una lista de casos "
+                "`(total, porcentaje, esperado)` y un bucle que los compruebe todos."
+            ),
+            starter_code=(
+                "def calcular_descuento(total: float, porcentaje: float) -> float:\n"
+                "    if not 0 <= porcentaje <= 100:\n"
+                "        raise ValueError('porcentaje fuera de rango')\n"
+                "    return total - (total * porcentaje / 100)\n\n\n"
+                "def test_casos_borde():\n"
+                "    # TODO: casos (total, porcentaje, esperado) + el ValueError\n"
+                "    ...\n"
+            ),
+        ),
+        hard=NivelReto(
+            prompt=(
+                "`precio_final` funciona pero es un bloque difícil de leer. Refactorízalo "
+                "**sin cambiar su resultado**:\n\n"
+                "1. Antes de tocar nada, escribe `test_precio_final()` con casos que fijen "
+                "el comportamiento actual (con y sin cupón, con envío gratis y pagado).\n"
+                "2. Extrae `subtotal(items)`, `aplicar_cupon(importe, cupon)` y "
+                "`coste_envio(importe)`, y haz que `precio_final` las use.\n"
+                "3. Tu test tiene que seguir pasando después."
+            ),
+            starter_code=(
+                "def precio_final(items, cupon=None):\n"
+                "    t = 0\n"
+                "    for item in items:\n"
+                "        t = t + item['precio'] * item['cantidad']\n"
+                "    if cupon == 'DESC10':\n"
+                "        t = t - t * 0.10\n"
+                "    elif cupon == 'MENOS5' and t > 5:\n"
+                "        t = t - 5\n"
+                "    if t < 50:\n"
+                "        t = t + 4.99\n"
+                "    return round(t, 2)\n\n\n"
+                "def test_precio_final():\n"
+                "    # TODO: fija el comportamiento antes de refactorizar\n"
+                "    ...\n"
+            ),
+        ),
     ),
     ChallengeTemplate(
         slug_base="pandas-aggregations",
         title="Agregaciones con Pandas",
         topic="pandas",
-        easy_prompt="Con DataFrame de ventas, calcula total por producto.",
-        medium_prompt="Calcula ticket promedio por ciudad y ordena descendente.",
-        hard_prompt="Construye un reporte mensual con pivot, variacion y ranking.",
-        starter_code="import pandas as pd\n\ndef reporte(df: pd.DataFrame):\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `total_por_producto(df)` para un DataFrame de ventas con columnas "
+                "`producto`, `cantidad` y `precio`. Devuelve un diccionario producto → "
+                "importe total (`cantidad * precio` sumado).\n\n"
+                "Pista: crea una columna `importe` y usa `groupby('producto')`."
+            ),
+            starter_code="import pandas as pd\n\n\ndef total_por_producto(df: pd.DataFrame) -> dict:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Cada ticket puede tener varias filas. Con columnas `ciudad`, `ticket_id` e "
+                "`importe`, escribe `ticket_promedio_por_ciudad(df)` que devuelva una "
+                "`Series` ciudad → importe medio **por ticket**, ordenada de mayor a menor.\n\n"
+                "Ojo: la media de las filas no es la media por ticket. Suma primero por "
+                "ticket y luego promedia por ciudad."
+            ),
+            starter_code="import pandas as pd\n\n\ndef ticket_promedio_por_ciudad(df: pd.DataFrame) -> pd.Series:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Con columnas `fecha` (texto ISO) e `importe`, escribe `reporte_mensual(df)` "
+                "que devuelva un DataFrame con una fila por mes, ordenado por mes, y las "
+                "columnas:\n\n"
+                "- `mes`: texto `'AAAA-MM'`;\n"
+                "- `total`: suma del mes;\n"
+                "- `variacion_pct`: cambio porcentual respecto al mes anterior (`NaN` en el "
+                "primero);\n"
+                "- `ranking`: 1 para el mes con más ventas, 2 el siguiente, etc."
+            ),
+            starter_code="import pandas as pd\n\n\ndef reporte_mensual(df: pd.DataFrame) -> pd.DataFrame:\n    # TODO\n    pass\n",
+        ),
     ),
     ChallengeTemplate(
         slug_base="numpy-vectorization",
         title="Vectorizacion con NumPy",
         topic="numpy",
-        easy_prompt="Calcula media y desviacion estandar de un array.",
-        medium_prompt="Normaliza matriz por columna sin bucles explicitos.",
-        hard_prompt="Implementa distancia coseno por filas usando operaciones vectorizadas.",
-        starter_code="import numpy as np\n\ndef transformar(a: np.ndarray):\n    # TODO\n    pass\n",
+        easy=NivelReto(
+            prompt=(
+                "Escribe `media_y_desviacion(a)` que devuelva una tupla `(media, desviacion)` "
+                "de un array, como `float`, usando `np.mean` y `np.std`.\n\n"
+                "Ejemplo: `media_y_desviacion(np.array([2, 4, 4, 4, 5, 5, 7, 9]))` → `(5.0, 2.0)`"
+            ),
+            starter_code="import numpy as np\n\n\ndef media_y_desviacion(a: np.ndarray) -> tuple[float, float]:\n    # TODO\n    pass\n",
+        ),
+        medium=NivelReto(
+            prompt=(
+                "Escribe `normalizar_columnas(m)` que aplique min-max a **cada columna** de "
+                "una matriz, sin bucles: cada columna queda entre 0 y 1. Una columna "
+                "constante queda toda en 0 (sin dividir por cero).\n\n"
+                "Pista: `m.min(axis=0)` y broadcasting."
+            ),
+            starter_code="import numpy as np\n\n\ndef normalizar_columnas(m: np.ndarray) -> np.ndarray:\n    # TODO\n    pass\n",
+        ),
+        hard=NivelReto(
+            prompt=(
+                "Escribe `distancia_coseno_filas(a, b)`: `a` y `b` tienen forma `(n, d)` y "
+                "devuelves un array `(n,)` con la distancia coseno entre `a[i]` y `b[i]` "
+                "(`1 - similitud`), sin bucles. Si una de las dos filas es todo ceros, esa "
+                "distancia vale `1.0`.\n\n"
+                "Es la misma cuenta que usa un buscador semántico para comparar embeddings."
+            ),
+            starter_code="import numpy as np\n\n\ndef distancia_coseno_filas(a: np.ndarray, b: np.ndarray) -> np.ndarray:\n    # TODO\n    pass\n",
+        ),
     ),
 ]
 
 
-def _difficulty_elo(difficulty: str, offset: int) -> int:
-    base = {"easy": 850, "medium": 1200, "hard": 1550}[difficulty]
-    return base + offset
+# (dificultad, sufijo del slug, numero de nivel)
+NIVELES: tuple[tuple[str, str, int], ...] = (
+    ("easy", "facil", 1),
+    ("medium", "medio", 2),
+    ("hard", "dificil", 3),
+)
+
+# Los retos generados van detras de los curados (order_index < 1000), que son
+# los mas cercanos a Data Science. Los tres niveles de un problema comparten
+# orden para salir juntos.
+ORDEN_BASE_GENERADOS = 1000
+
+
+def slug_nivel(slug_base: str, difficulty_slug: str) -> str:
+    # El "-1" final es historico: era la variante 1 de 3 copias identicas. Se
+    # conserva para no cambiar el id de los retos que ya existen.
+    return f"{CURATED_SOURCE}-{slug_base}-{difficulty_slug}-1"
+
+
+def niveles_del_mismo_problema(slug: str) -> list[tuple[str, int, str]]:
+    """(dificultad, nivel, slug) de los tres niveles del problema de `slug`.
+
+    Lista vacia si el slug no es de un reto generado por niveles.
+    """
+    for template in CHALLENGE_TEMPLATES:
+        slugs = [
+            (difficulty, nivel, slug_nivel(template.slug_base, dslug))
+            for difficulty, dslug, nivel in NIVELES
+        ]
+        if any(s == slug for _, _, s in slugs):
+            return slugs
+    return []
+
+
+def nivel_de_slug(slug: str) -> int | None:
+    for _, nivel, s in niveles_del_mismo_problema(slug):
+        if s == slug:
+            return nivel
+    return None
 
 
 async def seed_generated_challenges(db: AsyncSession) -> int:
-    """Insert many curated generated challenges if missing."""
-    max_order = await db.execute(select(func.max(CodingChallenge.order_index)))
-    order_index = (max_order.scalar_one_or_none() or 0) + 1
+    """Sincroniza los retos por niveles con `CHALLENGE_TEMPLATES`.
+
+    - Inserta los que falten y actualiza el contenido de los que ya existen
+      (conservando su id y las completaciones de los alumnos).
+    - Borra los retos de esta fuente que ya no estan en las plantillas: asi
+      desaparecieron las variantes v2/v3, que eran copias de la v1.
+
+    Devuelve cuantos retos inserto.
+    """
+    vigentes: set[str] = set()
     inserted = 0
+    cambios = False
 
-    variants = [("easy", "facil"), ("medium", "medio"), ("hard", "dificil")]
-    for template in CHALLENGE_TEMPLATES:
-        for difficulty, difficulty_slug in variants:
-            for variant_idx in range(1, 4):
-                slug = f"{CURATED_SOURCE}-{template.slug_base}-{difficulty_slug}-{variant_idx}"
-                existing = await db.execute(
-                    select(CodingChallenge.id).where(CodingChallenge.slug == slug)
-                )
-                if existing.scalar_one_or_none() is not None:
-                    continue
+    for idx, template in enumerate(CHALLENGE_TEMPLATES):
+        for difficulty, difficulty_slug, _nivel in NIVELES:
+            nivel_reto: NivelReto = getattr(template, difficulty)
+            slug = slug_nivel(template.slug_base, difficulty_slug)
+            vigentes.add(slug)
+            campos = {
+                "title": template.title,
+                "source": CURATED_SOURCE,
+                "source_path": f"generated/{template.topic}/{difficulty}/{slug}.md",
+                "difficulty": difficulty,
+                "topic": template.topic,
+                "prompt": nivel_reto.prompt,
+                "starter_code": nivel_reto.starter_code,
+                "order_index": ORDEN_BASE_GENERADOS + idx,
+                "is_active": True,
+            }
 
-                if difficulty == "easy":
-                    prompt = template.easy_prompt
-                elif difficulty == "medium":
-                    prompt = template.medium_prompt
-                else:
-                    prompt = template.hard_prompt
-
-                prompt = (
-                    f"{prompt}\n\n"
-                    f"Variante {variant_idx}: usa ejemplos propios y documenta decisiones clave.\n"
-                    "No publiques la solucion final en el enunciado."
-                )
-                title = f"{template.title} (v{variant_idx})"
-
-                challenge = CodingChallenge(
-                    title=title,
-                    slug=slug,
-                    source=CURATED_SOURCE,
-                    source_path=f"generated/{template.topic}/{difficulty}/{slug}.md",
-                    difficulty=difficulty,
-                    topic=template.topic,
-                    prompt=prompt,
-                    starter_code=template.starter_code,
-                    reference_solution=None,
-                    order_index=order_index,
-                )
-                db.add(challenge)
-                order_index += 1
+            row = await db.execute(
+                select(CodingChallenge).where(CodingChallenge.slug == slug)
+            )
+            challenge = row.scalar_one_or_none()
+            if challenge is None:
+                db.add(CodingChallenge(slug=slug, reference_solution=None, **campos))
                 inserted += 1
+                cambios = True
+                continue
+            for campo, valor in campos.items():
+                if getattr(challenge, campo) != valor:
+                    setattr(challenge, campo, valor)
+                    cambios = True
 
-    if inserted:
+    obsoletos = await db.execute(
+        select(CodingChallenge).where(
+            CodingChallenge.source == CURATED_SOURCE,
+            CodingChallenge.slug.not_in(vigentes),
+        )
+    )
+    for challenge in obsoletos.scalars().all():
+        # Sus completaciones se borran en cascada (FK ondelete=CASCADE).
+        await db.delete(challenge)
+        cambios = True
+
+    if cambios:
         await db.commit()
 
     return inserted

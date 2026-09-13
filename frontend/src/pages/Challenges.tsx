@@ -13,6 +13,15 @@ interface ChallengeSummary {
   prompt_preview: string
   order_index: number
   completed: boolean
+  // 1-3 si el reto es un nivel de un problema con progresion; null si es suelto.
+  level: number | null
+}
+
+interface ChallengeLevel {
+  id: number
+  level: number
+  difficulty: string
+  completed: boolean
 }
 
 interface ChallengeDetail {
@@ -26,6 +35,8 @@ interface ChallengeDetail {
   prompt: string
   starter_code: string
   order_index: number
+  level: number | null
+  levels: ChallengeLevel[]
 }
 
 const difficultyLabel: Record<string, string> = {
@@ -121,6 +132,15 @@ const Challenges: React.FC = () => {
       setItems((prev) =>
         prev.map((c) => (c.id === challengeId ? { ...c, completed } : c))
       )
+      // La progresion del detalle tambien marca el nivel.
+      setSelected((prev) =>
+        prev
+          ? {
+              ...prev,
+              levels: prev.levels.map((l) => (l.id === challengeId ? { ...l, completed } : l)),
+            }
+          : prev
+      )
     } catch (err) {
       console.error('Error toggling completion:', err)
     }
@@ -161,7 +181,7 @@ const Challenges: React.FC = () => {
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Buscar por titulo, tema o fuente..."
+          placeholder="Buscar por titulo o tema..."
           className="w-full p-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
         />
       </div>
@@ -218,7 +238,8 @@ const Challenges: React.FC = () => {
                           )}
                         </p>
                         <p className="text-xs text-slate-500 mt-1">
-                          {challenge.source} · {challenge.topic}
+                          {challenge.topic}
+                          {challenge.level ? <> · Nivel {challenge.level} de 3</> : null}
                         </p>
                       </div>
                     </div>
@@ -248,10 +269,42 @@ const Challenges: React.FC = () => {
                   <Gauge className="h-4 w-4" />
                   <span>Tema: {selected.topic}</span>
                 </div>
-                <div>
-                  <span>Fuente: {selected.source}</span>
-                </div>
               </div>
+
+              {/* Los tres niveles del mismo problema: se sube la exigencia sobre
+                  una idea que ya conoces, en vez de repetir el reto. */}
+              {selected.levels.length > 1 && (
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                    Progresión de este problema
+                  </p>
+                  <ol className="flex flex-wrap items-center gap-2">
+                    {selected.levels.map((nivel, index) => {
+                      const actual = nivel.id === selected.id
+                      return (
+                        <li key={nivel.id} className="flex items-center gap-2">
+                          {index > 0 && <ArrowRight className="h-3.5 w-3.5 text-slate-300" aria-hidden />}
+                          <button
+                            onClick={() => openChallenge(nivel.id)}
+                            disabled={actual}
+                            aria-current={actual ? 'step' : undefined}
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm transition-colors ${
+                              actual
+                                ? 'border-primary-500 bg-primary-600 text-white'
+                                : nivel.completed
+                                ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                                : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            {nivel.completed && <CheckCircle2 className="h-3.5 w-3.5" aria-label="hecho" />}
+                            Nivel {nivel.level} · {difficultyLabel[nivel.difficulty] || nivel.difficulty}
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ol>
+                </div>
+              )}
 
               <div className="prose prose-slate max-w-none">
                 {selected.prompt.split('\n').map((line, index) => (
