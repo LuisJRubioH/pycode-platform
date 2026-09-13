@@ -17,7 +17,7 @@ PyCode Platform — learning platform for Python with Monaco editor, sandboxed c
 - 🚧 **Track 5 (AI Engineering) en curso** — AI 1-3: embeddings/búsqueda semántica, chunking/indexación (retriever RAG en numpy), y LLM real + prompt RAG vía **proxy backend** `POST /api/v1/ai/complete` (reusa el LLM provider; helper `pycode.llm_complete` en el worker). Falta RAG end-to-end, agentes, evals, capstone.
 - ⏳ **Pendiente**: resto de Track 5, Track 6 (MLOps).
 
-**Contenido en números**: 40 lecciones (Track 1: 10 · Track 2: 11 · Track 3: 11 · Track 4: 5 · Track 5: 3) · 150 ejercicios (todos con hidden_tests; Track 1 reescrito entero: 60) · 100 puzzles ELO curados · 10 retos · 4 capstones · 3 datasets. Migraciones 0001-0014 (Tracks 3-5 y el proxy LLM **no** añaden migraciones). 177 tests backend. Esquema de datos: `docs/DATABASE.md`. **Nota**: el contenido real vive en `lesson_seed.py`; `lesson_content.py` es código **muerto/duplicado** (no se importa) — no editarlo pensando que seedea.
+**Contenido en números**: 40 lecciones (Track 1: 10 · Track 2: 11 · Track 3: 11 · Track 4: 5 · Track 5: 3) · 150 ejercicios (todos con hidden_tests; Track 1 reescrito entero: 60) · 100 puzzles ELO curados · 10 retos · 4 capstones · 3 datasets. Migraciones 0001-0014 (Tracks 3-5 y el proxy LLM **no** añaden migraciones). 178 tests backend. Esquema de datos: `docs/DATABASE.md`. **Nota**: el contenido real vive en `lesson_seed.py`; `lesson_content.py` es código **muerto/duplicado** (no se importa) — no editarlo pensando que seedea.
 
 **Producción**:
 - Frontend: https://pycode-platform.vercel.app (Vercel Hobby)
@@ -106,6 +106,7 @@ pytest                        # pytest-asyncio mode=auto; conftest aplica alembi
 pytest path/to/test.py::name  # single test
 black . && flake8 . && mypy .
 cd backend && python scripts/check_no_sqli.py  # lint anti-SQLi de Task 6 (corre también en CI)
+cd backend && python scripts/check_hidden_tests_triviales.py  # ningún hidden_test aprueba con el starter (en CI vía pytest)
 ```
 
 Migraciones:

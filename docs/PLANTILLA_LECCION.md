@@ -164,7 +164,13 @@ propósito el código del alumno** para comprobar que sus tests lo detectan — 
 - [ ] **Ningún `hidden_test` pasa con el starter.** Uno que aprueba sin código
       del alumno no comprueba nada: pasa con `...` como cuerpo, con un `None`
       devuelto por defecto o con una lista que nadie tocó. Se detecta corriendo
-      cada test dos veces, contra la solución y contra el starter.
+      cada test dos veces, contra la solución y contra el starter. La mitad del
+      starter la vigila `backend/tests/test_hidden_tests_no_triviales.py` (a mano:
+      `python scripts/check_hidden_tests_triviales.py`); la de la solución sigue
+      siendo tuya. Un test negativo ("no muta el original", "no crea el
+      archivo") siempre necesita su mitad positiva al lado, y si lee un archivo,
+      que lo borre antes: el sistema de archivos de Pyodide sobrevive entre
+      ejecuciones.
 - [ ] `pytest backend/tests/test_prerequisitos_conceptos.py` en verde. La lista
       de huecos está vacía: si aparece uno, se enseña el concepto con un
       ejemplo en vez de anotarlo.

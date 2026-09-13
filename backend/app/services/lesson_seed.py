@@ -1521,6 +1521,8 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                     {
                         "name": "son numeros, no texto",
                         "code": (
+                            "assert len(tabla) == 10, "
+                            "f'tabla tiene {len(tabla)} elementos, esperaba 10'\n"
                             "assert all(isinstance(x, int) for x in tabla), "
                             "'los elementos deben ser enteros, no strings'"
                         ),
@@ -1598,6 +1600,8 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                     {
                         "name": "no se colaron los -1 en la suma",
                         "code": (
+                            "assert total != 0, "
+                            "'total sigue en 0: el bucle todavia no suma nada'\n"
                             "assert total != 43, "
                             "'sumaste tambien los -1: revisa donde pones el continue'"
                         ),
@@ -1641,6 +1645,8 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                     {
                         "name": "el break corto de verdad",
                         "code": (
+                            "assert total != 0, "
+                            "'total sigue en 0: el bucle todavia no suma nada'\n"
                             "assert total != 92, "
                             "'seguiste sumando despues del negativo: falta el break'"
                         ),
@@ -2144,7 +2150,9 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                         "name": "no modifica la lista original",
                         "code": (
                             "original = ['  ana ', '   ', 'BETO']\n"
-                            "normalizar(original)\n"
+                            "nueva = normalizar(original)\n"
+                            "assert isinstance(nueva, list) and nueva is not original, "
+                            "'normalizar tiene que devolver una lista nueva'\n"
                             "assert original == ['  ana ', '   ', 'BETO'], "
                             "'modificaste la lista que te pasaron; construye una nueva'"
                         ),
@@ -2824,6 +2832,8 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                     {
                         "name": "dividir por cero devuelve None y no revienta",
                         "code": (
+                            "assert division_segura(4, 2) == 2.0, "
+                            "'primero tiene que dividir: con b distinto de 0 devuelve a / b'\n"
                             "obtenido = division_segura(1, 0)\n"
                             "assert obtenido is None, f'devolvio {obtenido!r}'"
                         ),
@@ -2927,7 +2937,9 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                             "try:\n"
                             "    validar_edad(-5)\n"
                             "except ValueError as e:\n"
-                            "    assert 'rango' in str(e), 'el mensaje no menciona el rango'"
+                            "    assert 'rango' in str(e), 'el mensaje no menciona el rango'\n"
+                            "else:\n"
+                            "    raise AssertionError('validar_edad(-5) deberia lanzar ValueError')"
                         ),
                     },
                 ],
@@ -3020,6 +3032,8 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                     {
                         "name": "escribe las lineas limpias y devuelve cuantas",
                         "code": (
+                            "from pathlib import Path\n"
+                            "Path('informe_test.txt').unlink(missing_ok=True)\n"
                             "n = guardar_informe('informe_test.txt', "
                             "['  hola ', '   ', 'mundo'])\n"
                             "assert n == 2, f'devolvio {n}'\n"
@@ -3032,6 +3046,8 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                     {
                         "name": "cada linea va en su propia linea del archivo",
                         "code": (
+                            "from pathlib import Path\n"
+                            "Path('informe_test2.txt').unlink(missing_ok=True)\n"
                             "guardar_informe('informe_test2.txt', ['a', 'b', 'c'])\n"
                             "with open('informe_test2.txt') as f:\n"
                             "    lineas = f.read().splitlines()\n"
@@ -3053,6 +3069,10 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                         "name": "no crea el archivo cuando no hay nada que escribir",
                         "code": (
                             "from pathlib import Path\n"
+                            "Path('si_deberia.txt').unlink(missing_ok=True)\n"
+                            "guardar_informe('si_deberia.txt', ['hola'])\n"
+                            "assert Path('si_deberia.txt').exists(), "
+                            "'con lineas utiles tiene que crear el archivo'\n"
                             "Path('no_deberia.txt').unlink(missing_ok=True)\n"
                             "try:\n"
                             "    guardar_informe('no_deberia.txt', ['   '])\n"
@@ -5081,8 +5101,9 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                             "import numpy as np\n"
                             "x = np.array([-1.0, 2.0, -3.0])\n"
                             "original = x.copy()\n"
-                            "_ = relu(x)\n"
-                            "assert np.array_equal(x, original)"
+                            "out = relu(x)\n"
+                            "assert isinstance(out, np.ndarray), 'relu tiene que devolver un array'\n"
+                            "assert np.array_equal(x, original), 'relu modifico el array de entrada'"
                         ),
                     },
                 ],
@@ -5798,7 +5819,9 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                         "code": (
                             "import pandas as pd\n"
                             "df = pd.DataFrame({'fecha': ['2026-01-15', '2026-06-30']})\n"
-                            "_ = con_mes(df)\n"
+                            "out = con_mes(df)\n"
+                            "assert out is not None and 'mes' in out.columns, "
+                            "'con_mes tiene que devolver una copia con la columna mes'\n"
                             "assert 'mes' not in df.columns, 'no muta el original'"
                         ),
                     },
@@ -6058,7 +6081,9 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                             "import pandas as pd\n"
                             "import numpy as np\n"
                             "df = pd.DataFrame({'edad':[20.0, np.nan, 40.0]})\n"
-                            "_ = rellenar_edad_con_media(df)\n"
+                            "out = rellenar_edad_con_media(df)\n"
+                            "assert out is not None and not out['edad'].isna().any(), "
+                            "'la copia que devuelves tiene que venir sin NaN en edad'\n"
                             "assert df['edad'].isna().any(), 'no muta el original'"
                         ),
                     },
@@ -6124,8 +6149,10 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                             "    'email':['  A@x.com','b@x.com'],\n"
                             "    'edad':[30.0, np.nan],\n"
                             "})\n"
-                            "_ = limpiar_clientes(df)\n"
-                            "assert df['email'].iloc[0] == '  A@x.com'"
+                            "out = limpiar_clientes(df)\n"
+                            "assert out is not None and out['email'].iloc[0] == 'a@x.com', "
+                            "'la copia que devuelves tiene que traer el email normalizado'\n"
+                            "assert df['email'].iloc[0] == '  A@x.com', 'modificaste el DataFrame original'"
                         ),
                     },
                     {
@@ -7279,8 +7306,10 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                         "code": (
                             "import pandas as pd\n"
                             "df = pd.DataFrame({'edad':[10, 25, 40, 60]})\n"
-                            "_ = grupos_etarios(df)\n"
-                            "assert 'grupo' not in df.columns"
+                            "out = grupos_etarios(df)\n"
+                            "assert out is not None and 'grupo' in out.columns, "
+                            "'grupos_etarios tiene que devolver una copia con la columna grupo'\n"
+                            "assert 'grupo' not in df.columns, 'modificaste el DataFrame original'"
                         ),
                     },
                     {
@@ -7336,7 +7365,9 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                         "code": (
                             "import pandas as pd\n"
                             "df = pd.DataFrame({'precio':[10.0, 20.0, 30.0]})\n"
-                            "_ = normalizar_precio(df)\n"
+                            "out = normalizar_precio(df)\n"
+                            "assert out is not None and {'precio_norm', 'precio_z'} <= set(out.columns), "
+                            "'normalizar_precio tiene que devolver una copia con precio_norm y precio_z'\n"
                             "assert 'precio_norm' not in df.columns\n"
                             "assert 'precio_z' not in df.columns"
                         ),
@@ -7945,7 +7976,9 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
                         "code": (
                             "out1 = ic_media_bootstrap([1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0], seed=7)\n"
                             "out2 = ic_media_bootstrap([1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0], seed=7)\n"
-                            "assert out1 == out2"
+                            "assert isinstance(out1, tuple) and len(out1) == 2, "
+                            "'ic_media_bootstrap tiene que devolver una tupla (bajo, alto)'\n"
+                            "assert out1 == out2, 'con la misma seed el intervalo tiene que repetirse'"
                         ),
                     },
                 ],

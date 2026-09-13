@@ -80,6 +80,15 @@ Vale la pena que esto deje de depender de acordarse: el mismo barrido cabe en un
 test de `backend/tests/` que recorra `LESSON_TEMPLATES` y falle si algún
 `hidden_test` pasa contra su starter.
 
+**Resuelto (2026-09-13)**: los 14 tienen ya su comprobación positiva, y los 14
+ejercicios se verificaron contra una solución correcta (0 tests rotos). El
+barrido es `backend/scripts/check_hidden_tests_triviales.py` y corre en CI como
+`tests/test_hidden_tests_no_triviales.py`. Sale además un caso que el barrido
+original no veía: en "Guardar un informe", dos tests leían un archivo sin
+borrarlo antes, así que aprobaban con el archivo que dejó una ejecución
+anterior, algo que en Pyodide ocurre porque su sistema de archivos sobrevive
+entre ejecuciones.
+
 ### 2. Los enunciados no se renderizan como Markdown
 
 `instructions` se pinta como texto plano en las dos vistas:
