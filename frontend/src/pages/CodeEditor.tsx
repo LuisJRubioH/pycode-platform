@@ -19,6 +19,7 @@ import {
   ChevronRight,
   BookOpen,
   Square,
+  Eraser,
 } from 'lucide-react'
 import {
   runPythonCode,
@@ -28,7 +29,6 @@ import {
   isSandboxInterruption,
 } from '../services/codeRunner'
 import { api } from '../services/api'
-import { loadTutorContext } from '../services/tutorContext'
 import EvaluationHistoryModal from '../components/EvaluationHistoryModal'
 import type { HiddenTest, RunStatus, RunTestsResult } from '@/sandbox'
 
@@ -151,17 +151,13 @@ const CodeEditor: React.FC = () => {
 
   const monaco = useMonaco()
 
-  // Modo libre: recupera el contexto que dejó el tutor. En modo lección la
-  // URL manda, así que ignoramos el localStorage para no pisar el ejercicio.
-  useEffect(() => {
-    if (lessonParam) return
-    const ctx = loadTutorContext()
-    if (!ctx) return
-    if (ctx.student_code) setCode(ctx.student_code)
-    if (ctx.problem_description) setProblemDescription(ctx.problem_description)
-    if (ctx.expected_output) setExpectedOutput(ctx.expected_output)
-    if (typeof ctx.exercise_id === 'number') setExerciseId(ctx.exercise_id)
-  }, [lessonParam])
+  // Clave `leccion:ejercicio` del ejercicio cargado en el editor; null en modo libre.
+  const loadedExerciseRef = useRef<string | null>(null)
+
+  // El modo libre ya no lee el contexto del tutor de localStorage: la lección
+  // lo guarda al pulsar "Practicar", y al entrar despues por "Editor" en el
+  // menu aparecia el ultimo ejercicio (enunciado, starter y "Ejecutar tests")
+  // sin haber venido de ninguna leccion. El ejercicio llega solo por la URL.
 
   const fetchLesson = useCallback(async (id: string) => {
     const res = await api.get(`/lessons/${id}`)
@@ -174,6 +170,23 @@ const CodeEditor: React.FC = () => {
     if (!lessonParam) {
       setLesson(null)
       setLessonError('')
+      // Pasar de una lección a "Editor" en el menu no desmonta la pagina (es
+      // la misma ruta): sin esto el modo libre heredaba el ejercicio entero.
+      if (loadedExerciseRef.current !== null) {
+        loadedExerciseRef.current = null
+        setCode(INITIAL_CODE)
+        setProblemDescription('')
+        setExpectedOutput('')
+        setExerciseId(null)
+        setOutput('')
+        setErrorOutput('')
+        setOutputNote('')
+        setOutputImages([])
+        setTestsResult(null)
+        setTestsError('')
+        setEvaluation(null)
+        setEvaluationError('')
+      }
       return
     }
     let cancelled = false
@@ -209,7 +222,6 @@ const CodeEditor: React.FC = () => {
   // Solo reseteamos editor/salida/tests cuando cambia de verdad el ejercicio
   // activo. Refrescar la lección (p.ej. tras aprobar los tests) no debe
   // borrarle el código al alumno.
-  const loadedExerciseRef = useRef<string | null>(null)
   useEffect(() => {
     if (!lesson || !activeExercise) return
     const key = `${lesson.id}:${activeExercise.id}`
@@ -353,6 +365,15 @@ const CodeEditor: React.FC = () => {
     } finally {
       setIsRunning(false)
     }
+  }
+
+  // Vacia el panel de salida sin tocar el codigo. Tambien sirve mientras corre:
+  // lo que siga imprimiendo se pinta sobre el panel ya vacio.
+  const clearOutput = () => {
+    setOutput('')
+    setErrorOutput('')
+    setOutputNote('')
+    setOutputImages([])
   }
 
   const resetCode = () => {
@@ -843,6 +864,15 @@ const CodeEditor: React.FC = () => {
           <div className="p-3 bg-slate-800 border-b border-slate-700 flex items-center gap-2">
             <Terminal className="h-4 w-4" />
             <span className="text-sm font-medium">Salida</span>
+            <button
+              onClick={clearOutput}
+              disabled={!output && !errorOutput && !outputNote && outputImages.length === 0}
+              className="ml-auto inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-slate-300 hover:bg-slate-700 hover:text-white disabled:opacity-40 disabled:hover:bg-transparent"
+              title="Borrar la salida del panel (el codigo no se toca)"
+            >
+              <Eraser className="h-3.5 w-3.5" />
+              Limpiar salida
+            </button>
           </div>
 
           <div className="p-3 bg-slate-800 border-b border-slate-700">

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 import CodeEditor from './CodeEditor'
 
 // Monaco no corre en jsdom: lo sustituimos por un textarea que expone el
@@ -159,6 +159,47 @@ describe('CodeEditor — navegación por lección', () => {
     expect(screen.queryByText(/Ejercicio 1 de/)).not.toBeInTheDocument()
     expect(getMock).not.toHaveBeenCalled()
   })
+
+  it('el modo libre no carga el ultimo ejercicio que la leccion dejo en localStorage', async () => {
+    // Lo que guarda LessonDetail al pulsar "Practicar".
+    localStorage.setItem(
+      'pycode_tutor_context',
+      JSON.stringify({
+        problem_description: 'Bucles for y while\n\nEjercicio: Tabla del 7',
+        student_code: '# starter de la leccion\n',
+        exercise_id: 101,
+      })
+    )
+    renderEditor('/editor')
+
+    await waitFor(() => expect(screen.getByTestId('monaco')).toBeInTheDocument())
+    expect(screen.getByTestId('monaco')).not.toHaveValue('# starter de la leccion\n')
+    expect(screen.queryByDisplayValue(/Tabla del 7/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Ejecutar tests/ })).not.toBeInTheDocument()
+  })
+
+  it('ir de una leccion a "Editor" deja el editor limpio', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/editor?lesson=7&exercise=101']}>
+        <Link to="/editor">Editor</Link>
+        <Routes>
+          <Route path="/editor" element={<CodeEditor />} />
+        </Routes>
+      </MemoryRouter>
+    )
+    await screen.findByText('Ejercicio 1 de 3 — Series desde diccionario')
+    expect(screen.getByTestId('monaco')).toHaveValue('# starter uno\n')
+
+    await user.click(screen.getByRole('link', { name: 'Editor' }))
+
+    await waitFor(() =>
+      expect(screen.queryByText(/Ejercicio 1 de 3/)).not.toBeInTheDocument()
+    )
+    expect(screen.getByTestId('monaco')).not.toHaveValue('# starter uno\n')
+    expect(screen.queryByDisplayValue(/Series desde diccionario/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Ejecutar tests/ })).not.toBeInTheDocument()
+  })
 })
 
 describe('CodeEditor — salida separada de stdout y stderr', () => {
@@ -209,6 +250,35 @@ describe('CodeEditor — salida separada de stdout y stderr', () => {
 
     await screen.findByText('(sin salida)')
     expect(screen.queryByText('stderr / warnings')).not.toBeInTheDocument()
+  })
+
+  it('"Limpiar salida" vacia el panel sin tocar el codigo', async () => {
+    const user = userEvent.setup()
+    runPythonCodeMock.mockResolvedValue({
+      ok: true,
+      stdout: 'total: 42',
+      stderr: 'FutureWarning: algo va a cambiar',
+      images: [],
+      durationMs: 12,
+      timedOut: false,
+    })
+
+    renderEditor('/editor')
+    const limpiar = screen.getByRole('button', { name: /Limpiar salida/ })
+    // Sin nada que limpiar, el boton no hace como que hace algo.
+    expect(limpiar).toBeDisabled()
+
+    const codigo = (screen.getByTestId('monaco') as HTMLTextAreaElement).value
+    await user.click(screen.getByRole('button', { name: /^Ejecutar$/ }))
+    await screen.findByText('total: 42')
+
+    await user.click(limpiar)
+
+    expect(screen.queryByText('total: 42')).not.toBeInTheDocument()
+    expect(screen.queryByText('FutureWarning: algo va a cambiar')).not.toBeInTheDocument()
+    expect(screen.getByText(/La salida aparecera aqui/)).toBeInTheDocument()
+    expect(screen.getByTestId('monaco')).toHaveValue(codigo)
+    expect(limpiar).toBeDisabled()
   })
 })
 
