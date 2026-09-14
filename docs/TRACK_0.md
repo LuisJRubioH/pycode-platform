@@ -4,8 +4,8 @@ Tramo de entrada de PyCode, previo a Track 1 (Python). El alumno aprende a **raz
 algoritmos antes de escribir código**: pseudocódigo, trazas de ejecución, estructuras de
 datos elementales y diagramas de flujo.
 
-> Estado: **piloto en marcha** (2026-09-14). Infraestructura hecha y lecciones 1-5, 7 y 8
-> construidas; quedan la 6 (necesita Mermaid), la 9, la 10 y el capstone. Este documento sigue siendo la
+> Estado: **piloto en marcha** (2026-09-14). Infraestructura hecha y **9 de las 11 lecciones**
+> construidas (todas menos la 6, que necesita Mermaid, y el capstone). Este documento sigue siendo la
 > fuente de verdad del track; el README enlaza aquí.
 
 ## Por qué existe
@@ -60,8 +60,12 @@ Reglas que gobiernan la solución:
 
 `trace_table` es el tipo central del track. Si solo se implementa uno, es ese.
 
-**Hechos (2026-09-14)**: `trace_table`, `predict_output` y `mcq`, que son los que usan las
-lecciones 1-5, 7 y 8. Cada uno es un componente en `frontend/src/components/track0/` y un
+**Hechos (2026-09-14)**: `trace_table`, `predict_output` y `mcq`, con los que se han escrito
+las nueve lecciones construidas. `trace_table` ha resultado ser mucho más elástico de lo que
+parecía: además de trazas de variables sirve para el estado de un arreglo tras cada pasada de
+un ordenamiento y para tablas de «para cada n, cuántas operaciones». Los cuatro tipos que
+faltan (`order_steps`, `find_bug`, `flowchart_match`, `flowchart_fill`) solo hacen falta para
+la lección 6. Cada uno es un componente en `frontend/src/components/track0/` y un
 `_validar_<tipo>` en `backend/app/services/track0_service.py`; añadir uno nuevo es
 escribir ese par y registrarlo en `TIPOS` y en `VALIDADORES`, sin tocar el endpoint ni
 la página de lección (regla 5, ya verificada).
@@ -87,8 +91,8 @@ Fuera de alcance: editor gráfico de diagramas.
 | 6 | Diagramas de flujo | Símbolos y equivalencia con el pseudocódigo | |
 | 7 | Descomposición | Subprogramas, parámetros, valor de retorno | ✅ |
 | 8 | Arreglos y recorridos | Indexación, recorrido completo, búsqueda lineal | ✅ |
-| 9 | Algoritmos clásicos | Máximo, conteo, intercambio, ordenamiento por selección y burbuja | |
-| 10 | Cuánto cuesta un algoritmo | Contar operaciones, comparación intuitiva de eficiencia | |
+| 9 | Algoritmos clásicos | Máximo, conteo, intercambio, ordenamiento por selección y burbuja | ✅ |
+| 10 | Cuánto cuesta un algoritmo | Contar operaciones, comparación intuitiva de eficiencia | ✅ |
 | 11 | Capstone: del pseudocódigo al Python | Implementar en Python tres algoritmos ya trazados a mano | |
 
 Mínimo **6 ejercicios por lección**, mezclando tipos. La lección 11 usa `hidden_tests`

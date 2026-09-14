@@ -2171,6 +2171,657 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
         ],
     ),
     LessonTemplate(
+        title="Fundamentos 9 · Algoritmos clasicos",
+        description=(
+            "Las piezas que reaparecen en todas partes: intercambiar con una variable temporal, contar con condicion y ordenar por seleccion y por burbuja."
+        ),
+        content=(
+            "# Algoritmos clasicos\n"
+            "\n"
+            "Hay media docena de algoritmos que aparecen una y otra vez, dentro de cosas mucho mas grandes. Esta leccion los reune: intercambiar, contar con una condicion y ordenar. Ninguno es dificil por separado; lo que cuesta es verlos cuando estan escondidos dentro de otro problema.\n"
+            "\n"
+            "## Intercambiar dos valores: hace falta una tercera caja\n"
+            "\n"
+            "Parece lo mas simple del mundo y casi nadie lo acierta a la primera:\n"
+            "\n"
+            "```\n"
+            "Algoritmo IntercambioMal\n"
+            "    a <- 5\n"
+            "    b <- 9\n"
+            "    a <- b                           // a vale 9... y el 5 se ha perdido\n"
+            "    b <- a                           // b <- 9: los dos valen lo mismo\n"
+            "    Escribir a                       // 9\n"
+            "    Escribir b                       // 9\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "El 5 desaparece en la primera linea, porque asignar **borra** lo que habia (leccion 2). Para no perderlo hay que guardarlo antes en una tercera variable:\n"
+            "\n"
+            "```\n"
+            "Algoritmo IntercambioBien\n"
+            "    a <- 5\n"
+            "    b <- 9\n"
+            "    temporal <- a                    // el 5 queda a salvo\n"
+            "    a <- b                           // a vale 9\n"
+            "    b <- temporal                    // b recupera el 5\n"
+            "    Escribir a                       // 9\n"
+            "    Escribir b                       // 5\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Ese `temporal` es el intercambio, y va a aparecer dentro de los dos ordenamientos de esta leccion.\n"
+            "\n"
+            "## Contar con una condicion\n"
+            "\n"
+            "Un contador que no cuenta vueltas, sino **las que cumplen algo**. Es el mismo patron de la leccion 5, con un `Si` dentro:\n"
+            "\n"
+            "```\n"
+            "Algoritmo ContarAprobados\n"
+            "    notas <- [7, 4, 9, 6, 3]\n"
+            "    aprobados <- 0                   // el contador, antes del bucle\n"
+            "    Para i <- 0 Hasta Longitud(notas) - 1 Hacer\n"
+            "        Si notas[i] >= 5 Entonces\n"
+            "            aprobados <- aprobados + 1   // solo cuando cumple\n"
+            "        FinSi\n"
+            "    FinPara\n"
+            "    Escribir aprobados               // 3\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Fijate en que el bucle recorre **todos** los elementos: no se puede parar antes, porque cualquiera de los que faltan podria cumplir la condicion. Contar siempre recorre entero; buscar no.\n"
+            "\n"
+            "## Ordenar por seleccion: el mas pequeño primero\n"
+            "\n"
+            "Ordenar es poner los elementos de menor a mayor. La **seleccion** hace lo que harias con cartas en la mano: buscar la mas pequeña de las que quedan y ponerla en su sitio.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Seleccion\n"
+            "    v <- [7, 4, 9, 6]\n"
+            "    Para i <- 0 Hasta Longitud(v) - 2 Hacer\n"
+            "        menor <- i                                   // candidato: el primero sin ordenar\n"
+            "        Para j <- i + 1 Hasta Longitud(v) - 1 Hacer\n"
+            "            Si v[j] < v[menor] Entonces\n"
+            "                menor <- j                           // buscar el minimo, como el maximo de la leccion 8\n"
+            "            FinSi\n"
+            "        FinPara\n"
+            "        temporal <- v[i]                             // y ponerlo en su sitio\n"
+            "        v[i] <- v[menor]\n"
+            "        v[menor] <- temporal\n"
+            "    FinPara\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Paso a paso, con `[7, 4, 9, 6]`:\n"
+            "\n"
+            "| Vuelta | El menor de los que quedan | El arreglo despues |\n"
+            "|---|---|---|\n"
+            "| `i = 0` | 4 (posicion 1) | `[4, 7, 9, 6]` |\n"
+            "| `i = 1` | 6 (posicion 3) | `[4, 6, 9, 7]` |\n"
+            "| `i = 2` | 7 (posicion 3) | `[4, 6, 7, 9]` |\n"
+            "\n"
+            "Dos detalles: el bucle de fuera llega hasta `Longitud - 2`, porque cuando solo queda **un** elemento sin colocar ya esta ordenado; y la parte de la izquierda, hasta `i`, no se vuelve a tocar nunca.\n"
+            "\n"
+            "## Ordenar por burbuja: comparar vecinos\n"
+            "\n"
+            "La **burbuja** no busca el minimo: compara cada elemento con el siguiente y los intercambia si estan del reves. Repitiendo pasadas, los grandes van subiendo al final como burbujas.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Burbuja\n"
+            "    v <- [7, 4, 9, 6]\n"
+            "    Para pasada <- 1 Hasta Longitud(v) - 1 Hacer\n"
+            "        Para j <- 0 Hasta Longitud(v) - 2 Hacer\n"
+            "            Si v[j] > v[j + 1] Entonces\n"
+            "                temporal <- v[j]\n"
+            "                v[j] <- v[j + 1]\n"
+            "                v[j + 1] <- temporal\n"
+            "            FinSi\n"
+            "        FinPara\n"
+            "    FinPara\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "La primera pasada sobre `[7, 4, 9, 6]`, comparacion a comparacion:\n"
+            "\n"
+            "| Compara | ¿Intercambia? | El arreglo |\n"
+            "|---|---|---|\n"
+            "| `7` y `4` | si | `[4, 7, 9, 6]` |\n"
+            "| `7` y `9` | no | `[4, 7, 9, 6]` |\n"
+            "| `9` y `6` | si | `[4, 7, 6, 9]` |\n"
+            "\n"
+            "Al acabar la pasada, el **9 esta en su sitio definitivo**: el mayor siempre acaba al final. Esa es la propiedad de la burbuja, y por eso con `n` elementos bastan `n - 1` pasadas.\n"
+            "\n"
+            "## Que tienen en comun\n"
+            "\n"
+            "Los dos ordenamientos son **un bucle dentro de otro**, y los dos usan el intercambio de la primera seccion. Tambien son los dos igual de lentos, y eso tiene un nombre y una forma de medirse: es la leccion 10.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            "- **Intercambiar sin variable temporal.** `a <- b` y luego `b <- a` deja los dos valores iguales: el primero se perdio en la primera linea.\n"
+            "- **Parar de contar al encontrar uno.** Contar recorre entero; el que para en cuanto encuentra es buscar. Si sales antes, cuentas de menos.\n"
+            "- **Inicializar el contador dentro del bucle.** Igual que en la leccion 5: se reinicia en cada vuelta.\n"
+            "- **Pasarse del final en la burbuja.** El bucle de dentro compara `v[j]` con `v[j + 1]`, asi que `j` tiene que parar en `Longitud - 2`. Llegar a `Longitud - 1` pide una posicion que no existe.\n"
+            "- **Buscar el menor entre todos en la seleccion.** El bucle de dentro empieza en `i + 1`, no en 0: lo de la izquierda ya esta ordenado y volver a mirarlo lo estropea.\n"
+            "- **Creer que una pasada de burbuja ordena.** Deja el mayor en su sitio, no el arreglo entero. Hacen falta `n - 1` pasadas.\n"
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **Intercambiar**: `temporal <- a`, `a <- b`, `b <- temporal`. Sin la tercera caja se pierde un valor.\n"
+            "- **Contar con condicion**: contador antes del bucle, `Si` dentro, y se recorre **entero**.\n"
+            "- **Seleccion**: buscar el minimo de lo que queda e intercambiarlo con la primera posicion sin ordenar; `n - 1` vueltas.\n"
+            "- **Burbuja**: comparar vecinos e intercambiar; cada pasada deja el mayor al final, y hacen falta `n - 1` pasadas.\n"
+            "- Los dos ordenamientos son **un bucle dentro de otro** y los dos llevan dentro el intercambio.\n"
+        ),
+        difficulty="beginner",
+        category="algoritmos",
+        order=-2,
+        track="track-0",
+        estimated_duration=35,
+        prerequisites_titles=[
+            "Fundamentos 8 · Arreglos y recorridos",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="El intercambio que pierde un valor",
+                description="Que pasa al intercambiar sin variable temporal.",
+                instructions=(
+                    "Sigue el algoritmo y escribe las dos lineas de salida.\n"
+                    "\n"
+                    "Recuerda que asignar **borra** lo que hubiera en la variable."
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": "Algoritmo IntercambioMal\n    a <- 5\n    b <- 9\n    a <- b\n    b <- a\n    Escribir a\n    Escribir b\nFinAlgoritmo"
+                },
+                answer_key={"salida": "9\n9"},
+            ),
+            ExerciseTemplate(
+                title="Para que sirve la tercera caja",
+                description="El papel de la variable temporal.",
+                instructions=(
+                    "¿Que hace exactamente la linea `temporal <- a` en un intercambio?"
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="mcq",
+                spec={
+                    "pseudocodigo": "temporal <- a\na <- b\nb <- temporal",
+                    "pregunta": "¿Que papel tiene `temporal`?",
+                    "opciones": [
+                        "Guarda el valor de `a` antes de que `a <- b` lo borre.",
+                        "Hace que `a` y `b` queden enlazadas.",
+                        "Es obligatoria en todo algoritmo, aunque no se use.",
+                        "Sirve para acumular la suma de `a` y `b`.",
+                    ],
+                },
+                answer_key={
+                    "correcta": 0,
+                    "motivo": "Correcto: sin esa copia, el valor de `a` se pierde en la linea siguiente.",
+                    "pista": "Quita esa linea y traza las otras dos. ¿Que valor desaparece?",
+                },
+            ),
+            ExerciseTemplate(
+                title="Contar los que cumplen",
+                description="Un contador con un Si dentro del bucle.",
+                instructions=(
+                    "Completa la traza con el estado **al terminar** cada vuelta.\n"
+                    "\n"
+                    "En las vueltas donde la nota no llega a 5, el contador repite su valor."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Algoritmo ContarAprobados\n    notas <- [7, 4, 9, 6, 3]\n    aprobados <- 0\n    Para i <- 0 Hasta Longitud(notas) - 1 Hacer\n        Si notas[i] >= 5 Entonces\n            aprobados <- aprobados + 1\n        FinSi\n    FinPara\nFinAlgoritmo",
+                    "columnas": ["notas[i]", "aprobados"],
+                    "filas": [
+                        {"etiqueta": "Antes del bucle", "fijas": ["-", "0"]},
+                        {"etiqueta": "Fin de la vuelta i = 0"},
+                        {"etiqueta": "Fin de la vuelta i = 1"},
+                        {"etiqueta": "Fin de la vuelta i = 2"},
+                        {"etiqueta": "Fin de la vuelta i = 3"},
+                        {"etiqueta": "Fin de la vuelta i = 4"},
+                    ],
+                },
+                answer_key={
+                    "columnas": ["notas[i]", "aprobados"],
+                    "etiquetas_filas": [
+                        "Antes del bucle",
+                        "Fin de la vuelta i = 0",
+                        "Fin de la vuelta i = 1",
+                        "Fin de la vuelta i = 2",
+                        "Fin de la vuelta i = 3",
+                        "Fin de la vuelta i = 4",
+                    ],
+                    "celdas": [
+                        ["-", "0"],
+                        ["7", "1"],
+                        ["4", "1"],
+                        ["9", "2"],
+                        ["6", "3"],
+                        ["3", "3"],
+                    ],
+                },
+            ),
+            ExerciseTemplate(
+                title="Una pasada de burbuja",
+                description="Comparar vecinos e intercambiar, comparacion a comparacion.",
+                instructions=(
+                    "Traza la **primera pasada** de la burbuja sobre `[7, 4, 9, 6]`.\n"
+                    "\n"
+                    "Completa el arreglo tal como queda **despues** de cada comparacion. Si no hay intercambio, repite los mismos valores."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Para j <- 0 Hasta Longitud(v) - 2 Hacer\n    Si v[j] > v[j + 1] Entonces\n        temporal <- v[j]\n        v[j] <- v[j + 1]\n        v[j + 1] <- temporal\n    FinSi\nFinPara",
+                    "columnas": ["v[0]", "v[1]", "v[2]", "v[3]"],
+                    "filas": [
+                        {"etiqueta": "Al empezar", "fijas": ["7", "4", "9", "6"]},
+                        {"etiqueta": "Despues de comparar v[0] y v[1]"},
+                        {"etiqueta": "Despues de comparar v[1] y v[2]"},
+                        {"etiqueta": "Despues de comparar v[2] y v[3]"},
+                    ],
+                },
+                answer_key={
+                    "columnas": ["v[0]", "v[1]", "v[2]", "v[3]"],
+                    "etiquetas_filas": [
+                        "Al empezar",
+                        "Despues de comparar v[0] y v[1]",
+                        "Despues de comparar v[1] y v[2]",
+                        "Despues de comparar v[2] y v[3]",
+                    ],
+                    "celdas": [
+                        ["7", "4", "9", "6"],
+                        ["4", "7", "9", "6"],
+                        ["4", "7", "9", "6"],
+                        ["4", "7", "6", "9"],
+                    ],
+                },
+            ),
+            ExerciseTemplate(
+                title="Ordenar por seleccion",
+                description="Como queda el arreglo tras cada vuelta del bucle de fuera.",
+                instructions=(
+                    "Traza el ordenamiento por seleccion sobre `[7, 4, 9, 6]`.\n"
+                    "\n"
+                    "En cada vuelta se busca el menor de las posiciones que quedan (de `i` en adelante) y se intercambia con la posicion `i`. Completa el arreglo tal como queda **al terminar** cada vuelta."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=20,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Para i <- 0 Hasta Longitud(v) - 2 Hacer\n    menor <- i\n    Para j <- i + 1 Hasta Longitud(v) - 1 Hacer\n        Si v[j] < v[menor] Entonces\n            menor <- j\n        FinSi\n    FinPara\n    temporal <- v[i]\n    v[i] <- v[menor]\n    v[menor] <- temporal\nFinPara",
+                    "columnas": ["v[0]", "v[1]", "v[2]", "v[3]"],
+                    "filas": [
+                        {"etiqueta": "Al empezar", "fijas": ["7", "4", "9", "6"]},
+                        {"etiqueta": "Fin de la vuelta i = 0"},
+                        {"etiqueta": "Fin de la vuelta i = 1"},
+                        {"etiqueta": "Fin de la vuelta i = 2"},
+                    ],
+                    "ayuda": "Lo que queda a la izquierda de i ya no se toca.",
+                },
+                answer_key={
+                    "columnas": ["v[0]", "v[1]", "v[2]", "v[3]"],
+                    "etiquetas_filas": [
+                        "Al empezar",
+                        "Fin de la vuelta i = 0",
+                        "Fin de la vuelta i = 1",
+                        "Fin de la vuelta i = 2",
+                    ],
+                    "celdas": [
+                        ["7", "4", "9", "6"],
+                        ["4", "7", "9", "6"],
+                        ["4", "6", "9", "7"],
+                        ["4", "6", "7", "9"],
+                    ],
+                },
+            ),
+            ExerciseTemplate(
+                title="Burbuja entera, pasada a pasada",
+                description="Por que una sola pasada no ordena el arreglo.",
+                instructions=(
+                    "Traza la burbuja completa sobre `[5, 3, 8, 1]`, anotando como queda el arreglo **al terminar cada pasada**.\n"
+                    "\n"
+                    "Cada pasada recorre el arreglo entero comparando vecinos. Fijate en que ya esta ordenado antes de la ultima pasada: el bucle no lo sabe y la hace igual."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=25,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Para pasada <- 1 Hasta Longitud(v) - 1 Hacer\n    Para j <- 0 Hasta Longitud(v) - 2 Hacer\n        Si v[j] > v[j + 1] Entonces\n            temporal <- v[j]\n            v[j] <- v[j + 1]\n            v[j + 1] <- temporal\n        FinSi\n    FinPara\nFinPara",
+                    "columnas": ["v[0]", "v[1]", "v[2]", "v[3]"],
+                    "filas": [
+                        {"etiqueta": "Al empezar", "fijas": ["5", "3", "8", "1"]},
+                        {"etiqueta": "Fin de la pasada 1"},
+                        {"etiqueta": "Fin de la pasada 2"},
+                        {"etiqueta": "Fin de la pasada 3"},
+                    ],
+                    "ayuda": "Cada pasada deja el mayor de los que quedan en su sitio definitivo.",
+                },
+                answer_key={
+                    "columnas": ["v[0]", "v[1]", "v[2]", "v[3]"],
+                    "etiquetas_filas": [
+                        "Al empezar",
+                        "Fin de la pasada 1",
+                        "Fin de la pasada 2",
+                        "Fin de la pasada 3",
+                    ],
+                    "celdas": [
+                        ["5", "3", "8", "1"],
+                        ["3", "5", "1", "8"],
+                        ["3", "1", "5", "8"],
+                        ["1", "3", "5", "8"],
+                    ],
+                },
+            ),
+        ],
+    ),
+    LessonTemplate(
+        title="Fundamentos 10 · Cuanto cuesta un algoritmo",
+        description=(
+            "Comparar algoritmos sin ejecutarlos: contar operaciones, ver como crecen n y n cuadrado, y por que se mira el peor caso."
+        ),
+        content=(
+            "# Cuanto cuesta un algoritmo\n"
+            "\n"
+            "Dos algoritmos pueden resolver el mismo problema y tardar cosas muy distintas. Esta leccion enseña a compararlos **sin ejecutarlos**: contando cuantas operaciones hacen segun el tamaño del problema.\n"
+            "\n"
+            "## Por que no se mide con un reloj\n"
+            "\n"
+            "Cronometrar parece lo natural y engaña: el mismo algoritmo tarda distinto en tu portatil que en el servidor, y con 10 datos todo parece rapido. La pregunta util no es *cuanto tarda hoy*, es **como crece cuando los datos crecen**.\n"
+            "\n"
+            "Asi que se cuenta. Se elige la operacion que se repite —una comparacion, una suma— y se cuenta cuantas veces se hace para un tamaño `n`.\n"
+            "\n"
+            "## Contar un bucle simple\n"
+            "\n"
+            "```\n"
+            "Algoritmo Sumar\n"
+            "    suma <- 0\n"
+            "    Para i <- 0 Hasta n - 1 Hacer\n"
+            "        suma <- suma + v[i]          // esta linea: ¿cuantas veces?\n"
+            "    FinPara\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "El bucle da una vuelta por elemento, asi que la linea se ejecuta **`n` veces**. Con 10 elementos, 10 veces. Con 1.000, mil. Crece **igual de rapido que los datos**: si doblas `n`, doblas el trabajo.\n"
+            "\n"
+            "## Contar un bucle dentro de otro\n"
+            "\n"
+            "```\n"
+            "Algoritmo Parejas\n"
+            "    Para i <- 0 Hasta n - 1 Hacer\n"
+            "        Para j <- 0 Hasta n - 1 Hacer\n"
+            "            Escribir v[i], v[j]      // esta linea: ¿cuantas veces?\n"
+            "        FinPara\n"
+            "    FinPara\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Por **cada** vuelta del bucle de fuera, el de dentro da `n` vueltas enteras. Como el de fuera da `n`, la linea se ejecuta `n * n` veces, o sea **`n²`**.\n"
+            "\n"
+            "Aqui doblar los datos **cuadruplica** el trabajo, y esa diferencia es la unica que importa de verdad:\n"
+            "\n"
+            "| `n` | bucle simple (`n`) | bucle anidado (`n²`) |\n"
+            "|---|---|---|\n"
+            "| 5 | 5 | 25 |\n"
+            "| 10 | 10 | 100 |\n"
+            "| 100 | 100 | 10.000 |\n"
+            "| 1.000 | 1.000 | 1.000.000 |\n"
+            "\n"
+            "Con 1.000 datos, uno hace mil operaciones y el otro un millon. Si cada una costara un milisegundo, serian un segundo frente a **dieciseis minutos**. Ningun ordenador mas rapido arregla esa diferencia: solo la mueve un poco mas lejos.\n"
+            "\n"
+            "Los ordenamientos de la leccion 9 son los dos de la columna de la derecha: un bucle dentro de otro, `n²` comparaciones. Por eso ninguna de las dos se usa con datos de verdad.\n"
+            "\n"
+            "## El mejor y el peor caso\n"
+            "\n"
+            "Un mismo algoritmo puede hacer mucho o poco trabajo con el mismo `n`, segun **que datos le toquen**. La busqueda lineal de la leccion 8 es el ejemplo perfecto:\n"
+            "\n"
+            "```\n"
+            "Algoritmo Buscar\n"
+            "    i <- 0\n"
+            "    posicion <- -1\n"
+            "    Mientras i <= n - 1 Y posicion = -1 Hacer\n"
+            "        Si v[i] = buscado Entonces   // esta comparacion: ¿cuantas veces?\n"
+            "            posicion <- i\n"
+            "        FinSi\n"
+            "        i <- i + 1\n"
+            "    FinMientras\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "- **Mejor caso**: esta en la primera posicion. **1** comparacion.\n"
+            "- **Peor caso**: esta en la ultima, o no esta. **`n`** comparaciones.\n"
+            "\n"
+            'Se habla casi siempre del **peor caso**, porque es el unico que da una garantia: "nunca tardara mas de esto". El mejor caso es una anecdota, y ademas suele ser suerte.\n'
+            "\n"
+            "## Que hacer con esto\n"
+            "\n"
+            "Tres decisiones practicas que salen de contar:\n"
+            "\n"
+            "- **Salir en cuanto puedas.** El `Y posicion = -1` del buscar corta el bucle al encontrar. No cambia el peor caso, pero se nota todos los dias.\n"
+            "- **Saca del bucle lo que no depende de la vuelta.** Un calculo que no usa `i` puesto dentro del bucle se repite `n` veces para nada.\n"
+            "- **Sospecha de un bucle dentro de otro.** No siempre se puede evitar, pero es donde hay que mirar primero cuando algo va lento.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            "- **Medir con un reloj y sacar conclusiones.** Con 10 datos todo es rapido. Lo que hay que saber es como crece, y eso se cuenta.\n"
+            "- **Contar las vueltas del bucle de fuera en uno anidado.** Son `n` vueltas de fuera, pero `n * n` ejecuciones de lo de dentro.\n"
+            "- **Fijarse en el mejor caso.** Es el que no da ninguna garantia. Mira el peor.\n"
+            "- **Creer que un ordenador mas rapido arregla un `n²`.** Con 1.000 datos son un millon de operaciones; el doble de velocidad te deja en medio millon, y con 2.000 datos vuelves a cuatro millones.\n"
+            "- **Optimizar sin contar.** Antes de reescribir nada, cuenta cuantas veces se ejecuta la linea sospechosa. Muchas veces no es la que parecia.\n"
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **No se cronometra, se cuenta**: cuantas veces se ejecuta la operacion que se repite, en funcion de `n`.\n"
+            "- **Un bucle simple** hace `n` operaciones; **doblar los datos dobla el trabajo**.\n"
+            "- **Un bucle dentro de otro** hace `n²`; **doblar los datos lo cuadruplica**.\n"
+            "- Los ordenamientos de la leccion 9 son `n²`: por eso no se usan con datos de verdad.\n"
+            "- **Mejor y peor caso**: en la busqueda lineal, 1 y `n`. Se decide mirando el **peor**.\n"
+            "- Salir antes, sacar del bucle lo que no depende de la vuelta, y desconfiar de los bucles anidados.\n"
+        ),
+        difficulty="beginner",
+        category="algoritmos",
+        order=-1,
+        track="track-0",
+        estimated_duration=35,
+        prerequisites_titles=[
+            "Fundamentos 9 · Algoritmos clasicos",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Cuantas veces se ejecuta",
+                description="Contar las ejecuciones de la linea de un bucle simple.",
+                instructions=(
+                    "Con `n` valiendo 6, ¿cuantas veces se ejecuta la linea marcada?"
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="mcq",
+                spec={
+                    "pseudocodigo": "Para i <- 0 Hasta n - 1 Hacer\n    suma <- suma + v[i]      // esta linea\nFinPara",
+                    "pregunta": "Con n = 6, ¿cuantas veces se ejecuta?",
+                    "opciones": ["5 veces", "6 veces", "7 veces", "36 veces"],
+                },
+                answer_key={
+                    "correcta": 1,
+                    "motivo": "Correcto: una vuelta por elemento, de la posicion 0 a la n-1.",
+                    "pista": "Cuenta los valores que toma i: de 0 a n-1. ¿Cuantos son?",
+                },
+            ),
+            ExerciseTemplate(
+                title="Doblar los datos en un bucle anidado",
+                description="Que le pasa al trabajo cuando n se dobla.",
+                instructions=(
+                    "Este algoritmo hace `n²` operaciones. Si pasas de 100 a 200 datos, ¿cuanto trabajo hace?"
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="mcq",
+                spec={
+                    "pseudocodigo": "Para i <- 0 Hasta n - 1 Hacer\n    Para j <- 0 Hasta n - 1 Hacer\n        Escribir v[i], v[j]\n    FinPara\nFinPara",
+                    "pregunta": "Al doblar n de 100 a 200, el trabajo...",
+                    "opciones": [
+                        "se queda igual",
+                        "se dobla: pasa de 10.000 a 20.000",
+                        "se cuadruplica: pasa de 10.000 a 40.000",
+                        "se multiplica por 100",
+                    ],
+                },
+                answer_key={
+                    "correcta": 2,
+                    "motivo": "Eso es: 100² = 10.000 y 200² = 40.000. Doblar n cuadruplica n².",
+                    "pista": "Calcula 100 * 100 y 200 * 200 y compara.",
+                },
+            ),
+            ExerciseTemplate(
+                title="La tabla del bucle simple",
+                description="Contar operaciones para varios tamaños.",
+                instructions=(
+                    "Completa la tabla con cuantas veces se ejecuta la linea de dentro del bucle para cada valor de `n`.\n"
+                    "\n"
+                    "```\n"
+                    "Para i <- 0 Hasta n - 1 Hacer\n"
+                    "    suma <- suma + v[i]\n"
+                    "FinPara\n"
+                    "```"
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="trace_table",
+                spec={
+                    "columnas": ["operaciones"],
+                    "filas": [
+                        {"etiqueta": "n = 1", "fijas": ["1"]},
+                        {"etiqueta": "n = 4"},
+                        {"etiqueta": "n = 10"},
+                        {"etiqueta": "n = 100"},
+                    ],
+                    "ayuda": "Escribe el numero sin puntos ni separadores.",
+                },
+                answer_key={
+                    "columnas": ["operaciones"],
+                    "etiquetas_filas": ["n = 1", "n = 4", "n = 10", "n = 100"],
+                    "celdas": [["1"], ["4"], ["10"], ["100"]],
+                },
+            ),
+            ExerciseTemplate(
+                title="Simple contra anidado",
+                description="Comparar como crecen los dos.",
+                instructions=(
+                    "Completa la tabla con las operaciones que hace cada algoritmo para cada tamaño.\n"
+                    "\n"
+                    "El **simple** tiene un bucle de `n` vueltas; el **anidado**, un bucle de `n` dentro de otro de `n`.\n"
+                    "\n"
+                    "Escribe los numeros sin puntos ni separadores."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="trace_table",
+                spec={
+                    "columnas": ["simple", "anidado"],
+                    "filas": [
+                        {"etiqueta": "n = 5", "fijas": ["5", "25"]},
+                        {"etiqueta": "n = 10"},
+                        {"etiqueta": "n = 100"},
+                        {"etiqueta": "n = 1000"},
+                    ],
+                },
+                answer_key={
+                    "columnas": ["simple", "anidado"],
+                    "etiquetas_filas": ["n = 5", "n = 10", "n = 100", "n = 1000"],
+                    "celdas": [
+                        ["5", "25"],
+                        ["10", "100"],
+                        ["100", "10000"],
+                        ["1000", "1000000"],
+                    ],
+                },
+            ),
+            ExerciseTemplate(
+                title="Mejor caso y peor caso",
+                description="El mismo algoritmo con datos distintos.",
+                instructions=(
+                    "La busqueda lineal recorre hasta encontrar. Con `v <- [7, 4, 9, 6, 3]` (5 elementos), completa cuantas veces se ejecuta la comparacion `v[i] = buscado` en cada caso.\n"
+                    "\n"
+                    "Recuerda que el bucle **para en cuanto encuentra**, y que si no esta recorre el arreglo entero."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=20,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "i <- 0\nposicion <- -1\nMientras i <= Longitud(v) - 1 Y posicion = -1 Hacer\n    Si v[i] = buscado Entonces\n        posicion <- i\n    FinSi\n    i <- i + 1\nFinMientras",
+                    "columnas": ["comparaciones"],
+                    "filas": [
+                        {"etiqueta": "buscado = 7 (el primero)", "fijas": ["1"]},
+                        {"etiqueta": "buscado = 9 (el tercero)"},
+                        {"etiqueta": "buscado = 3 (el ultimo)"},
+                        {"etiqueta": "buscado = 2 (no esta)"},
+                    ],
+                },
+                answer_key={
+                    "columnas": ["comparaciones"],
+                    "etiquetas_filas": [
+                        "buscado = 7 (el primero)",
+                        "buscado = 9 (el tercero)",
+                        "buscado = 3 (el ultimo)",
+                        "buscado = 2 (no esta)",
+                    ],
+                    "celdas": [["1"], ["3"], ["5"], ["5"]],
+                },
+            ),
+            ExerciseTemplate(
+                title="Contar las comparaciones de la burbuja",
+                description="Cuantas comparaciones hace el ordenamiento de la leccion 9.",
+                instructions=(
+                    "La burbuja de la leccion 9 hace `Longitud(v) - 1` pasadas, y en cada pasada `Longitud(v) - 1` comparaciones.\n"
+                    "\n"
+                    "Completa la tabla con el total de comparaciones para cada tamaño, y con las que haria un algoritmo de **un solo bucle** sobre los mismos datos.\n"
+                    "\n"
+                    "```\n"
+                    "Para pasada <- 1 Hasta Longitud(v) - 1 Hacer\n"
+                    "    Para j <- 0 Hasta Longitud(v) - 2 Hacer\n"
+                    "        Si v[j] > v[j + 1] Entonces ...\n"
+                    "    FinPara\n"
+                    "FinPara\n"
+                    "```"
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=25,
+                exercise_type="trace_table",
+                spec={
+                    "columnas": ["burbuja", "un solo bucle"],
+                    "filas": [
+                        {"etiqueta": "n = 4", "fijas": ["9", "4"]},
+                        {"etiqueta": "n = 5"},
+                        {"etiqueta": "n = 10"},
+                        {"etiqueta": "n = 100"},
+                    ],
+                    "ayuda": "Con n = 4 son 3 pasadas x 3 comparaciones = 9. Escribe los numeros sin puntos.",
+                },
+                answer_key={
+                    "columnas": ["burbuja", "un solo bucle"],
+                    "etiquetas_filas": ["n = 4", "n = 5", "n = 10", "n = 100"],
+                    "celdas": [["9", "4"], ["16", "5"], ["81", "10"], ["9801", "100"]],
+                },
+            ),
+        ],
+    ),
+    LessonTemplate(
         title="Python desde Cero",
         description=(
             "Tu primer programa: print, variables, f-strings y como se lee un "
