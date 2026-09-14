@@ -14787,6 +14787,610 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="AI 6 · Evaluar sistemas con LLM",
+        description=(
+            "Saber si un cambio mejora o empeora: conjunto de casos, metricas "
+            "deterministas, un LLM como juez con veredicto validado y comparacion "
+            "entre versiones caso por caso para detectar regresiones."
+        ),
+        content=(
+            "# AI 6: evaluar sistemas con LLM\n"
+            "\n"
+            'El asistente de Nebula ya responde con documentos (AI 4) y consulta pedidos (AI 5). Ahora alguien propone cambiar el prompt, o pasar a un modelo mas barato. ¿Mejora o empeora? Probar tres preguntas a mano y decir "parece que va bien" no es una respuesta: es una opinion. Esta leccion construye una **evaluacion**: un conjunto de casos, metricas automaticas y una comparacion entre versiones que dice que casos se rompieron.\n'
+            "\n"
+            '## Por que evaluar y no "probar un rato"\n'
+            "\n"
+            "Un sistema con LLM cambia de comportamiento con cosas que parecen inofensivas: una frase del prompt, la temperatura, la version del modelo. Sin evaluacion pasan tres cosas:\n"
+            "\n"
+            "1. **Regresiones invisibles.** El cambio arregla la pregunta que estabas mirando y rompe otras cinco que no volviste a probar.\n"
+            "2. **Decisiones por intuicion.** Dos personas prueban preguntas distintas y llegan a conclusiones opuestas.\n"
+            '3. **Juicios que no se pueden repetir.** "Me gusto mas la respuesta" no se puede automatizar ni poner en CI.\n'
+            "\n"
+            "Al terminar tendras una funcion `evaluar` que corre todos los casos contra el sistema, combina metricas deterministas con un LLM como juez, y otra que compara dos versiones caso por caso.\n"
+            "\n"
+            "## El conjunto de evaluacion\n"
+            "\n"
+            'Cada **caso** es una pregunta con lo que una buena respuesta tiene que cumplir. No se guarda "la respuesta correcta" palabra por palabra, porque un LLM puede decir lo mismo de mil formas: se guardan los **datos clave** y las **fuentes** que debe usar.\n'
+            "\n"
+            "```python\n"
+            "CASOS = [                                                             # el conjunto de evaluacion\n"
+            "    {\n"
+            "        'id': 'envio-gratis',                                         # identificador estable\n"
+            "        'pregunta': '¿Desde cuanto el envio es gratis?',              # lo que pregunta un usuario\n"
+            "        'datos_clave': ['50 euros'],                                  # lo que no puede faltar\n"
+            "        'fuentes_esperadas': ['envios.md'],                           # de donde tiene que salir\n"
+            "    },\n"
+            "    {\n"
+            "        'id': 'devolucion-plazo',\n"
+            "        'pregunta': '¿Cuantos dias tengo para devolver algo?',\n"
+            "        'datos_clave': ['30 dias'],\n"
+            "        'fuentes_esperadas': ['devoluciones.md'],\n"
+            "    },\n"
+            "]\n"
+            "\n"
+            "for caso in CASOS:                                                    # un vistazo al conjunto\n"
+            "    print(caso['id'], '->', caso['datos_clave'])                      # envio-gratis -> ['50 euros']\n"
+            "```\n"
+            "\n"
+            "Los casos salen de **preguntas reales** de usuarios y de los errores que ya tuviste: cada fallo que arreglas se convierte en un caso, para que no vuelva.\n"
+            "\n"
+            "## Metricas deterministas\n"
+            "\n"
+            "Antes de pedirle nada a otro LLM se mide lo que se puede medir con codigo: si la respuesta contiene los datos clave y si cito las fuentes correctas. Para comparar texto hay que **normalizar**: mayusculas, tildes y espacios no deben cambiar el resultado.\n"
+            "\n"
+            "```python\n"
+            "import re                                                             # para limpiar el texto\n"
+            "import unicodedata                                                    # para quitar tildes\n"
+            "\n"
+            "def normalizar(texto):                                                # texto comparable\n"
+            "    sin_tildes = unicodedata.normalize('NFD', texto.lower()).encode('ascii', 'ignore').decode()\n"
+            "    solo_palabras = re.sub(r'[^\\w\\s]', ' ', sin_tildes)               # signos fuera\n"
+            "    return ' '.join(solo_palabras.split())                            # un solo espacio entre palabras\n"
+            "\n"
+            "def contiene_datos(respuesta, datos_clave):                           # fraccion de datos presentes\n"
+            "    if not datos_clave:                                               # nada que comprobar\n"
+            "        return 1.0\n"
+            "    texto = normalizar(respuesta)                                     # la respuesta, normalizada\n"
+            "    presentes = [d for d in datos_clave if normalizar(d) in texto]    # los que aparecen\n"
+            "    return len(presentes) / len(datos_clave)                          # 0.0 a 1.0\n"
+            "\n"
+            "def puntuar_fuentes(citadas, esperadas):                              # ¿cito lo que debia?\n"
+            "    citadas, esperadas = set(citadas), set(esperadas)                 # sin duplicados\n"
+            "    aciertos = len(citadas & esperadas)                               # las correctas\n"
+            "    precision = aciertos / len(citadas) if citadas else 0.0           # de lo que cito, cuanto sobraba\n"
+            "    recall = aciertos / len(esperadas) if esperadas else 1.0          # de lo esperado, cuanto cito\n"
+            "    return {'precision': precision, 'recall': recall}\n"
+            "\n"
+            "print(contiene_datos('El envío es GRATIS desde 50  euros.', ['50 euros', 'gratis']))   # 1.0\n"
+            "print(puntuar_fuentes(['envios.md', 'pagos.md'], ['envios.md']))     # {'precision': 0.5, 'recall': 1.0}\n"
+            "```\n"
+            "\n"
+            "**Precision** baja significa que cito fuentes que no venian al caso; **recall** bajo, que le falto alguna. Las dos importan: un sistema que cita todos los documentos tiene recall perfecto y no sirve de nada.\n"
+            "\n"
+            "## Un LLM como juez\n"
+            "\n"
+            "Hay cosas que el codigo no mide bien: si la respuesta es clara, si contesta lo que se pregunto, si el tono es correcto. Para eso se usa otro LLM como **juez**, con una **rubrica** explicita y un veredicto en JSON que se valida como cualquier otra salida de un modelo.\n"
+            "\n"
+            "```python\n"
+            "import json                                                           # el veredicto viene en JSON\n"
+            "\n"
+            "def prompt_juez(pregunta, respuesta):                                 # rubrica cerrada, salida cerrada\n"
+            "    return (\n"
+            "        'Evalua la respuesta de un asistente de atencion al cliente.\\n'\n"
+            "        'Puntua de 1 a 5: 5 = correcta, completa y clara; 1 = incorrecta o no contesta.\\n'\n"
+            '        \'Responde SOLO con JSON: {"puntuacion": entero, "motivo": texto breve}.\\n\\n\'\n'
+            "        f'Pregunta: {pregunta}\\nRespuesta: {respuesta}'\n"
+            "    )\n"
+            "\n"
+            "def parsear_veredicto(texto):                                         # JSON del juez -> dict o None\n"
+            "    try:\n"
+            "        datos = json.loads(texto)                                     # (en el ejercicio tambien con cercas)\n"
+            "    except json.JSONDecodeError:\n"
+            "        return None                                                   # ilegible: sin veredicto\n"
+            "    puntos = datos.get('puntuacion') if isinstance(datos, dict) else None\n"
+            "    if type(puntos) is not int or not 1 <= puntos <= 5:               # True no es un entero valido\n"
+            "        return None                                                   # fuera de la rubrica\n"
+            "    return {'puntuacion': puntos, 'motivo': str(datos.get('motivo', ''))}\n"
+            "\n"
+            'print(parsear_veredicto(\'{"puntuacion": 4, "motivo": "correcta pero escueta"}\'))   # {\'puntuacion\': 4, ...}\n'
+            "print(parsear_veredicto('{\"puntuacion\": 9}'))                        # None: la rubrica va de 1 a 5\n"
+            "```\n"
+            "\n"
+            'Un veredicto ilegible **no es un 1**: es "no se pudo juzgar". Si lo cuentas como una mala nota, un fallo del juez parece un fallo del sistema. Y el juez tiene sesgos conocidos (prefiere respuestas largas, se deja convencer por el tono seguro): por eso no decide solo, se combina con las metricas deterministas.\n'
+            "\n"
+            "## Correr la evaluacion\n"
+            "\n"
+            "La evaluacion llama al sistema con cada pregunta, calcula las metricas, pide el veredicto y decide si el caso **aprueba**. Tanto el sistema como el juez se inyectan: en los tests son funciones falsas, en el editor serian el `responder` de AI 4 y `pycode.llm_complete`.\n"
+            "\n"
+            "```python\n"
+            "CASOS = [{'id': 'envio', 'pregunta': 'envio gratis?', 'datos_clave': ['50 euros']},    # dos casos minimos\n"
+            "         {'id': 'pago', 'pregunta': 'pagar con paypal?', 'datos_clave': ['paypal']}]\n"
+            "\n"
+            "async def sistema_falso(pregunta):                                    # el sistema que se evalua\n"
+            "    if 'envio' in pregunta:\n"
+            "        return 'El envio es gratis desde 50 euros.'                   # acierta\n"
+            "    return 'Aceptamos tarjeta.'                                       # no menciona paypal\n"
+            "\n"
+            "async def evaluar_minimo(casos, sistema_fn):                          # version corta: solo datos clave\n"
+            "    resultados = []\n"
+            "    for caso in casos:                                                # uno a uno, en orden\n"
+            "        respuesta = await sistema_fn(caso['pregunta'])                # el sistema contesta\n"
+            "        ok = all(d in respuesta for d in caso['datos_clave'])         # ¿estan todos los datos?\n"
+            "        resultados.append({'id': caso['id'], 'aprobado': ok})         # se guarda cada caso, no solo la media\n"
+            "    tasa = sum(r['aprobado'] for r in resultados) / len(resultados)   # True cuenta 1, False 0\n"
+            "    return {'casos': resultados, 'tasa_aprobados': tasa}\n"
+            "\n"
+            "print(await evaluar_minimo(CASOS, sistema_falso))\n"
+            "# {'casos': [{'id': 'envio', 'aprobado': True}, {'id': 'pago', 'aprobado': False}], 'tasa_aprobados': 0.5}\n"
+            "```\n"
+            "\n"
+            "Guarda **el resultado de cada caso**, no solo la media: un 80% no dice que caso fallo, y es lo primero que vas a querer mirar.\n"
+            "\n"
+            "## Comparar dos versiones\n"
+            "\n"
+            'La pregunta real no es "¿que nota saca?" sino "¿que se rompio respecto a la version anterior?". Se comparan los resultados caso por caso.\n'
+            "\n"
+            "```python\n"
+            "antes = {'envio': True, 'pago': True, 'horario': False}              # version actual: id -> aprobado\n"
+            "despues = {'envio': True, 'pago': False, 'horario': True}            # con el prompt nuevo\n"
+            "\n"
+            "comunes = sorted(set(antes) & set(despues))                           # solo se comparan los casos de ambas\n"
+            "empeoran = [c for c in comunes if antes[c] and not despues[c]]        # aprobaba y ya no\n"
+            "mejoran = [c for c in comunes if not antes[c] and despues[c]]         # fallaba y ahora aprueba\n"
+            "print(empeoran, mejoran)                                              # ['pago'] ['horario']\n"
+            "```\n"
+            "\n"
+            "Las dos versiones sacan 2 de 3, la misma nota, y sin embargo el cambio **rompio** el caso de pagos. Mirando solo la media lo habrias dado por bueno.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            '- **Comparar texto sin normalizar.** "50 Euros." y "50 euros" son el mismo dato, pero `\'50 euros\' in respuesta` dice que no. Normaliza mayusculas, tildes, signos y espacios en los dos lados.\n'
+            '- **Contar un veredicto ilegible como mala nota.** Si el juez devuelve algo que no es JSON valido y lo tratas como un 1, un fallo del juez aparece como un fallo del sistema. Registralo aparte como "sin veredicto".\n'
+            "- **Confiar solo en el LLM juez.** Prefiere respuestas largas y seguras aunque sean incorrectas. Combina su nota con metricas deterministas (datos clave, fuentes) que no se dejan impresionar.\n"
+            "- **Mirar solo la media.** Dos versiones con la misma tasa pueden fallar casos distintos. Compara caso por caso y revisa los que empeoran.\n"
+            "- **Evaluar con preguntas inventadas en el momento.** Si los casos cambian cada vez, las notas no se pueden comparar. Mantén un conjunto fijo y añade un caso por cada error real que arregles.\n"
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **Conjunto de evaluacion**: casos fijos con datos clave y fuentes esperadas, no respuestas literales.\n"
+            "- **Metricas deterministas**: normalizar y medir cobertura de datos y precision/recall de fuentes.\n"
+            '- **LLM como juez**: rubrica explicita, veredicto JSON validado, y lo ilegible es "sin veredicto", no un 1.\n'
+            "- **Evaluar**: sistema y juez inyectados, un resultado por caso y una tasa de aprobados.\n"
+            "- **Comparar versiones**: que casos empeoran y cuales mejoran, no solo la media.\n"
+        ),
+        difficulty="intermediate",
+        category="ai-fundamentos",
+        order=43,
+        track="track-5",
+        estimated_duration=65,
+        prerequisites_titles=["AI 5 · Agentes que usan herramientas"],
+        exercises=[
+            ExerciseTemplate(
+                title="Normalizar texto para comparar",
+                description="Minusculas, sin tildes, sin signos y con espacios simples.",
+                instructions=(
+                    "Implementa `normalizar(texto)` que devuelva el texto preparado para compararlo:\n"
+                    "\n"
+                    "- en minusculas y sin tildes;\n"
+                    "- con los signos de puntuacion cambiados por espacios;\n"
+                    "- con un solo espacio entre palabras y sin espacios en los bordes.\n"
+                    "\n"
+                    "Ejemplo: `normalizar('  El envío es GRATIS: desde 50€!  ')` → `'el envio es gratis desde 50'`"
+                ),
+                starter_code=(
+                    "import re\n"
+                    "import unicodedata\n"
+                    "\n"
+                    "\n"
+                    "def normalizar(texto):\n"
+                    "    # TODO: minusculas y sin tildes\n"
+                    "    # TODO: signos -> espacios y un solo espacio entre palabras\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "unicodedata.normalize('NFD', t).encode('ascii', 'ignore').decode() quita tildes (y simbolos como €).",
+                    "re.sub(r'[^\\w\\s]', ' ', t) cambia todo lo que no es letra, numero o espacio; ' '.join(t.split()) deja espacios simples.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "minusculas, sin tildes ni signos",
+                        "code": (
+                            "assert normalizar('  El envío es GRATIS: desde 50€!  ') == 'el envio es gratis desde 50', repr(normalizar('  El envío es GRATIS: desde 50€!  '))\n"
+                        ),
+                    },
+                    {
+                        "name": "espacios simples y signos entre palabras",
+                        "code": (
+                            "assert normalizar('30\\tdias,devolucion') == '30 dias devolucion'\n"
+                            "assert normalizar('') == ''\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Cobertura de datos clave",
+                description="Que fraccion de los datos obligatorios aparece en la respuesta.",
+                instructions=(
+                    "Implementa `contiene_datos(respuesta, datos_clave)` que devuelva un `float` entre 0 y 1: la fraccion de `datos_clave` que aparecen en la respuesta, comparando ambos lados con `normalizar` (ya viene en el starter). Si `datos_clave` esta vacia, devuelve `1.0`.\n"
+                    "\n"
+                    "Ejemplo: `contiene_datos('Envío GRATIS desde 50  Euros.', ['50 euros', 'gratis', '24 horas'])` → `0.666...`"
+                ),
+                starter_code=(
+                    "import re\n"
+                    "import unicodedata\n"
+                    "\n"
+                    "\n"
+                    "def normalizar(texto):\n"
+                    "    sin_tildes = unicodedata.normalize('NFD', texto.lower()).encode('ascii', 'ignore').decode()\n"
+                    "    return ' '.join(re.sub(r'[^\\w\\s]', ' ', sin_tildes).split())\n"
+                    "\n"
+                    "\n"
+                    "def contiene_datos(respuesta, datos_clave):\n"
+                    "    # TODO: sin datos clave -> 1.0\n"
+                    "    # TODO: cuenta los datos (normalizados) que estan en la respuesta (normalizada)\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Normaliza la respuesta una vez y cada dato antes de buscarlo con 'in'.",
+                    "La fraccion es presentes / total: con 2 de 3 da 0.666...",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "fraccion de datos presentes",
+                        "code": (
+                            "c = contiene_datos('Envío GRATIS desde 50  Euros.', ['50 euros', 'gratis', '24 horas'])\n"
+                            "assert abs(c - 2 / 3) < 1e-9, f'devolvio {c}'\n"
+                            "assert contiene_datos('nada que ver', ['50 euros']) == 0.0\n"
+                        ),
+                    },
+                    {
+                        "name": "sin datos clave es cobertura completa",
+                        "code": (
+                            "assert contiene_datos('lo que sea', []) == 1.0\n"
+                            "assert contiene_datos('Plazo: 30 días.', ['30 dias']) == 1.0\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Precision y recall de fuentes",
+                description="Mide si el sistema cito lo que debia y nada mas.",
+                instructions=(
+                    "Implementa `puntuar_fuentes(citadas, esperadas)` que devuelva `{'precision': float, 'recall': float}` tratando las dos listas como conjuntos (los duplicados no cuentan):\n"
+                    "\n"
+                    "- `precision` = aciertos / fuentes citadas, o `0.0` si no cito ninguna;\n"
+                    "- `recall` = aciertos / fuentes esperadas, o `1.0` si no se esperaba ninguna.\n"
+                    "\n"
+                    "Ejemplo: `puntuar_fuentes(['envios.md', 'pagos.md', 'envios.md'], ['envios.md', 'horario.md'])` → `{'precision': 0.5, 'recall': 0.5}`"
+                ),
+                starter_code=(
+                    "def puntuar_fuentes(citadas, esperadas):\n"
+                    "    # TODO: pasa ambas listas a conjuntos y cuenta los aciertos\n"
+                    "    # TODO: precision y recall con sus casos vacios\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "set(a) & set(b) es la interseccion: las fuentes citadas que ademas se esperaban.",
+                    "Sin citas no hay precision que medir: 0.0. Sin esperadas no falta nada: recall 1.0.",
+                    "Los duplicados desaparecen al pasar a set: citar dos veces la misma no suma.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "precision y recall con duplicados",
+                        "code": (
+                            "r = puntuar_fuentes(['envios.md', 'pagos.md', 'envios.md'], ['envios.md', 'horario.md'])\n"
+                            "assert r == {'precision': 0.5, 'recall': 0.5}, r\n"
+                        ),
+                    },
+                    {
+                        "name": "cito de mas o de menos",
+                        "code": (
+                            "assert puntuar_fuentes(['a', 'b', 'c', 'd'], ['a']) == {'precision': 0.25, 'recall': 1.0}\n"
+                            "assert puntuar_fuentes(['a'], ['a', 'b']) == {'precision': 1.0, 'recall': 0.5}\n"
+                        ),
+                    },
+                    {
+                        "name": "casos vacios",
+                        "code": (
+                            "assert puntuar_fuentes([], ['a']) == {'precision': 0.0, 'recall': 0.0}\n"
+                            "assert puntuar_fuentes(['a'], []) == {'precision': 0.0, 'recall': 1.0}\n"
+                            "assert puntuar_fuentes([], []) == {'precision': 0.0, 'recall': 1.0}\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Leer el veredicto del juez",
+                description="Valida el JSON del LLM juez contra la rubrica.",
+                instructions=(
+                    "Implementa `parsear_veredicto(texto)` que devuelva `{'puntuacion': int, 'motivo': str}` o `None` si el veredicto no es valido:\n"
+                    "\n"
+                    "- el JSON puede venir dentro de cercas ```` ```json ```` o ```` ``` ````;\n"
+                    "- `puntuacion` tiene que ser un **entero** de 1 a 5 (ni `4.5`, ni `'4'`, ni `True`);\n"
+                    "- `motivo` es opcional: si falta, `''`;\n"
+                    "- JSON invalido, sin `puntuacion` o fuera de rango → `None`. Nunca lanza.\n"
+                    "\n"
+                    "Ejemplo: `parsear_veredicto('{\"puntuacion\": 4, \"motivo\": \"escueta\"}')` → `{'puntuacion': 4, 'motivo': 'escueta'}`"
+                ),
+                starter_code=(
+                    "import json\n"
+                    "\n"
+                    "\n"
+                    "def parsear_veredicto(texto):\n"
+                    "    # TODO: quita las cercas si las hay y json.loads dentro de try/except\n"
+                    "    # TODO: puntuacion entera entre 1 y 5 (cuidado: True tambien es int)\n"
+                    "    # TODO: devuelve {'puntuacion': ..., 'motivo': ...} o None\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Para las cercas: CERCA = '`' * 3; si CERCA in t, t = t.split(CERCA)[1].removeprefix('json').",
+                    "isinstance(True, int) es True: usa type(p) is int para rechazar booleanos.",
+                    "Comprueba que lo leido sea un dict antes de usar .get().",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "veredicto valido, con o sin cercas",
+                        "code": (
+                            "assert parsear_veredicto('{\"puntuacion\": 4, \"motivo\": \"escueta\"}') == {'puntuacion': 4, 'motivo': 'escueta'}\n"
+                            "c = '`' * 3\n"
+                            "assert parsear_veredicto(c + 'json\\n{\"puntuacion\": 5}\\n' + c) == {'puntuacion': 5, 'motivo': ''}\n"
+                        ),
+                    },
+                    {
+                        "name": "fuera de rango o de tipo equivocado",
+                        "code": (
+                            "for malo in ('{\"puntuacion\": 0}', '{\"puntuacion\": 6}', '{\"puntuacion\": 4.5}',\n"
+                            '             \'{"puntuacion": "4"}\', \'{"puntuacion": true}\', \'{"motivo": "sin nota"}\'):\n'
+                            "    assert parsear_veredicto(malo) is None, f'{malo} deberia ser None'\n"
+                            "assert parsear_veredicto('{\"puntuacion\": 1}') == {'puntuacion': 1, 'motivo': ''}\n"
+                        ),
+                    },
+                    {
+                        "name": "texto que no es JSON: None sin lanzar",
+                        "code": (
+                            "assert parsear_veredicto('Le daria un 4') is None\n"
+                            "assert parsear_veredicto('[4]') is None\n"
+                            'assert parsear_veredicto(\'{"puntuacion": 3, "motivo": "ok"}\')[\'puntuacion\'] == 3\n'
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Comparar dos versiones",
+                description="Encuentra los casos que se rompen o se arreglan con un cambio.",
+                instructions=(
+                    "Implementa `comparar_versiones(antes, despues)`: cada argumento es un diccionario `id_caso → aprobado (bool)`. Devuelve un diccionario con:\n"
+                    "\n"
+                    "- `'empeoran'`: ids que aprobaban antes y no despues, ordenados;\n"
+                    "- `'mejoran'`: ids que no aprobaban antes y si despues, ordenados;\n"
+                    "- `'solo_en_uno'`: ids que estan en una sola version, ordenados;\n"
+                    "- `'tasa_antes'` y `'tasa_despues'`: fraccion de aprobados **sobre los casos comunes** (`0.0` si no hay comunes).\n"
+                    "\n"
+                    "Solo los casos que estan en las dos versiones se comparan y cuentan para las tasas."
+                ),
+                starter_code=(
+                    "def comparar_versiones(antes, despues):\n"
+                    "    # TODO: casos comunes y casos que solo estan en una version\n"
+                    "    # TODO: empeoran / mejoran entre los comunes\n"
+                    "    # TODO: tasas sobre los comunes\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "set(antes) & set(despues) son los comunes; el operador ^ da los que estan en uno solo.",
+                    "Ordena las listas con sorted() para que el resultado sea estable.",
+                    "sum(antes[c] for c in comunes) cuenta los True.",
+                    "Con dos versiones que suspenden los mismos casos, empeoran y mejoran quedan vacias.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "la misma nota esconde una regresion",
+                        "code": (
+                            "r = comparar_versiones({'envio': True, 'pago': True, 'horario': False},\n"
+                            "                       {'envio': True, 'pago': False, 'horario': True})\n"
+                            "assert r['empeoran'] == ['pago'] and r['mejoran'] == ['horario'], r\n"
+                            "assert abs(r['tasa_antes'] - 2 / 3) < 1e-9 and abs(r['tasa_despues'] - 2 / 3) < 1e-9, r\n"
+                        ),
+                    },
+                    {
+                        "name": "casos que solo estan en una version",
+                        "code": (
+                            "r = comparar_versiones({'a': True, 'b': False, 'viejo': True}, {'a': False, 'b': False, 'nuevo': True})\n"
+                            "assert r['solo_en_uno'] == ['nuevo', 'viejo'], r\n"
+                            "assert r['empeoran'] == ['a'] and r['mejoran'] == []\n"
+                            "assert r['tasa_antes'] == 0.5 and r['tasa_despues'] == 0.0, 'las tasas solo cuentan los comunes'\n"
+                        ),
+                    },
+                    {
+                        "name": "listas ordenadas",
+                        "code": (
+                            "r = comparar_versiones({'z': True, 'm': True, 'a': True}, {'z': False, 'm': False, 'a': False})\n"
+                            "assert r['empeoran'] == ['a', 'm', 'z'], r['empeoran']\n"
+                        ),
+                    },
+                    {
+                        "name": "sin casos comunes",
+                        "code": (
+                            "r = comparar_versiones({'a': True}, {'b': True})\n"
+                            "assert r == {'empeoran': [], 'mejoran': [], 'solo_en_uno': ['a', 'b'], 'tasa_antes': 0.0, 'tasa_despues': 0.0}, r\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Correr la evaluacion completa",
+                description="Metricas deterministas + LLM juez sobre todo el conjunto de casos.",
+                instructions=(
+                    "Implementa `async def evaluar(casos, sistema_fn, juez_fn, nota_minima=4)`. Cada caso tiene `'id'`, `'pregunta'`, `'datos_clave'` y `'fuentes_esperadas'`. `sistema_fn(pregunta)` devuelve `{'respuesta': str, 'fuentes': list}` y `juez_fn(prompt)` devuelve el texto del juez; las dos son asincronas.\n"
+                    "\n"
+                    "Para cada caso, **en orden**:\n"
+                    "\n"
+                    "1. `resultado = await sistema_fn(caso['pregunta'])`.\n"
+                    "2. `cobertura` con `contiene_datos` y `recall` con `puntuar_fuentes` (su clave `'recall'`).\n"
+                    "3. `veredicto = parsear_veredicto(await juez_fn(prompt_juez(pregunta, respuesta)))`.\n"
+                    "4. Aprueba si `cobertura == 1.0`, `recall == 1.0` y hay veredicto con `puntuacion >= nota_minima`.\n"
+                    "\n"
+                    "Devuelve:\n"
+                    "\n"
+                    "```\n"
+                    "{\n"
+                    "    'casos': [{'id', 'aprobado', 'cobertura', 'recall', 'puntuacion'}, ...],  # puntuacion None si no hubo veredicto\n"
+                    "    'tasa_aprobados': float,     # 0.0 si no hay casos\n"
+                    "    'sin_veredicto': [ids],      # en el orden de los casos\n"
+                    "}\n"
+                    "```\n"
+                    "\n"
+                    "El starter trae `normalizar`, `contiene_datos`, `puntuar_fuentes`, `parsear_veredicto` y `prompt_juez`."
+                ),
+                starter_code=(
+                    "import json\n"
+                    "import re\n"
+                    "import unicodedata\n"
+                    "\n"
+                    "CERCA = '`' * 3\n"
+                    "\n"
+                    "\n"
+                    "def normalizar(texto):\n"
+                    "    sin_tildes = unicodedata.normalize('NFD', texto.lower()).encode('ascii', 'ignore').decode()\n"
+                    "    return ' '.join(re.sub(r'[^\\w\\s]', ' ', sin_tildes).split())\n"
+                    "\n"
+                    "\n"
+                    "def contiene_datos(respuesta, datos_clave):\n"
+                    "    if not datos_clave:\n"
+                    "        return 1.0\n"
+                    "    texto = normalizar(respuesta)\n"
+                    "    return sum(normalizar(d) in texto for d in datos_clave) / len(datos_clave)\n"
+                    "\n"
+                    "\n"
+                    "def puntuar_fuentes(citadas, esperadas):\n"
+                    "    citadas, esperadas = set(citadas), set(esperadas)\n"
+                    "    aciertos = len(citadas & esperadas)\n"
+                    "    return {\n"
+                    "        'precision': aciertos / len(citadas) if citadas else 0.0,\n"
+                    "        'recall': aciertos / len(esperadas) if esperadas else 1.0,\n"
+                    "    }\n"
+                    "\n"
+                    "\n"
+                    "def parsear_veredicto(texto):\n"
+                    "    t = texto.strip()\n"
+                    "    if CERCA in t:\n"
+                    "        t = t.split(CERCA)[1].removeprefix('json').strip()\n"
+                    "    try:\n"
+                    "        datos = json.loads(t)\n"
+                    "    except json.JSONDecodeError:\n"
+                    "        return None\n"
+                    "    if not isinstance(datos, dict):\n"
+                    "        return None\n"
+                    "    puntos = datos.get('puntuacion')\n"
+                    "    if type(puntos) is not int or not 1 <= puntos <= 5:\n"
+                    "        return None\n"
+                    "    return {'puntuacion': puntos, 'motivo': str(datos.get('motivo', ''))}\n"
+                    "\n"
+                    "\n"
+                    "def prompt_juez(pregunta, respuesta):\n"
+                    "    return (\n"
+                    "        'Evalua la respuesta de un asistente de atencion al cliente.\\n'\n"
+                    "        'Puntua de 1 a 5: 5 = correcta, completa y clara; 1 = incorrecta o no contesta.\\n'\n"
+                    '        \'Responde SOLO con JSON: {"puntuacion": entero, "motivo": texto breve}.\\n\\n\'\n'
+                    "        f'Pregunta: {pregunta}\\nRespuesta: {respuesta}'\n"
+                    "    )\n"
+                    "\n"
+                    "\n"
+                    "async def evaluar(casos, sistema_fn, juez_fn, nota_minima=4):\n"
+                    "    # TODO: para cada caso: sistema -> metricas -> juez -> aprobado\n"
+                    "    # TODO: guarda un dict por caso y los ids sin veredicto\n"
+                    "    # TODO: tasa de aprobados (0.0 si no hay casos)\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Un veredicto None no aprueba, y su id va a sin_veredicto: no es lo mismo que una nota baja.",
+                    "La puntuacion del caso es veredicto['puntuacion'] o None si no hubo veredicto.",
+                    "sum(c['aprobado'] for c in resultados) cuenta los aprobados.",
+                    "Para probarlo: resumen = await evaluar(casos, sistema_falso, juez_falso).",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "combina metricas y juez por caso",
+                        "code": (
+                            "casos = [\n"
+                            "    {'id': 'envio', 'pregunta': 'envio gratis?', 'datos_clave': ['50 euros'], 'fuentes_esperadas': ['envios.md']},\n"
+                            "    {'id': 'pago', 'pregunta': 'paypal?', 'datos_clave': ['paypal'], 'fuentes_esperadas': ['pagos.md']},\n"
+                            "]\n"
+                            "async def sistema(pregunta):\n"
+                            "    if 'envio' in pregunta:\n"
+                            "        return {'respuesta': 'Gratis desde 50 Euros.', 'fuentes': ['envios.md']}\n"
+                            "    return {'respuesta': 'Aceptamos tarjeta.', 'fuentes': ['pagos.md']}\n"
+                            "async def juez(prompt):\n"
+                            '    return \'{"puntuacion": 5, "motivo": "ok"}\'\n'
+                            "r = await evaluar(casos, sistema, juez)\n"
+                            "assert [c['id'] for c in r['casos']] == ['envio', 'pago'], 'en el orden de los casos'\n"
+                            "envio, pago = r['casos']\n"
+                            "assert envio == {'id': 'envio', 'aprobado': True, 'cobertura': 1.0, 'recall': 1.0, 'puntuacion': 5}, envio\n"
+                            "assert pago['aprobado'] is False and pago['cobertura'] == 0.0, 'sin el dato clave no aprueba aunque el juez de un 5'\n"
+                            "assert r['tasa_aprobados'] == 0.5 and r['sin_veredicto'] == []\n"
+                        ),
+                    },
+                    {
+                        "name": "el juez recibe pregunta y respuesta",
+                        "code": (
+                            "prompts = []\n"
+                            "async def sistema(pregunta):\n"
+                            "    return {'respuesta': 'Abrimos de 9 a 18.', 'fuentes': ['horario.md']}\n"
+                            "async def juez(prompt):\n"
+                            "    prompts.append(prompt)\n"
+                            "    return '{\"puntuacion\": 3}'\n"
+                            "casos = [{'id': 'h', 'pregunta': 'a que hora abren', 'datos_clave': ['9'], 'fuentes_esperadas': ['horario.md']}]\n"
+                            "r = await evaluar(casos, sistema, juez)\n"
+                            "assert len(prompts) == 1 and 'a que hora abren' in prompts[0] and 'Abrimos de 9 a 18.' in prompts[0], prompts\n"
+                            "assert r['casos'][0]['puntuacion'] == 3 and r['casos'][0]['aprobado'] is False, 'un 3 no llega a la nota minima de 4'\n"
+                            "r2 = await evaluar(casos, sistema, juez, nota_minima=3)\n"
+                            "assert r2['casos'][0]['aprobado'] is True\n"
+                        ),
+                    },
+                    {
+                        "name": "un veredicto ilegible es sin veredicto, no una mala nota",
+                        "code": (
+                            "async def sistema(pregunta):\n"
+                            "    return {'respuesta': 'Gratis desde 50 euros', 'fuentes': ['envios.md']}\n"
+                            "async def juez(prompt):\n"
+                            "    return 'Le pondria un cinco'\n"
+                            "casos = [{'id': 'e', 'pregunta': 'envio?', 'datos_clave': ['50 euros'], 'fuentes_esperadas': ['envios.md']}]\n"
+                            "r = await evaluar(casos, sistema, juez)\n"
+                            "assert r['sin_veredicto'] == ['e'], r\n"
+                            "assert r['casos'][0]['puntuacion'] is None and r['casos'][0]['aprobado'] is False\n"
+                            "assert r['casos'][0]['cobertura'] == 1.0, 'las metricas deterministas se calculan igual'\n"
+                        ),
+                    },
+                    {
+                        "name": "recall de fuentes y conjunto vacio",
+                        "code": (
+                            "async def sistema(pregunta):\n"
+                            "    return {'respuesta': 'Gratis desde 50 euros', 'fuentes': []}\n"
+                            "async def juez(prompt):\n"
+                            "    return '{\"puntuacion\": 5}'\n"
+                            "casos = [{'id': 'e', 'pregunta': 'envio?', 'datos_clave': ['50 euros'], 'fuentes_esperadas': ['envios.md']}]\n"
+                            "r = await evaluar(casos, sistema, juez)\n"
+                            "assert r['casos'][0]['recall'] == 0.0 and r['casos'][0]['aprobado'] is False, 'sin citar la fuente no aprueba'\n"
+                            "vacio = await evaluar([], sistema, juez)\n"
+                            "assert vacio == {'casos': [], 'tasa_aprobados': 0.0, 'sin_veredicto': []}, vacio\n"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
