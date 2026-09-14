@@ -24,6 +24,13 @@ class ExerciseTemplate:
     points: int = 10
     difficulty: str = "easy"
     hidden_tests: list[dict] = field(default_factory=list)
+    # Track 0: ejercicios que NO se ejecutan. `exercise_type` distinto de
+    # "code" manda el ejercicio a `track0_service` (corrige el backend) en vez
+    # de a Pyodide; `spec` es el enunciado estructurado que ve el alumno y
+    # `answer_key` la solucion, que nunca sale de la API.
+    exercise_type: str = "code"
+    spec: dict = field(default_factory=dict)
+    answer_key: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -41,6 +48,870 @@ class LessonTemplate:
 
 
 LESSON_TEMPLATES: list[LessonTemplate] = [
+    LessonTemplate(
+        title="Fundamentos 1 · Que es un algoritmo",
+        description=(
+            "Entrada, proceso y salida; que un paso sea preciso, que el algoritmo termine y que el orden importe. Sin escribir codigo."
+        ),
+        content=(
+            "# Que es un algoritmo\n"
+            "\n"
+            "Antes de escribir una linea de Python hace falta algo mas basico: saber **decir con precision como se hace algo**. Eso es un algoritmo, y es lo unico que se aprende en este track. El lenguaje viene despues, en Track 1, y para entonces ya sabras que quieres decirle a la maquina.\n"
+            "\n"
+            "## Por que empezar sin codigo\n"
+            "\n"
+            "Mucha gente aprende a programar memorizando sintaxis: donde van los dos puntos, como se escribe un bucle. Funciona hasta el primer ejercicio que no se parece a ninguno visto, y ahi se acaba.\n"
+            "\n"
+            "Lo que separa a quien programa de quien copia es poder responder a esto **sin ejecutar nada**: *¿cuanto vale esta variable en la tercera vuelta del bucle?* Es una habilidad de lapiz y papel. Este track la entrena primero, y despues Track 1 le pone encima el idioma.\n"
+            "\n"
+            "Un **algoritmo** es una lista de pasos que resuelve un problema. Una receta de cocina lo es. Las instrucciones para llegar a tu casa lo son. Y el programa que decide si un pedido se devuelve tambien.\n"
+            "\n"
+            "## Entrada, proceso y salida\n"
+            "\n"
+            "Todo algoritmo tiene tres partes, y separarlas es el primer habito que hay que coger.\n"
+            "\n"
+            "```\n"
+            "Algoritmo AreaRectangulo\n"
+            "    Leer base                        // ENTRADA: lo que recibe\n"
+            "    Leer altura\n"
+            "    area <- base * altura            // PROCESO: lo que calcula\n"
+            "    Escribir area                    // SALIDA: lo que devuelve\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "- **Entrada**: los datos con los que trabaja. Aqui, `base` y `altura`.\n"
+            "- **Proceso**: lo que hace con ellos. Aqui, una multiplicacion.\n"
+            "- **Salida**: lo que entrega. Aqui, el area.\n"
+            "\n"
+            '`<-` se lee **"toma el valor de"**. `area <- base * altura` no es una ecuacion de matematicas: es una orden que dice *calcula `base * altura` y guarda el resultado en `area`*. Volveremos sobre esto en la leccion 2, porque es la fuente del malentendido mas comun del track.\n'
+            "\n"
+            "Un algoritmo sin salida no sirve para nada (nadie se entera del resultado), y uno sin entrada solo sabe resolver un caso.\n"
+            "\n"
+            '## Preciso: nada de "mas o menos"\n'
+            "\n"
+            "Un algoritmo lo ejecuta una maquina que no interpreta, no pregunta y no tiene sentido comun. Compara estas dos versiones de lo mismo:\n"
+            "\n"
+            "```\n"
+            "// Ambiguo: no es un algoritmo\n"
+            "Poner bastante agua a calentar\n"
+            "Cuando este lista, echar la pasta\n"
+            "Escurrir cuando este en su punto\n"
+            "\n"
+            "// Preciso: esto si\n"
+            "Algoritmo Pasta\n"
+            "    Llenar la olla con 1 litro de agua\n"
+            "    Calentar hasta 100 grados\n"
+            "    Echar 100 gramos de pasta\n"
+            "    Esperar 9 minutos\n"
+            "    Escurrir\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            '"Bastante", "cuando este lista" y "en su punto" son decisiones que alguien tiene que tomar. Si la instruccion no dice **cuanto** y **cuando**, el algoritmo esta incompleto: no se puede ejecutar dos veces igual.\n'
+            "\n"
+            "## Finito: tiene que terminar\n"
+            "\n"
+            "Un algoritmo termina. Siempre. Este no:\n"
+            "\n"
+            "```\n"
+            "Algoritmo NoTermina\n"
+            "    numero <- 1\n"
+            "    Mientras numero > 0 Hacer         // numero nunca deja de ser positivo...\n"
+            "        numero <- numero + 1          // ...porque aqui solo crece\n"
+            "    FinMientras\n"
+            '    Escribir "Fin"                    // esta linea no se ejecuta jamas\n'
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "`Mientras` repite un bloque *mientras* la condicion sea cierta. Como `numero` solo aumenta, nunca deja de ser mayor que 0 y el algoritmo se queda dando vueltas para siempre. Eso es un **bucle infinito**, y es un error, no un algoritmo lento.\n"
+            "\n"
+            "La regla: en todo bucle tiene que haber algo que acerque la condicion a ser falsa.\n"
+            "\n"
+            "## El orden importa\n"
+            "\n"
+            "Los mismos pasos en distinto orden son algoritmos distintos:\n"
+            "\n"
+            "```\n"
+            "Algoritmo Correcto              Algoritmo Incorrecto\n"
+            "    Leer precio                     Leer precio\n"
+            "    total <- precio * 1.21          Escribir total       // total todavia no existe\n"
+            "    Escribir total                  total <- precio * 1.21\n"
+            "FinAlgoritmo                    FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "El de la derecha intenta escribir `total` antes de calcularlo. Un algoritmo se lee de arriba abajo, una instruccion cada vez, y **no se puede usar lo que todavia no se ha calculado**.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            '- **Escribir un paso que hay que interpretar.** "Calcular el descuento apropiado" no es un paso: el que ejecuta no sabe cual es. Escribe la regla completa: "Si el importe supera 100, descuento <- 10".\n'
+            "- **Olvidar la salida.** Un algoritmo que calcula el area y nunca la escribe ha trabajado para nada. Si el resultado no sale, el algoritmo esta sin terminar.\n"
+            "- **Usar un dato antes de tenerlo.** Escribir `total` antes de la linea que lo calcula. Se lee de arriba abajo: cada paso solo dispone de lo que ya paso.\n"
+            '- **Un bucle sin final.** Repetir "mientras queden clientes" sin que nadie quite clientes de la lista. Si nada mueve la condicion, no termina.\n'
+            '- **Confundir el problema con la solucion.** "Ordenar la lista" es el problema. El algoritmo es la lista de pasos que la ordena.\n'
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **Algoritmo**: pasos precisos que resuelven un problema, y que cualquiera puede ejecutar sin decidir nada.\n"
+            "- **Entrada, proceso y salida**: qué recibe, qué hace y qué entrega. Las tres.\n"
+            "- **`<-`** guarda un valor en una variable; no es una igualdad.\n"
+            '- **Preciso**: nada de "bastante" ni "cuando toque"; cuanto y cuando, escritos.\n'
+            "- **Finito**: todo bucle necesita algo que lo acerque a su final.\n"
+            "- **Ordenado**: se lee de arriba abajo y nadie puede usar lo que aun no existe.\n"
+        ),
+        difficulty="beginner",
+        category="algoritmos",
+        order=-10,
+        track="track-0",
+        estimated_duration=35,
+        prerequisites_titles=[],
+        exercises=[
+            ExerciseTemplate(
+                title="Entrada, proceso y salida",
+                description="Reconocer las tres partes de un algoritmo.",
+                instructions=(
+                    "Mira este algoritmo y responde: ¿cual de las lineas es la **entrada**?\n"
+                    "\n"
+                    "Recuerda que la entrada es el dato que el algoritmo recibe de fuera, no lo que calcula ni lo que muestra."
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="mcq",
+                spec={
+                    "pseudocodigo": "Algoritmo Propina\n    Leer cuenta\n    propina <- cuenta * 0.10\n    Escribir propina\nFinAlgoritmo",
+                    "pregunta": "¿Cual es la linea de entrada?",
+                    "opciones": [
+                        "Leer cuenta",
+                        "propina <- cuenta * 0.10",
+                        "Escribir propina",
+                        "Algoritmo Propina",
+                    ],
+                },
+                answer_key={
+                    "correcta": 0,
+                    "motivo": "Correcto: Leer es lo unico que trae un dato de fuera.",
+                    "pista": "¿Que linea recibe algo que el algoritmo no calculo el mismo?",
+                },
+            ),
+            ExerciseTemplate(
+                title="El paso que no se puede ejecutar",
+                description="Distinguir una instruccion precisa de una ambigua.",
+                instructions=(
+                    "Uno de estos pasos **no** sirve en un algoritmo, porque quien lo ejecuta tendria que decidir por su cuenta que significa. ¿Cual es?"
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="mcq",
+                spec={
+                    "pregunta": "¿Cual de estos pasos es ambiguo?",
+                    "opciones": [
+                        "descuento <- importe * 0.10",
+                        "Escribir total",
+                        "Aplicar un descuento razonable",
+                        "Leer cantidad",
+                    ],
+                },
+                answer_key={
+                    "correcta": 2,
+                    "motivo": "Eso es: «razonable» lo decide una persona, y un algoritmo no decide nada por su cuenta.",
+                    "pista": "Busca el paso donde falta un numero o una regla concreta.",
+                },
+            ),
+            ExerciseTemplate(
+                title="Que escribe este algoritmo",
+                description="Seguir tres instrucciones en orden y anotar la salida.",
+                instructions=(
+                    "Sigue el algoritmo linea a linea y escribe lo que aparece en pantalla.\n"
+                    "\n"
+                    "Hay dos `Escribir`, asi que tu respuesta tiene **dos lineas**."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": "Algoritmo Compra\n    precio <- 20\n    unidades <- 3\n    total <- precio * unidades\n    Escribir total\n    Escribir precio\nFinAlgoritmo",
+                    "ayuda": "Una linea por cada Escribir, en el orden en que aparecen.",
+                },
+                answer_key={"salida": "60\n20"},
+            ),
+            ExerciseTemplate(
+                title="El orden lo cambia todo",
+                description="Detectar el uso de un dato antes de calcularlo.",
+                instructions=(
+                    "Este algoritmo tiene un error de **orden**: usa un dato antes de existir.\n"
+                    "\n"
+                    "¿Que se escribe mal, y por que?"
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="mcq",
+                spec={
+                    "pseudocodigo": "Algoritmo Factura\n    Leer precio\n    Escribir total\n    total <- precio * 1.21\nFinAlgoritmo",
+                    "pregunta": "¿Que le pasa a este algoritmo?",
+                    "opciones": [
+                        "Nada, funciona bien: total se calcula igualmente.",
+                        "Escribe total antes de calcularlo, asi que ese valor no existe todavia.",
+                        "Le falta la entrada.",
+                        "El bucle no termina.",
+                    ],
+                },
+                answer_key={
+                    "correcta": 1,
+                    "motivo": "Exacto: se lee de arriba abajo, y en la linea del Escribir nadie ha calculado total todavia.",
+                    "pista": "Lee las lineas en orden y pregunta: ¿ya existe lo que uso?",
+                },
+            ),
+            ExerciseTemplate(
+                title="El bucle que no termina",
+                description="Reconocer por que un algoritmo no acaba nunca.",
+                instructions=(
+                    "Este algoritmo **no termina**. Sigue sus primeras vueltas mentalmente y elige el motivo exacto."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=20,
+                exercise_type="mcq",
+                spec={
+                    "pseudocodigo": "Algoritmo Cuenta\n    n <- 10\n    Mientras n > 0 Hacer\n        Escribir n\n        n <- n + 1\n    FinMientras\nFinAlgoritmo",
+                    "pregunta": "¿Por que no termina?",
+                    "opciones": [
+                        "Porque n empieza valiendo 10 y eso es demasiado.",
+                        "Porque falta el Escribir dentro del bucle.",
+                        "Porque n crece en cada vuelta, asi que nunca deja de ser mayor que 0.",
+                        "Porque Mientras siempre repite para siempre.",
+                    ],
+                },
+                answer_key={
+                    "correcta": 2,
+                    "motivo": "Eso es: la condicion pide que n baje hasta 0, y la unica linea que toca n lo sube.",
+                    "pista": "Mira la condicion y despues la linea que cambia n. ¿Se acercan?",
+                },
+            ),
+            ExerciseTemplate(
+                title="Un algoritmo entero, paso a paso",
+                description="Tres calculos encadenados y dos salidas.",
+                instructions=(
+                    "Sigue el algoritmo completo y escribe lo que aparece en pantalla.\n"
+                    "\n"
+                    "Ojo con la tercera linea: usa el valor que `subtotal` tiene **en ese momento**."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=25,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": "Algoritmo Pedido\n    unidades <- 4\n    precio <- 25\n    subtotal <- unidades * precio\n    envio <- 5\n    total <- subtotal + envio\n    Escribir subtotal\n    Escribir envio\n    Escribir total\nFinAlgoritmo",
+                    "ayuda": "Tres Escribir, tres lineas.",
+                },
+                answer_key={"salida": "100\n5\n105"},
+            ),
+        ],
+    ),
+    LessonTemplate(
+        title="Fundamentos 2 · Variables, tipos y expresiones",
+        description=(
+            "La flecha que guarda un valor, copiar sin enlazar, los tipos basicos y como se evalua una expresion."
+        ),
+        content=(
+            "# Variables, tipos y expresiones\n"
+            "\n"
+            "Una variable es una **caja con nombre** donde se guarda un valor. Esta leccion trata de las tres cosas que se hacen con ellas: darles un valor, cambiarlo y combinarlas en expresiones. Es corta de leer y larga de entender, porque aqui vive el malentendido que mas cuesta quitar despues.\n"
+            "\n"
+            "## La flecha no es un igual\n"
+            "\n"
+            "`<-` guarda un valor en una variable. Se lee de derecha a izquierda: **primero se calcula lo de la derecha, y el resultado se mete en la caja de la izquierda**.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Cajas\n"
+            '    edad <- 30                       // la caja "edad" guarda 30\n'
+            "    edad <- 31                       // ahora guarda 31; el 30 se perdio\n"
+            "    Escribir edad                    // 31\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "En matematicas `x = x + 1` no tiene solucion. En un algoritmo, `x <- x + 1` es normal y se lee asi: *coge lo que hay en `x`, sumale 1, y guarda el resultado otra vez en `x`*.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Suma\n"
+            "    x <- 5\n"
+            "    x <- x + 1                       // derecha: 5 + 1 = 6. Izquierda: x pasa a valer 6\n"
+            "    Escribir x                       // 6\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Una variable guarda **un solo valor a la vez**. Asignarle otro borra el anterior sin avisar.\n"
+            "\n"
+            "## Copiar no es enlazar\n"
+            "\n"
+            "Cuando se asigna una variable a otra se copia **el valor del momento**, no la variable:\n"
+            "\n"
+            "```\n"
+            "Algoritmo Copia\n"
+            "    a <- 10\n"
+            "    b <- a                           // b guarda 10 (una copia del valor de a)\n"
+            "    a <- 99                          // a cambia...\n"
+            "    Escribir a                       // 99\n"
+            "    Escribir b                       // 10: b NO se entero\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            '`b <- a` no deja a `b` "conectada" a `a`. Es el error que mas veces aparece en una traza mal hecha: cambiar una variable y cambiar tambien, sin querer, todas las que se copiaron de ella.\n'
+            "\n"
+            "## Tipos: numeros, texto y verdad\n"
+            "\n"
+            "El tipo dice **que se puede hacer** con un valor.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Tipos\n"
+            "    cantidad <- 3                    // numero entero\n"
+            "    precio <- 2.50                   // numero con decimales\n"
+            '    nombre <- "Ana"                  // texto: siempre entre comillas\n'
+            "    es_socio <- Verdadero            // logico: solo Verdadero o Falso\n"
+            "    Escribir cantidad * precio       // 7.5: numeros, se multiplican\n"
+            '    Escribir "Hola " + nombre        // Hola Ana: textos, se pegan\n'
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            'El `+` hace dos cosas distintas segun el tipo: con numeros **suma** y con textos **pega** uno detras de otro. Por eso `"3" + "4"` da `"34"` y no `7`: eso no son numeros, son dos textos que parecen numeros.\n'
+            "\n"
+            "## Expresiones y el orden de las operaciones\n"
+            "\n"
+            "Una expresion es una cuenta que produce un valor. Se evalua con las reglas de siempre: primero lo que esta entre parentesis, despues `*` y `/`, y al final `+` y `-`.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Cuentas\n"
+            "    Escribir 2 + 3 * 4               // 14: primero 3*4, despues +2\n"
+            "    Escribir (2 + 3) * 4             // 20: los parentesis mandan\n"
+            "    Escribir 10 / 4                  // 2.5\n"
+            "    Escribir 7 - 2 - 1               // 4: de izquierda a derecha\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Cuando una expresion lleva variables, se sustituye cada una por su valor **actual** y se calcula:\n"
+            "\n"
+            "```\n"
+            "Algoritmo ConVariables\n"
+            "    base <- 10\n"
+            "    altura <- 4\n"
+            "    area <- base * altura / 2        // 10 * 4 = 40, y 40 / 2 = 20\n"
+            "    Escribir area                    // 20\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "## Comparaciones: expresiones que valen Verdadero o Falso\n"
+            "\n"
+            "Comparar tambien es una expresion; lo que produce es un valor logico.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Comparar\n"
+            "    edad <- 20\n"
+            "    Escribir edad > 18               // Verdadero\n"
+            '    Escribir edad = 20               // Verdadero: "=" aqui PREGUNTA si son iguales\n'
+            "    Escribir edad < 18               // Falso\n"
+            "    mayor <- edad >= 18              // el resultado se puede guardar\n"
+            "    Escribir mayor                   // Verdadero\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Ojo a la diferencia: `<-` **guarda**, y `=` **pregunta**. `edad <- 20` cambia la caja; `edad = 20` no cambia nada, solo responde Verdadero o Falso. Son las dos mitades de esta leccion y se confunden todo el tiempo.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            "- **Leer `<-` como una igualdad matematica.** `x <- x + 1` parece imposible y es lo mas normal del mundo: calcula la derecha y guarda a la izquierda.\n"
+            "- **Creer que `b <- a` las deja enlazadas.** Se copia el valor de ese instante. Si `a` cambia despues, `b` se queda como estaba.\n"
+            '- **Sumar textos esperando numeros.** `"3" + "4"` da `"34"`. Las comillas cambian el tipo y con el, lo que hace el `+`.\n'
+            "- **Olvidar los parentesis.** `2 + 3 * 4` es 14, no 20. Si quieres sumar primero, escribelo: `(2 + 3) * 4`.\n"
+            "- **Confundir `<-` con `=`.** Uno guarda y el otro pregunta. Una traza entera se tuerce por esto.\n"
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **Variable**: una caja con nombre que guarda **un** valor; asignarle otro borra el anterior.\n"
+            "- **`<-`**: calcula la derecha y guarda en la izquierda; `x <- x + 1` es legitimo.\n"
+            "- **Copiar**: `b <- a` copia el valor del momento, no enlaza las cajas.\n"
+            "- **Tipos**: numero, texto (entre comillas) y logico (Verdadero/Falso); el `+` suma o pega segun el tipo.\n"
+            "- **Expresiones**: parentesis, luego `*` y `/`, luego `+` y `-`; las variables se sustituyen por su valor actual.\n"
+            "- **`=`** pregunta si dos valores son iguales y produce Verdadero o Falso.\n"
+        ),
+        difficulty="beginner",
+        category="algoritmos",
+        order=-9,
+        track="track-0",
+        estimated_duration=35,
+        prerequisites_titles=[
+            "Fundamentos 1 · Que es un algoritmo",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Reasignar una variable",
+                description="Que queda en la caja despues de dos asignaciones.",
+                instructions=(
+                    "Sigue el algoritmo y escribe la salida. Recuerda que una variable guarda **un solo valor**: el ultimo que se le asigno."
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": 'Algoritmo Caja\n    color <- "rojo"\n    color <- "azul"\n    Escribir color\nFinAlgoritmo',
+                    "ayuda": "Escribe el texto sin comillas.",
+                },
+                answer_key={"salida": "azul"},
+            ),
+            ExerciseTemplate(
+                title="Guardar o preguntar",
+                description="La diferencia entre <- y =.",
+                instructions=(
+                    "¿Que hace exactamente la linea `edad = 18` dentro de un algoritmo?"
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="mcq",
+                spec={
+                    "pregunta": "¿Que hace `edad = 18`?",
+                    "opciones": [
+                        "Guarda 18 dentro de edad.",
+                        "Pregunta si edad vale 18, y produce Verdadero o Falso.",
+                        "Borra el valor de edad.",
+                        "Crea una variable nueva llamada 18.",
+                    ],
+                },
+                answer_key={
+                    "correcta": 1,
+                    "motivo": "Correcto: `=` pregunta y `<-` guarda.",
+                    "pista": "¿Cual de los dos simbolos cambia el valor de la caja?",
+                },
+            ),
+            ExerciseTemplate(
+                title="Copiar no es enlazar",
+                description="Que pasa con la copia cuando cambia el original.",
+                instructions=(
+                    "Sigue el algoritmo con cuidado. `b` recibe una **copia** del valor que tenia `a` en ese momento.\n"
+                    "\n"
+                    "Escribe las dos lineas de salida."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": "Algoritmo Copia\n    a <- 10\n    b <- a\n    a <- 99\n    Escribir a\n    Escribir b\nFinAlgoritmo"
+                },
+                answer_key={"salida": "99\n10"},
+            ),
+            ExerciseTemplate(
+                title="El orden de las operaciones",
+                description="Parentesis, multiplicacion y suma en una expresion.",
+                instructions=(
+                    "Calcula las tres expresiones y escribe las tres lineas de salida.\n"
+                    "\n"
+                    "Primero los parentesis, despues `*` y `/`, y al final `+` y `-`."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": "Algoritmo Cuentas\n    Escribir 2 + 3 * 4\n    Escribir (2 + 3) * 4\n    Escribir 10 - 2 * 3\nFinAlgoritmo"
+                },
+                answer_key={"salida": "14\n20\n4"},
+            ),
+            ExerciseTemplate(
+                title="La caja que se actualiza sola",
+                description="Seguir x <- x + n varias veces.",
+                instructions=(
+                    "Completa la tabla con el valor de `x` **despues** de ejecutar cada linea.\n"
+                    "\n"
+                    "Recuerda: `x <- x + 3` calcula primero la derecha con el valor actual de `x`."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=20,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Algoritmo Acumular\n    x <- 2\n    x <- x + 3\n    x <- x * 2\n    x <- x - 4\nFinAlgoritmo",
+                    "columnas": ["x"],
+                    "filas": [
+                        {"etiqueta": "x <- 2", "fijas": ["2"]},
+                        {"etiqueta": "x <- x + 3"},
+                        {"etiqueta": "x <- x * 2"},
+                        {"etiqueta": "x <- x - 4"},
+                    ],
+                    "ayuda": "La primera fila ya esta puesta como ejemplo.",
+                },
+                answer_key={
+                    "columnas": ["x"],
+                    "etiquetas_filas": [
+                        "x <- 2",
+                        "x <- x + 3",
+                        "x <- x * 2",
+                        "x <- x - 4",
+                    ],
+                    "celdas": [["2"], ["5"], ["10"], ["6"]],
+                },
+            ),
+            ExerciseTemplate(
+                title="Dos variables a la vez",
+                description="Traza con dos cajas que se cruzan.",
+                instructions=(
+                    "Completa la tabla con el valor de `a` y `b` **despues** de cada linea.\n"
+                    "\n"
+                    "Cuidado con la tercera: `b` usa el valor que `a` tiene en ese momento, no el que tendra despues."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=25,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Algoritmo Cruce\n    a <- 4\n    b <- 10\n    b <- b - a\n    a <- a * b\n    b <- a + b\nFinAlgoritmo",
+                    "columnas": ["a", "b"],
+                    "filas": [
+                        {"etiqueta": "a <- 4", "fijas": ["4", "-"]},
+                        {"etiqueta": "b <- 10"},
+                        {"etiqueta": "b <- b - a"},
+                        {"etiqueta": "a <- a * b"},
+                        {"etiqueta": "b <- a + b"},
+                    ],
+                    "ayuda": "Usa «-» para una variable que todavia no tiene valor.",
+                },
+                answer_key={
+                    "columnas": ["a", "b"],
+                    "etiquetas_filas": [
+                        "a <- 4",
+                        "b <- 10",
+                        "b <- b - a",
+                        "a <- a * b",
+                        "b <- a + b",
+                    ],
+                    "celdas": [
+                        ["4", "-"],
+                        ["4", "10"],
+                        ["4", "6"],
+                        ["24", "6"],
+                        ["24", "30"],
+                    ],
+                },
+            ),
+        ],
+    ),
+    LessonTemplate(
+        title="Fundamentos 3 · Traza de ejecucion",
+        description=(
+            "La habilidad central del track: seguir un algoritmo a mano, con condicionales y bucles, y saber por que termina."
+        ),
+        content=(
+            "# Traza de ejecucion\n"
+            "\n"
+            "Trazar es seguir un algoritmo a mano, linea por linea, anotando cuanto vale cada variable en cada momento. Es **la habilidad central de este track** y la que separa entender un programa de mirarlo.\n"
+            "\n"
+            "## Por que se traza\n"
+            "\n"
+            "Cuando un programa no hace lo que esperabas hay dos caminos. Uno es cambiar cosas a ver si suena la flauta. El otro es trazar: coger un ejemplo pequeño, seguir el algoritmo a mano y comparar lo que pasa con lo que creias que pasaba. En el punto donde dejan de coincidir esta el error.\n"
+            "\n"
+            "La traza no necesita ordenador. Es una tabla: una columna por variable, una fila por paso.\n"
+            "\n"
+            "## La tabla de traza\n"
+            "\n"
+            "Se ejecuta una linea, se anota el estado de **todas** las variables, y se pasa a la siguiente.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Ejemplo\n"
+            "    a <- 3\n"
+            "    b <- a + 2\n"
+            "    a <- a * 2\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "| Paso | a | b |\n"
+            "|---|---|---|\n"
+            "| `a <- 3` | 3 | - |\n"
+            "| `b <- a + 2` | 3 | 5 |\n"
+            "| `a <- a * 2` | 6 | 5 |\n"
+            "\n"
+            "Tres detalles que hacen que una traza sea util:\n"
+            "\n"
+            "1. Se anota el valor **despues** de ejecutar la linea.\n"
+            '2. Una variable que todavia no existe se marca con `-`, no con 0. No es lo mismo "vale cero" que "no existe".\n'
+            "3. Las variables que esa linea no toca **se repiten igual**. En la tercera fila `b` sigue siendo 5 aunque nadie la mencione.\n"
+            "\n"
+            "## Trazar un condicional\n"
+            "\n"
+            "`Si` elige un camino. Al trazar se evalua la condicion con los valores del momento y se anota que rama se tomo.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Descuento\n"
+            "    importe <- 120\n"
+            "    Si importe > 100 Entonces\n"
+            "        descuento <- 10\n"
+            "    SiNo\n"
+            "        descuento <- 0\n"
+            "    FinSi\n"
+            "    final <- importe - descuento\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "| Paso | importe | descuento | final |\n"
+            "|---|---|---|---|\n"
+            "| `importe <- 120` | 120 | - | - |\n"
+            "| `Si 120 > 100` -> Verdadero | 120 | - | - |\n"
+            "| `descuento <- 10` | 120 | 10 | - |\n"
+            "| `final <- 120 - 10` | 120 | 10 | 110 |\n"
+            "\n"
+            "La rama `SiNo` no se ejecuta: no aparece en la traza. Y la linea del `Si` no cambia ninguna variable, solo decide por donde seguir.\n"
+            "\n"
+            "## Trazar un bucle: una fila por vuelta\n"
+            "\n"
+            "Aqui es donde la traza se gana el sueldo. En un bucle hay **una fila por vuelta**, y conviene anotar tambien la condicion.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Sumar\n"
+            "    suma <- 0\n"
+            "    i <- 1\n"
+            "    Mientras i <= 3 Hacer\n"
+            "        suma <- suma + i\n"
+            "        i <- i + 1\n"
+            "    FinMientras\n"
+            "    Escribir suma\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "| Momento | i | suma | `i <= 3` |\n"
+            "|---|---|---|---|\n"
+            "| Antes del bucle | 1 | 0 | Verdadero |\n"
+            "| Fin de la vuelta 1 | 2 | 1 | Verdadero |\n"
+            "| Fin de la vuelta 2 | 3 | 3 | Verdadero |\n"
+            "| Fin de la vuelta 3 | 4 | 6 | **Falso** |\n"
+            "\n"
+            'Escribe 6. Y fijate en lo que cuenta la ultima fila: el bucle da **tres** vueltas, pero `i` acaba valiendo 4. La vuelta que no se hace es la que deja la condicion en Falso, y ese "uno de mas" al final es la causa de la mitad de los errores con bucles.\n'
+            "\n"
+            "## Que preguntar cuando algo no cuadra\n"
+            "\n"
+            "Trazar sirve para contestar tres preguntas concretas:\n"
+            "\n"
+            "- **¿Cuantas vueltas da?** Cuenta las filas del bucle, no lo supongas.\n"
+            "- **¿Con que valor sale?** Mira la ultima fila, no la penultima.\n"
+            "- **¿Que hizo que saliera?** La condicion de la ultima fila es Falso: ¿por que?\n"
+            "\n"
+            "Si al trazar el resultado no es el que esperabas, el algoritmo esta mal **o** tu idea de lo que hacia lo estaba. Las dos cosas se arreglan igual de bien.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            "- **Anotar el valor antes de ejecutar la linea.** La tabla va *despues* de cada paso; si no, todo va corrido una fila.\n"
+            '- **Dejar en blanco las variables que no cambian.** Se repiten igual. Una casilla vacia se lee como "no existe", que es otra cosa.\n'
+            "- **Poner 0 en una variable que aun no existe.** Usa `-`. Un 0 escondido ahi hace cuadrar cuentas que no cuadran.\n"
+            "- **Olvidar la vuelta que no se da.** El bucle termina porque la condicion falla, y el contador ya se paso: `i` acaba en 4, no en 3.\n"
+            "- **Trazar con un ejemplo enorme.** Con `n = 3` se ve igual de bien que con `n = 1000`, y cabe en una tabla.\n"
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **Trazar**: seguir el algoritmo a mano anotando el estado despues de cada linea.\n"
+            "- **La tabla**: una columna por variable, una fila por paso; `-` para lo que no existe todavia.\n"
+            "- **Lo que no cambia se repite**, no se deja en blanco.\n"
+            "- **Condicional**: se anota que rama se tomo; la otra no se ejecuta.\n"
+            "- **Bucle**: una fila por vuelta, con la condicion al lado; al salir, el contador vale uno mas que la ultima vuelta.\n"
+            "- **Sirve para** contar vueltas, saber con que valor se sale y por que se salio.\n"
+        ),
+        difficulty="beginner",
+        category="algoritmos",
+        order=-8,
+        track="track-0",
+        estimated_duration=35,
+        prerequisites_titles=[
+            "Fundamentos 2 · Variables, tipos y expresiones",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="La variable que nadie toca",
+                description="Repetir el valor de lo que esa linea no cambia.",
+                instructions=(
+                    "Completa la traza de este algoritmo con el valor de `a` y `b` **despues** de cada linea.\n"
+                    "\n"
+                    "Si una linea no toca una variable, su valor se repite igual."
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Algoritmo Ejemplo\n    a <- 3\n    b <- a + 2\n    a <- a * 2\nFinAlgoritmo",
+                    "columnas": ["a", "b"],
+                    "filas": [
+                        {"etiqueta": "a <- 3", "fijas": ["3", "-"]},
+                        {"etiqueta": "b <- a + 2"},
+                        {"etiqueta": "a <- a * 2"},
+                    ],
+                    "ayuda": "Usa «-» para una variable que todavia no existe.",
+                },
+                answer_key={
+                    "columnas": ["a", "b"],
+                    "etiquetas_filas": ["a <- 3", "b <- a + 2", "a <- a * 2"],
+                    "celdas": [["3", "-"], ["3", "5"], ["6", "5"]],
+                },
+            ),
+            ExerciseTemplate(
+                title="Que rama toma",
+                description="Evaluar la condicion de un Si con los valores del momento.",
+                instructions=(
+                    "Sigue el algoritmo con `importe` valiendo 80 y escribe la salida."
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": "Algoritmo Descuento\n    importe <- 80\n    Si importe > 100 Entonces\n        descuento <- 10\n    SiNo\n        descuento <- 0\n    FinSi\n    Escribir importe - descuento\nFinAlgoritmo"
+                },
+                answer_key={"salida": "80"},
+            ),
+            ExerciseTemplate(
+                title="Traza de un condicional",
+                description="Anotar el estado cuando solo se ejecuta una rama.",
+                instructions=(
+                    "Completa la traza. La fila del `Si` no cambia ninguna variable: repite los valores tal como estaban.\n"
+                    "\n"
+                    "Solo se ejecuta **una** de las dos ramas."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Algoritmo Envio\n    peso <- 12\n    Si peso > 10 Entonces\n        coste <- 8\n    SiNo\n        coste <- 3\n    FinSi\n    total <- coste * 2\nFinAlgoritmo",
+                    "columnas": ["peso", "coste", "total"],
+                    "filas": [
+                        {"etiqueta": "peso <- 12", "fijas": ["12", "-", "-"]},
+                        {"etiqueta": "Si peso > 10"},
+                        {"etiqueta": "la rama que se ejecuta"},
+                        {"etiqueta": "total <- coste * 2"},
+                    ],
+                    "ayuda": "Usa «-» para lo que todavia no tiene valor.",
+                },
+                answer_key={
+                    "columnas": ["peso", "coste", "total"],
+                    "etiquetas_filas": [
+                        "peso <- 12",
+                        "Si peso > 10",
+                        "la rama que se ejecuta",
+                        "total <- coste * 2",
+                    ],
+                    "celdas": [
+                        ["12", "-", "-"],
+                        ["12", "-", "-"],
+                        ["12", "8", "-"],
+                        ["12", "8", "16"],
+                    ],
+                },
+            ),
+            ExerciseTemplate(
+                title="Cuantas vueltas da",
+                description="Contar las vueltas de un Mientras sin ejecutarlo.",
+                instructions=(
+                    "Traza este bucle mentalmente y responde cuantas veces se ejecuta la linea `Escribir i`."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="mcq",
+                spec={
+                    "pseudocodigo": "Algoritmo Vueltas\n    i <- 1\n    Mientras i <= 4 Hacer\n        Escribir i\n        i <- i + 1\n    FinMientras\nFinAlgoritmo",
+                    "pregunta": "¿Cuantas veces se escribe algo?",
+                    "opciones": ["3 veces", "4 veces", "5 veces", "Infinitas"],
+                },
+                answer_key={
+                    "correcta": 1,
+                    "motivo": "Correcto: i vale 1, 2, 3 y 4 dentro del bucle; con 5 ya no entra.",
+                    "pista": "Anota los valores que toma i DENTRO del bucle y cuentalos.",
+                },
+            ),
+            ExerciseTemplate(
+                title="Traza de un bucle acumulador",
+                description="Una fila por vuelta, con la condicion al lado.",
+                instructions=(
+                    "Completa la traza del bucle. Cada fila es el estado **al terminar** esa vuelta, y la ultima columna es si la condicion `i <= 3` sigue siendo cierta con esos valores.\n"
+                    "\n"
+                    "Escribe `Verdadero` o `Falso` en la ultima columna."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=20,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Algoritmo Sumar\n    suma <- 0\n    i <- 1\n    Mientras i <= 3 Hacer\n        suma <- suma + i\n        i <- i + 1\n    FinMientras\n    Escribir suma\nFinAlgoritmo",
+                    "columnas": ["i", "suma", "i <= 3"],
+                    "filas": [
+                        {
+                            "etiqueta": "Antes del bucle",
+                            "fijas": ["1", "0", "Verdadero"],
+                        },
+                        {"etiqueta": "Fin de la vuelta 1"},
+                        {"etiqueta": "Fin de la vuelta 2"},
+                        {"etiqueta": "Fin de la vuelta 3"},
+                    ],
+                    "ayuda": "Fijate en cuanto vale i en la ultima fila: el bucle ya no entra.",
+                },
+                answer_key={
+                    "columnas": ["i", "suma", "i <= 3"],
+                    "etiquetas_filas": [
+                        "Antes del bucle",
+                        "Fin de la vuelta 1",
+                        "Fin de la vuelta 2",
+                        "Fin de la vuelta 3",
+                    ],
+                    "celdas": [
+                        ["1", "0", "Verdadero"],
+                        ["2", "1", "Verdadero"],
+                        ["3", "3", "Verdadero"],
+                        ["4", "6", "Falso"],
+                    ],
+                },
+            ),
+            ExerciseTemplate(
+                title="Bucle con condicional dentro",
+                description="Trazar dos vueltas donde no siempre se ejecuta lo mismo.",
+                instructions=(
+                    "Este bucle solo suma los numeros **pares**. Completa la traza con el estado al terminar cada vuelta.\n"
+                    "\n"
+                    "`n MOD 2` es el resto de dividir `n` entre 2: vale 0 cuando `n` es par."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=25,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Algoritmo Pares\n    suma <- 0\n    n <- 1\n    Mientras n <= 4 Hacer\n        Si n MOD 2 = 0 Entonces\n            suma <- suma + n\n        FinSi\n        n <- n + 1\n    FinMientras\nFinAlgoritmo",
+                    "columnas": ["n", "suma"],
+                    "filas": [
+                        {"etiqueta": "Antes del bucle", "fijas": ["1", "0"]},
+                        {"etiqueta": "Fin de la vuelta 1"},
+                        {"etiqueta": "Fin de la vuelta 2"},
+                        {"etiqueta": "Fin de la vuelta 3"},
+                        {"etiqueta": "Fin de la vuelta 4"},
+                    ],
+                    "ayuda": "En las vueltas con n impar, suma no cambia: repite su valor.",
+                },
+                answer_key={
+                    "columnas": ["n", "suma"],
+                    "etiquetas_filas": [
+                        "Antes del bucle",
+                        "Fin de la vuelta 1",
+                        "Fin de la vuelta 2",
+                        "Fin de la vuelta 3",
+                        "Fin de la vuelta 4",
+                    ],
+                    "celdas": [
+                        ["1", "0"],
+                        ["2", "0"],
+                        ["3", "2"],
+                        ["4", "2"],
+                        ["5", "6"],
+                    ],
+                },
+            ),
+        ],
+    ),
     LessonTemplate(
         title="Python desde Cero",
         description=(
@@ -19170,6 +20041,9 @@ async def seed_lessons_with_exercises(db: AsyncSession) -> int:
                         hints=ex.hints,
                         points=ex.points,
                         difficulty=ex.difficulty,
+                        exercise_type=ex.exercise_type,
+                        spec=dict(ex.spec),
+                        answer_key=dict(ex.answer_key),
                         order=index,
                     )
                 )
@@ -19181,6 +20055,9 @@ async def seed_lessons_with_exercises(db: AsyncSession) -> int:
                 row.hints = ex.hints
                 row.points = ex.points
                 row.difficulty = ex.difficulty
+                row.exercise_type = ex.exercise_type
+                row.spec = dict(ex.spec)
+                row.answer_key = dict(ex.answer_key)
                 row.order = index
 
         # Limpia ejercicios que ya no estan en el template (renombrados o

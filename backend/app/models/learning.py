@@ -61,6 +61,17 @@ class Exercise(Base):
     test_cases = Column(JSON, default=list)  # Legacy — count total_tests
     hidden_tests = Column(JSON, default=list)  # [{name, code}] Pyodide-based
     hints = Column(JSON, default=list)  # List of hints
+    # Tipo de ejercicio. "code" (por defecto) = se resuelve escribiendo Python
+    # y lo valida Pyodide en el cliente. Track 0 añade tipos que NO se ejecutan
+    # (trace_table, predict_output, mcq...): los corrige el backend en
+    # `POST /exercises/{id}/check` con `track0_service`.
+    exercise_type = Column(String(32), nullable=False, default="code")
+    # Enunciado estructurado del ejercicio no-código (pseudocódigo, columnas de
+    # la traza, opciones...). Es público: viaja al cliente para pintarlo.
+    spec = Column(JSON, default=dict)
+    # La respuesta correcta. NUNCA sale de la API (mismo guard rail que
+    # `hidden_tests` y `reference_solution`, con su test de no-leak).
+    answer_key = Column(JSON, default=dict)
     points = Column(Integer, default=10)
     difficulty = Column(String(50), default="easy")  # easy, medium, hard
     order = Column(Integer, default=0)

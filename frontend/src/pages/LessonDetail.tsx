@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Clock, Code2 } from 'lucide-react'
 import Markdown from '../components/Markdown'
@@ -6,6 +6,7 @@ import { LessonIndex, LessonSections } from '../components/LessonContent'
 import { partirEnSecciones } from '../components/lessonSecciones'
 import { api } from '../services/api'
 import { saveTutorContext } from '../services/tutorContext'
+import ExerciseRunner from '../components/track0/ExerciseRunner'
 
 interface LessonExercise {
   id: number
@@ -19,6 +20,11 @@ interface LessonExercise {
   order: number
   hints: string[]
   completed: boolean
+  // "code" = se practica en el editor con Pyodide. Los tipos de Track 0
+  // (trace_table, predict_output, mcq...) se resuelven aqui mismo y los
+  // corrige el backend.
+  exercise_type?: string
+  spec?: Record<string, unknown> | null
 }
 
 interface LessonDetailPayload {
@@ -46,9 +52,12 @@ const LessonDetail: React.FC = () => {
   // de Objetivo / Errores comunes / Resumen.
   const partes = useMemo(() => partirEnSecciones(lesson?.content || ''), [lesson?.content])
 
-  useEffect(() => {
-    const loadLesson = async () => {
-      setLoading(true)
+  // Fuera del efecto porque tambien se recarga al aprobar un ejercicio de
+  // Track 0: el badge "Hecho" y la barra de progreso salen de esta respuesta.
+  const loadLesson = useCallback(
+    async ({ silencioso = false }: { silencioso?: boolean } = {}) => {
+      if (!lessonId) return
+      if (!silencioso) setLoading(true)
       setError('')
       try {
         const res = await api.get(`/lessons/${lessonId}`)
@@ -62,14 +71,15 @@ const LessonDetail: React.FC = () => {
         console.error('Error loading lesson detail:', loadError)
         setError('No pudimos cargar esta leccion.')
       } finally {
-        setLoading(false)
+        if (!silencioso) setLoading(false)
       }
-    }
+    },
+    [lessonId],
+  )
 
-    if (lessonId) {
-      loadLesson()
-    }
-  }, [lessonId])
+  useEffect(() => {
+    loadLesson()
+  }, [loadLesson])
 
   // Guarda el contexto que consume la página del tutor. El editor ya no lo
   // necesita: recibe la lección y el ejercicio activo por la URL.
@@ -190,25 +200,37 @@ const LessonDetail: React.FC = () => {
                       </div>
                     )}
 
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <button
-                        onClick={() => practiceExercise(exercise)}
-                        className={exercise.completed ? 'btn-secondary' : 'btn-primary'}
-                      >
-                        <Code2 className="h-4 w-4 mr-2" />
-                        {exercise.completed ? 'Revisar' : 'Practicar en editor'}
-                      </button>
-                      <button
-                        onClick={() => {
-                          rememberForTutor(exercise)
-                          navigate('/tutor')
-                        }}
-                        className="btn-secondary"
-                      >
-                        Revisar con tutor
-                        <ArrowRight className="h-4 w-4 ml-2" />
-                      </button>
-                    </div>
+                    {exercise.exercise_type && exercise.exercise_type !== 'code' ? (
+                      /* Track 0: el pseudocodigo no se ejecuta, asi que el
+                         ejercicio se resuelve aqui y lo corrige el backend. */
+                      <ExerciseRunner
+                        exerciseId={exercise.id}
+                        exerciseType={exercise.exercise_type}
+                        spec={exercise.spec ?? null}
+                        completed={exercise.completed}
+                        onCompleted={() => loadLesson({ silencioso: true })}
+                      />
+                    ) : (
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <button
+                          onClick={() => practiceExercise(exercise)}
+                          className={exercise.completed ? 'btn-secondary' : 'btn-primary'}
+                        >
+                          <Code2 className="h-4 w-4 mr-2" />
+                          {exercise.completed ? 'Revisar' : 'Practicar en editor'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            rememberForTutor(exercise)
+                            navigate('/tutor')
+                          }}
+                          className="btn-secondary"
+                        >
+                          Revisar con tutor
+                          <ArrowRight className="h-4 w-4 ml-2" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

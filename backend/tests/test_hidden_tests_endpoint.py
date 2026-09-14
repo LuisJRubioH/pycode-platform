@@ -120,22 +120,33 @@ async def test_async_session_visible_after_test():
 
 @pytest.mark.asyncio
 async def test_todos_los_ejercicios_del_seed_son_aprobables():
-    """Ningún ExerciseTemplate puede quedarse sin `hidden_tests`.
+    """Ningún ExerciseTemplate puede quedarse sin forma de aprobarse.
 
-    Sin tests ocultos el cliente Pyodide nunca puede reportar ``success``, así
-    que el ejercicio es imposible de aprobar y su lección se queda clavada
-    para siempre por debajo del 100%. Pasó con "Refactor a modulo" y "Prueba
-    de calculadora", y dejó Track 1 entero sin poder completarse.
+    Un ejercicio que no se puede aprobar deja su lección clavada para siempre
+    por debajo del 100%. Pasó con "Refactor a modulo" y "Prueba de
+    calculadora", y dejó Track 1 entero sin poder completarse.
+
+    Hay dos formas válidas de aprobar, y cada tipo tiene la suya:
+
+    - los de código (`exercise_type == "code"`) necesitan `hidden_tests`, que
+      es lo único con lo que el cliente Pyodide puede reportar ``success``;
+    - los de Track 0, que no se ejecutan, necesitan `answer_key`, que es lo
+      que corrige `track0_service` en `POST /exercises/{id}/check`.
+
+    Lo que no vale es ninguna de las dos.
     """
     from app.services.lesson_seed import LESSON_TEMPLATES
 
-    sin_tests = [
+    sin_forma_de_aprobar = [
         f"{leccion.title} -> {ejercicio.title}"
         for leccion in LESSON_TEMPLATES
         for ejercicio in leccion.exercises
-        if not ejercicio.hidden_tests
+        if not (
+            ejercicio.hidden_tests
+            if ejercicio.exercise_type == "code"
+            else ejercicio.answer_key
+        )
     ]
-    assert not sin_tests, (
-        "estos ejercicios no se pueden aprobar por falta de hidden_tests: "
-        f"{sin_tests}"
+    assert not sin_forma_de_aprobar, (
+        "estos ejercicios no se pueden aprobar: " f"{sin_forma_de_aprobar}"
     )

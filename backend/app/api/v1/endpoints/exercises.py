@@ -2,6 +2,7 @@
 Exercises endpoints.
 """
 
+import json
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,11 +24,80 @@ from app.schemas.evaluation import (
 from app.schemas.learning import (
     CodeSubmissionCreate,
     CodeSubmissionResponse,
+    ExerciseCheckRequest,
+    ExerciseCheckResponse,
     HiddenTest,
     HiddenTestsResponse,
 )
+from app.services import track0_service
 
 router = APIRouter()
+
+
+async def _persistir_intento(
+    db: AsyncSession,
+    user_id: int,
+    exercise: Exercise,
+    *,
+    code: str,
+    is_success: bool,
+    output: str | None = None,
+    error_message: str | None = None,
+    execution_time: int = 0,
+    passed_tests: int = 0,
+    total_tests: int = 0,
+) -> tuple[CodeSubmission, bool]:
+    """Registra un intento y recalcula el progreso de su lección.
+
+    Único sitio donde se decide qué pasa con un intento, lo mande Pyodide
+    (`/submit`) o lo corrija el backend (`/check`, Track 0): un tipo de
+    ejercicio nuevo no puede acabar con su propia regla de idempotencia.
+
+    Reintentar un ejercicio **ya aprobado** no crea otra submission ni duplica
+    XP/intentos; solo re-sincroniza el progreso por si quedó desfasado
+    (datos legacy). Devuelve la submission y si el ejercicio queda hecho.
+    """
+    ya_aprobado = exercise.id in await completed_exercise_ids(
+        db, user_id, [exercise.id]
+    )
+
+    if ya_aprobado and is_success:
+        anterior = (
+            await db.execute(
+                select(CodeSubmission)
+                .where(
+                    CodeSubmission.user_id == user_id,
+                    CodeSubmission.exercise_id == exercise.id,
+                    CodeSubmission.result == "success",
+                )
+                .order_by(CodeSubmission.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        await recompute_lesson_progress(db, user_id, exercise.lesson_id)
+        await db.commit()
+        return anterior, True
+
+    submission = CodeSubmission(
+        user_id=user_id,
+        exercise_id=exercise.id,
+        code=code,
+        result="success" if is_success else "error",
+        output=output,
+        error_message=error_message,
+        execution_time=execution_time,
+        passed_tests=passed_tests,
+        total_tests=total_tests,
+    )
+    db.add(submission)
+    await db.flush()  # la submission entra en el cálculo de recompute
+
+    progress = await recompute_lesson_progress(db, user_id, exercise.lesson_id)
+    progress.attempts = (progress.attempts or 0) + 1
+
+    await db.commit()
+    await db.refresh(submission)
+    return submission, is_success or ya_aprobado
 
 
 @router.get("/lesson/{lesson_id}", response_model=List[dict])
@@ -72,6 +142,8 @@ async def get_lesson_exercises(
             "points": ex.points,
             "starter_code": ex.starter_code,
             "hints": ex.hints[:1] if ex.hints else [],
+            "exercise_type": ex.exercise_type,
+            "spec": ex.spec or None,
             "completed": ex.id in completed_ids,
             "attempts": attempts_by_ex.get(ex.id, 0),
         }
@@ -114,53 +186,86 @@ async def submit_exercise(
         total_tests == 0 or passed_tests == total_tests
     )
 
-    # ¿El usuario ya tenía este ejercicio aprobado? La decisión la toma la
-    # regla única de progress_service; la query de abajo solo recupera la fila
-    # que hay que devolver.
-    already_passed = exercise_id in await completed_exercise_ids(
-        db, current_user.id, [exercise_id]
-    )
-
-    # Reintento de un ejercicio ya aprobado: no dupliques submission/XP/intentos.
-    # Igual recomputamos por si el progreso quedó desincronizado (legacy).
-    if already_passed and is_success:
-        prior_success = (
-            await db.execute(
-                select(CodeSubmission)
-                .where(
-                    CodeSubmission.user_id == current_user.id,
-                    CodeSubmission.exercise_id == exercise_id,
-                    CodeSubmission.result == "success",
-                )
-                .order_by(CodeSubmission.created_at.desc())
-                .limit(1)
-            )
-        ).scalar_one_or_none()
-        await recompute_lesson_progress(db, current_user.id, exercise.lesson_id)
-        await db.commit()
-        return prior_success
-
-    code_submission = CodeSubmission(
-        user_id=current_user.id,
-        exercise_id=exercise_id,
+    code_submission, _ = await _persistir_intento(
+        db,
+        current_user.id,
+        exercise,
         code=submission.code,
-        result="success" if is_success else "error",
+        is_success=is_success,
         output=submission.output,
         error_message=submission.error_message,
         execution_time=submission.execution_time_ms or 0,
         passed_tests=passed_tests,
         total_tests=total_tests,
     )
-    db.add(code_submission)
-    await db.flush()  # la submission entra en el cálculo de recompute
-
-    progress = await recompute_lesson_progress(db, current_user.id, exercise.lesson_id)
-    progress.attempts = (progress.attempts or 0) + 1
-
-    await db.commit()
-    await db.refresh(code_submission)
-
     return code_submission
+
+
+@router.post("/{exercise_id}/check", response_model=ExerciseCheckResponse)
+async def check_exercise(
+    exercise_id: int,
+    payload: ExerciseCheckRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Corrige un ejercicio que no se ejecuta (Track 0).
+
+    El pseudocódigo y los diagramas no corren en Pyodide, así que la
+    corrección la hace el backend con `track0_service`: determinista, sin
+    ejecutar nada y sin LLM. La `answer_key` no sale de aquí; lo que vuelve es
+    si acertó y **dónde** falla, nunca el valor correcto.
+
+    Aprobar emite el mismo evento que un ejercicio de Python —una
+    `CodeSubmission` con `result="success"`—, así que XP, progreso, ELO y
+    competencias no se ramifican por tipo de ejercicio.
+    """
+    exercise = (
+        await db.execute(select(Exercise).where(Exercise.id == exercise_id))
+    ).scalar_one_or_none()
+
+    if not exercise:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Exercise not found"
+        )
+
+    if exercise.exercise_type not in track0_service.TIPOS_VALIDABLES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Este ejercicio se resuelve escribiendo código: usa "
+                "/submit con el resultado de los tests."
+            ),
+        )
+
+    try:
+        veredicto = track0_service.validar(
+            exercise.exercise_type, exercise.answer_key, payload.respuesta
+        )
+    except track0_service.EjercicioInvalido as exc:
+        # El ejercicio está mal seedeado: es culpa nuestra, no del alumno.
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ejercicio mal configurado: {exc}",
+        )
+
+    _, completado = await _persistir_intento(
+        db,
+        current_user.id,
+        exercise,
+        code=json.dumps(payload.respuesta, ensure_ascii=False, sort_keys=True),
+        is_success=veredicto.passed,
+        output=veredicto.feedback,
+        error_message=None if veredicto.passed else veredicto.feedback,
+        passed_tests=1 if veredicto.passed else 0,
+        total_tests=1,
+    )
+
+    return ExerciseCheckResponse(
+        passed=veredicto.passed,
+        feedback=veredicto.feedback,
+        detalle=veredicto.detalle,
+        completed=completado,
+    )
 
 
 @router.get("/{exercise_id}/hidden-tests", response_model=HiddenTestsResponse)

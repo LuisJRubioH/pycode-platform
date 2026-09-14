@@ -22,6 +22,8 @@ interface Competency {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
+  // Track 0: pseudocodigo y trazas, antes de escribir Python.
+  algoritmos: 'Algoritmos y pseudocodigo',
   fundamentos: 'Fundamentos',
   'control-flujo': 'Control de flujo',
   'estructuras-datos': 'Estructuras de datos',
@@ -57,6 +59,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 }
 
 const CATEGORY_TO_TRACK: Record<string, string> = {
+  algoritmos: 'track-0',
   numpy: 'track-2',
   pandas: 'track-2',
   visualizacion: 'track-2',
@@ -79,6 +82,10 @@ const CATEGORY_TO_TRACK: Record<string, string> = {
 }
 
 const TRACK_INFO: Record<string, { title: string; subtitle: string }> = {
+  'track-0': {
+    title: 'Track 0 · Fundamentos',
+    subtitle: 'Algoritmos, pseudocodigo y trazas. La entrada para quien no ha programado nunca.',
+  },
   'track-1': {
     title: 'Track 1 · Python Mastery',
     subtitle: 'Fundamentos del lenguaje. Cimiento para Data Science y ML.',
@@ -105,7 +112,7 @@ const TRACK_INFO: Record<string, { title: string; subtitle: string }> = {
   },
 }
 
-const TRACK_ORDER = ['track-1', 'track-2', 'track-3', 'track-4', 'track-5', 'track-6']
+const TRACK_ORDER = ['track-0', 'track-1', 'track-2', 'track-3', 'track-4', 'track-5', 'track-6']
 
 const trackOf = (category: string) => CATEGORY_TO_TRACK[category] || 'track-1'
 

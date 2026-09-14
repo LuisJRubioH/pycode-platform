@@ -3,7 +3,7 @@ Pydantic schemas for learning models.
 """
 
 from typing import List, Optional, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
 
 
@@ -35,9 +35,26 @@ class ExerciseResponse(BaseModel):
     points: int
     order: int
     hints: List[str] = []
+    # "code" = se resuelve en el editor y lo valida Pyodide. Los tipos de
+    # Track 0 (trace_table, predict_output, mcq...) los corrige el backend en
+    # POST /exercises/{id}/check.
+    exercise_type: str = "code"
+    # Enunciado estructurado del ejercicio no-código. Público a propósito.
+    # `answer_key` NO está aquí y no debe añadirse: hay un test de no-leak.
+    spec: Optional[dict] = None
     # Derivado de las CodeSubmission del usuario (regla única de
     # progress_service). Nunca se persiste en la tabla Exercise.
     completed: bool = False
+
+    @field_validator("spec")
+    @classmethod
+    def _spec_vacia_es_nula(cls, v: Optional[dict]) -> Optional[dict]:
+        """Un ejercicio de código no tiene enunciado estructurado.
+
+        En la tabla la columna nace como `{}`, y sin esto un endpoint
+        devolvería `{}` y otro `None` para el mismo ejercicio.
+        """
+        return v or None
 
     class Config:
         from_attributes = True
@@ -187,3 +204,23 @@ class CodeQualitySummary(BaseModel):
 class CodeQualityProgressOut(BaseModel):
     points: List[CodeQualityPoint]
     summary: CodeQualitySummary
+
+
+class ExerciseCheckRequest(BaseModel):
+    """Respuesta del alumno a un ejercicio no-código de Track 0.
+
+    La forma de `respuesta` depende del `exercise_type` (celdas de la traza,
+    salida escrita, opción elegida). La valida `track0_service`, no el schema:
+    así un tipo nuevo no toca la API.
+    """
+
+    respuesta: dict
+
+
+class ExerciseCheckResponse(BaseModel):
+    passed: bool
+    # Dice DÓNDE falla, nunca cuál era el valor correcto.
+    feedback: Optional[str] = None
+    detalle: dict = {}
+    # Si el ejercicio queda hecho tras este intento (o ya lo estaba).
+    completed: bool = False

@@ -5,9 +5,11 @@ Centraliza los títulos legibles de cada Track para que el endpoint de
 progreso, los certificados y futuras features no dupliquen el diccionario.
 """
 
-# Títulos legibles por Track. Track 1 está activo; 2-6 son el roadmap
+# Títulos legibles por Track. Track 0 es el tramo de entrada (no obligatorio:
+# quien ya programa empieza en Track 1) y 1-6 son el pipeline completo
 # ML/DL/AI Engineering (ver `project_norte_ml_ai`).
 TRACK_TITLES: dict[str, str] = {
+    "track-0": "Track 0 · Fundamentos",
     "track-1": "Track 1 · Python",
     "track-2": "Track 2 · Data Science",
     "track-3": "Track 3 · ML Clasico",
