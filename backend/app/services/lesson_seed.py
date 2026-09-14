@@ -17564,6 +17564,787 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="MLOps 4 · Monitoreo y drift: cuando el modelo deja de servir",
+        description=(
+            "Vigilar el modelo con el log de peticiones, sin esperar a las etiquetas: "
+            "metricas del servicio, histogramas con bordes fijos, PSI, categorias nuevas, "
+            "drift de la prediccion y alertas con severidad y minimo de muestra."
+        ),
+        content=(
+            "# MLOps 4: monitoreo y drift, cuando el modelo deja de servir\n"
+            "\n"
+            "El modelo de devoluciones lleva tres semanas en produccion y nadie lo ha tocado. Aun asi, sus predicciones son cada vez peores. El modelo no cambio: cambio el mundo que mira. Esta leccion construye la vigilancia que lo detecta, y lo hace con el unico material disponible el dia en que pasa: el **log de peticiones** que `servir` dejaba escrito en MLOps 3.\n"
+            "\n"
+            "## Por que un modelo se estropea solo\n"
+            "\n"
+            "La pregunta obvia seria mirar el acierto del modelo. El problema es que hoy no se puede: saber si un pedido se devolvio de verdad tarda sesenta dias, asi que la etiqueta real de lo que predijiste esta semana llegara en noviembre. Mientras tanto solo tienes las entradas y las salidas.\n"
+            "\n"
+            "Y ahi ya se ve casi todo:\n"
+            "\n"
+            "1. **Cambia lo que entra** (*data drift*): en marzo Nebula abrio en Francia y el 30% de los pedidos son de un pais que casi no aparecia al entrenar.\n"
+            "2. **Cambia lo que sale** (*prediction drift*): la prediccion media pasa de 0.12 a 0.31 sin que nadie haya desplegado nada.\n"
+            "3. **Se rompe el contrato**: los 422 se disparan porque la app movil ahora manda el importe con simbolo de euro.\n"
+            "\n"
+            "Las tres se ven en el log del dia, sin esperar a ninguna etiqueta. Al terminar tendras un `monitorear` que revisa el log y devuelve una lista de alertas ordenadas por gravedad.\n"
+            "\n"
+            "## Las metricas del servicio van primero\n"
+            "\n"
+            "Antes de hablar de distribuciones hay que separar dos cosas que se confunden a diario: que el **servicio** este mal y que el **modelo** este mal. Lo primero se ve contando codigos de respuesta.\n"
+            "\n"
+            "```python\n"
+            "log = [                                                              # el log que deja servir(), de MLOps 3\n"
+            "    {'id': 'p-1', 'codigo': 200, 'entrada': [120.5, 0.0], 'prediccion': 0.12}, # atendida: trae entrada y prediccion\n"
+            "    {'id': 'p-2', 'codigo': 422, 'errores': ['importe: se esperaba numero']}, # rechazada: no hay nada que medir\n"
+            "    {'id': 'p-3', 'codigo': 200, 'entrada': [80.0, 1.0], 'prediccion': 0.31},\n"
+            "    {'id': 'p-4', 'codigo': 500, 'detalle': 'division by zero'},     # reventada: el detalle se quedo dentro\n"
+            "]\n"
+            "\n"
+            "por_codigo = {}                                                      # cuantas respuestas de cada tipo\n"
+            "for r in log:                                                        # una pasada por el log del dia\n"
+            "    por_codigo[r['codigo']] = por_codigo.get(r['codigo'], 0) + 1     # .get(clave, 0): el primero tambien suma\n"
+            "errores = sum(n for c, n in por_codigo.items() if c >= 400)          # 4xx y 5xx son errores; 2xx no\n"
+            "print(por_codigo)                                                    # {200: 2, 422: 1, 500: 1}\n"
+            "print(round(errores / len(log), 3))                                  # 0.5: la mitad de las peticiones fallaron\n"
+            "```\n"
+            "\n"
+            "Cada codigo acusa a alguien distinto: **422 al que llama** (manda algo que el contrato no acepta), **500 a nosotros** (el modelo o el servicio revientan), y un 200 impecable **no dice nada** del acierto. Por eso la tasa de error se mira primero: si esta disparada, el drift es el segundo problema del dia, no el primero.\n"
+            "\n"
+            "## Comparar dos distribuciones: los bordes se fijan una vez\n"
+            "\n"
+            "Para saber si los importes de hoy se parecen a los del entrenamiento hay que contarlos por tramos. Y los tramos —los **bordes**— tienen que ser los mismos siempre: si cada dia se recalculan, las dos distribuciones siempre encajan y nunca detectas nada.\n"
+            "\n"
+            "```python\n"
+            "BORDES = [0, 50, 100, 200]                                           # se guardan junto al modelo, como el orden\n"
+            "\n"
+            "def histograma(valores, bordes):                                     # cuenta cuantos valores caen en cada tramo\n"
+            "    conteos = [0] * (len(bordes) - 1)                                # un tramo menos que bordes\n"
+            "    for v in valores:                                                # cada valor cae en uno y solo un tramo\n"
+            "        if v < bordes[0]:                                            # por debajo del primer borde\n"
+            "            i = 0                                                    # cae en el primer tramo\n"
+            "        elif v >= bordes[-1]:                                        # por encima del ultimo\n"
+            "            i = len(conteos) - 1                                     # cae en el ultimo tramo\n"
+            "        else:\n"
+            "            i = 0                                                    # empieza por la izquierda...\n"
+            "            while v >= bordes[i + 1]:                                # busca el tramo [bordes[i], bordes[i+1])\n"
+            "                i += 1                                               # ...y avanza hasta encontrarlo\n"
+            "        conteos[i] += 1                                              # el tramo elegido suma uno\n"
+            "    return conteos                                                   # tantos conteos como tramos\n"
+            "\n"
+            "print(histograma([10, 60, 70, 120, 999], BORDES))                    # [1, 2, 2]: el 999 cae en el ultimo tramo\n"
+            "print(histograma([-5, 0, 49.9], BORDES))                             # [3, 0, 0]: el -5 cae en el primero\n"
+            "print(sum(histograma([10, 60, 999], BORDES)) == 3)                   # True: no se pierde ni se duplica nada\n"
+            "```\n"
+            "\n"
+            "Meter lo que se sale por los extremos en el primer y el ultimo tramo (*clip*) mantiene una propiedad que hace falta luego: **la suma de los conteos es siempre el numero de valores**. Un valor que no cae en ningun tramo desaparece del histograma y falsea la comparacion.\n"
+            "\n"
+            "## PSI: cuanto se ha movido una variable\n"
+            "\n"
+            "El **PSI** (*Population Stability Index*) pone un numero a la diferencia entre dos histogramas. Compara la proporcion de cada tramo en la referencia (`e`, de esperado) y en la ventana de hoy (`a`, de actual), y suma `(a - e) * ln(a / e)` sobre todos los tramos.\n"
+            "\n"
+            "```python\n"
+            "import math                                                          # ln: math.log\n"
+            "\n"
+            "def psi(referencia, actual):                                         # cuanto se movio, en un solo numero\n"
+            "    total_e, total_a = sum(referencia), sum(actual)                  # conteos -> proporciones\n"
+            "    acumulado = 0.0                                                  # el PSI es una suma sobre los tramos\n"
+            "    for e, a in zip(referencia, actual):                             # zip: los dos histogramas a la vez\n"
+            "        pe = max(e / total_e, 1e-6)                                  # un tramo vacio daria log(0)\n"
+            "        pa = max(a / total_a, 1e-6)                                  # el suelo evita el infinito\n"
+            "        acumulado += (pa - pe) * math.log(pa / pe)                   # cada tramo aporta lo suyo\n"
+            "    return acumulado                                                 # 0 si son identicas; crece con la diferencia\n"
+            "\n"
+            "REF = [10, 40, 30, 20]                                               # el histograma del entrenamiento\n"
+            "print(round(psi(REF, [10, 40, 30, 20]), 4))                          # 0.0: identicas\n"
+            "print(round(psi(REF, [12, 38, 32, 18]), 4))                          # 0.0081: ruido del dia a dia\n"
+            "print(round(psi(REF, [25, 35, 25, 15]), 4))                          # 0.1676: algo se movio\n"
+            "print(round(psi(REF, [40, 30, 20, 10]), 4))                          # 0.5545: otra poblacion\n"
+            "```\n"
+            "\n"
+            "Los umbrales de siempre: **por debajo de 0.1** no pasa nada, **entre 0.1 y 0.25** hay que mirarlo, **por encima de 0.25** los datos de hoy ya no son los del entrenamiento. El PSI no dice que el modelo prediga peor —eso solo lo dicen las etiquetas—, dice que **esta prediciendo sobre datos que no vio**, que es lo mas parecido a un aviso previo que existe.\n"
+            "\n"
+            "## Categorias: lo que no estaba antes\n"
+            "\n"
+            "Con un pais o un canal no hay tramos que valgan: se cuentan las categorias. Ahi aparece un aviso que el PSI solo no da, y es el mas urgente de todos: una categoria **nueva**, que en MLOps 3 ni siquiera pasaria del vector de caracteristicas.\n"
+            "\n"
+            "```python\n"
+            "referencia = {'ES': 500, 'PT': 300, 'IT': 200}                       # los paises del entrenamiento\n"
+            "actual = {'ES': 400, 'PT': 250, 'FR': 350}                           # los de esta semana\n"
+            "\n"
+            "universo = sorted(set(referencia) | set(actual))                     # la union, en orden estable\n"
+            "print(universo)                                                      # ['ES', 'FR', 'IT', 'PT']\n"
+            "nuevas = [c for c in universo if referencia.get(c, 0) == 0 and actual.get(c, 0) > 0] # hoy si, antes no\n"
+            "idas = [c for c in universo if referencia.get(c, 0) > 0 and actual.get(c, 0) == 0] # antes si, hoy no\n"
+            "print(nuevas, idas)                                                  # ['FR'] ['IT']: una entro y otra desaparecio\n"
+            "\n"
+            "total = sum(actual.values())                                         # proporciones de la ventana actual\n"
+            "print({c: round(actual.get(c, 0) / total, 2) for c in universo})     # {'ES': 0.4, 'FR': 0.35, 'IT': 0.0, 'PT': 0.25}\n"
+            "```\n"
+            "\n"
+            "`referencia.get(c, 0)` evita el `KeyError` de una categoria que solo existe en uno de los dos lados, que es justo el caso interesante. Y `sorted(set(a) | set(b))` fija un orden que no depende de en que diccionario aparecio cada una: sin eso, dos ejecuciones sobre los mismos datos darian listas distintas.\n"
+            "\n"
+            "## La prediccion tambien es una distribucion\n"
+            "\n"
+            "La salida del modelo se vigila igual que una entrada, y tiene una ventaja: **resume todas las columnas a la vez**. Si ninguna entrada se movio pero la prediccion media se dispara, lo que se movio fue una combinacion de varias.\n"
+            "\n"
+            "```python\n"
+            "import math\n"
+            "\n"
+            "def psi(referencia, actual):                                         # la misma de antes, para que el bloque corra solo\n"
+            "    te, ta = sum(referencia), sum(actual)                            # los totales, para pasar a proporciones\n"
+            "    return sum((max(a / ta, 1e-6) - max(e / te, 1e-6)) * math.log(max(a / ta, 1e-6) / max(e / te, 1e-6))\n"
+            "               for e, a in zip(referencia, actual))\n"
+            "\n"
+            "log = [{'codigo': 200, 'prediccion': p} for p in [0.31, 0.44, 0.52, 0.28, 0.61]] # cinco peticiones atendidas\n"
+            "log.append({'codigo': 422, 'errores': ['pais: valor no permitido']}) # sin prediccion: no entra en el histograma\n"
+            "\n"
+            "predicciones = [r['prediccion'] for r in log if r['codigo'] == 200]  # solo las peticiones atendidas\n"
+            "print(predicciones)                                                  # [0.31, 0.44, 0.52, 0.28, 0.61]\n"
+            "conteos = [sum(1 for p in predicciones if i / 4 <= p < (i + 1) / 4) for i in range(4)] # cuatro tramos de 0.25\n"
+            "print(conteos)                                                       # [0, 2, 2, 1]: casi todo en la mitad alta\n"
+            "print(round(psi([40, 35, 15, 10], conteos), 3))                      # 0.727: el modelo dice que si mucho mas que antes\n"
+            "```\n"
+            "\n"
+            "Filtrar por `codigo == 200` no es un detalle: las peticiones rechazadas **no tienen** `'prediccion'` ni `'entrada'`, y meterlas en el calculo es un `KeyError` o, peor, un cero inventado. La vigilancia mira solo lo que el modelo llego a contestar.\n"
+            "\n"
+            "## Alertas: reglas, no graficas\n"
+            "\n"
+            "Un panel de graficas exige que alguien lo mire. Una alerta es una regla que decide sola, y necesita dos cosas: convertir el PSI en una **severidad** y no disparar con cuatro peticiones, porque con muestras pequeñas el PSI se mueve solo.\n"
+            "\n"
+            "```python\n"
+            "def severidad(valor):                                                # del PSI a una decision\n"
+            "    if valor >= 0.25:                                                # los umbrales estandar del PSI\n"
+            "        return 'critico'                                             # otra poblacion: hay que actuar\n"
+            "    if valor >= 0.1:                                                 # la banda intermedia\n"
+            "        return 'aviso'                                               # mirarlo, sin alarma\n"
+            "    return None                                                      # por debajo de 0.1 no hay alerta\n"
+            "\n"
+            "print(severidad(0.5545), severidad(0.1676), severidad(0.0081))       # critico aviso None\n"
+            "\n"
+            "MINIMO = 200                                                         # peticiones atendidas antes de opinar\n"
+            "atendidas = 37                                                       # las peticiones de codigo 200 que llevamos\n"
+            "if atendidas < MINIMO:                                               # con pocos datos el PSI baila solo\n"
+            "    print({'tipo': 'muestra', 'valor': atendidas, 'severidad': 'aviso'})\n"
+            "\n"
+            "alertas = [{'columna': 'importe', 'severidad': 'aviso'},             # generadas en el orden de las columnas\n"
+            "           {'columna': 'prediccion', 'severidad': 'critico'}]        # la grave se genero la ultima\n"
+            "alertas = sorted(alertas, key=lambda a: 0 if a['severidad'] == 'critico' else 1) # critico -> 0, aviso -> 1\n"
+            "print([a['columna'] for a in alertas])                               # ['prediccion', 'importe']: lo grave primero\n"
+            "```\n"
+            "\n"
+            "`sorted` es **estable**: las alertas de la misma severidad conservan el orden en que se generaron, asi que dos ejecuciones sobre el mismo log dan exactamente la misma lista. Y la alerta de muestra insuficiente no es un fallo, es la respuesta honesta: *todavia no hay datos para decir nada*.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            "- **Esperar a las etiquetas para vigilar.** Si el acierto real tarda sesenta dias, el modelo lleva dos meses fallando cuando te enteras. Las entradas y las salidas se vigilan hoy.\n"
+            "- **Recalcular los bordes en cada ventana.** Con bordes nuevos las dos distribuciones siempre encajan y el PSI da casi cero para siempre. Los bordes se calculan una vez, con el entrenamiento, y se guardan con el modelo.\n"
+            "- **Dividir entre cero en el PSI.** Un tramo vacio da `log(0)`. Pon un suelo a las proporciones (`max(p, 1e-6)`) o el resultado sera `inf` o una excepcion.\n"
+            "- **Mezclar las peticiones rechazadas.** Un 422 no tiene `'prediccion'` ni `'entrada'`. Filtra por `codigo == 200` antes de construir cualquier histograma.\n"
+            "- **Alertar con la muestra de la primera hora.** Con 30 peticiones el PSI supera 0.25 por puro azar. Exige un minimo de peticiones atendidas y, mientras no llegue, di que no hay datos.\n"
+            "- **Confundir drift con degradacion.** El PSI alto dice que los datos cambiaron, no que el modelo acierte menos. Es motivo de mirar y de reentrenar, no de anunciar que el modelo esta roto.\n"
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **Metricas del servicio**: contar codigos y sacar la tasa de error; 422 acusa al que llama, 500 a nosotros, 200 no dice nada del acierto.\n"
+            "- **Histograma**: bordes fijos guardados con el modelo, y lo que se sale por los extremos al primer o ultimo tramo para que los conteos sumen siempre.\n"
+            "- **PSI**: `sum((a - e) * ln(a / e))` sobre proporciones con suelo; < 0.1 nada, 0.1-0.25 mirarlo, > 0.25 otra poblacion.\n"
+            "- **Categorias**: union ordenada de las dos, `.get(c, 0)` para las que faltan, y las **nuevas** como el aviso mas urgente.\n"
+            "- **Prediccion**: se vigila como una entrada mas y resume el efecto de todas las columnas juntas; solo con las peticiones de codigo 200.\n"
+            "- **Alertas**: PSI a severidad con los umbrales, minimo de muestra antes de opinar y `sorted` estable para que lo grave salga primero.\n"
+        ),
+        difficulty="intermediate",
+        category="mlops",
+        order=47,
+        track="track-6",
+        estimated_duration=65,
+        prerequisites_titles=[
+            "MLOps 3 · Servir un modelo: contrato de entrada y validacion"
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="El resumen del servicio",
+                description="Contar codigos de respuesta y sacar la tasa de error del log.",
+                instructions=(
+                    "Implementa `resumen_del_servicio(log)`, donde `log` es la lista de peticiones que dejo `servir` (cada una con al menos la clave `'codigo'`). Devuelve un diccionario con:\n"
+                    "\n"
+                    "- `'peticiones'`: cuantas peticiones hay en el log;\n"
+                    "- `'por_codigo'`: cuantas de cada codigo, como `{codigo: cantidad}`;\n"
+                    "- `'tasa_error'`: la proporcion de peticiones con codigo **mayor o igual que 400**, redondeada a 4 decimales.\n"
+                    "\n"
+                    "Con el log vacio devuelve `{'peticiones': 0, 'por_codigo': {}, 'tasa_error': 0.0}` (no hay peticiones, asi que tampoco hay division que hacer).\n"
+                    "\n"
+                    "Ejemplo: con dos 200, un 422 y un 500 devuelve `{'peticiones': 4, 'por_codigo': {200: 2, 422: 1, 500: 1}, 'tasa_error': 0.5}`."
+                ),
+                starter_code=(
+                    "def resumen_del_servicio(log):\n"
+                    "    # TODO: contar cuantas peticiones hay de cada codigo\n"
+                    "    # TODO: tasa_error con los codigos >= 400, y el caso del log vacio\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "por_codigo[r['codigo']] = por_codigo.get(r['codigo'], 0) + 1 dentro de un for sobre el log.",
+                    "errores = sum(n for c, n in por_codigo.items() if c >= 400)",
+                    "Trata el log vacio antes de dividir: len(log) valdria 0.",
+                    "round(errores / len(log), 4) para la tasa.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "cuenta codigos y tasa",
+                        "code": (
+                            "log = [{'id': 'p-1', 'codigo': 200}, {'id': 'p-2', 'codigo': 422},\n"
+                            "       {'id': 'p-3', 'codigo': 200}, {'id': 'p-4', 'codigo': 500}]\n"
+                            "r = resumen_del_servicio(log)\n"
+                            "assert r == {'peticiones': 4, 'por_codigo': {200: 2, 422: 1, 500: 1}, 'tasa_error': 0.5}, r\n"
+                        ),
+                    },
+                    {
+                        "name": "log vacio y log perfecto",
+                        "code": (
+                            "assert resumen_del_servicio([]) == {'peticiones': 0, 'por_codigo': {}, 'tasa_error': 0.0}\n"
+                            "r = resumen_del_servicio([{'codigo': 200}] * 3)\n"
+                            "assert r == {'peticiones': 3, 'por_codigo': {200: 3}, 'tasa_error': 0.0}, r\n"
+                            "r = resumen_del_servicio([{'codigo': 503}])\n"
+                            "assert r == {'peticiones': 1, 'por_codigo': {503: 1}, 'tasa_error': 1.0}, r\n"
+                        ),
+                    },
+                    {
+                        "name": "el redondeo y el limite del 400",
+                        "code": (
+                            "log = [{'codigo': 200}] * 2 + [{'codigo': 422}]\n"
+                            "assert resumen_del_servicio(log)['tasa_error'] == 0.3333, resumen_del_servicio(log)\n"
+                            "log = [{'codigo': 200}, {'codigo': 301}, {'codigo': 399}, {'codigo': 400}]\n"
+                            "r = resumen_del_servicio(log)\n"
+                            "assert r['tasa_error'] == 0.25, 'solo cuentan los codigos >= 400'\n"
+                            "assert r['por_codigo'] == {200: 1, 301: 1, 399: 1, 400: 1}, r['por_codigo']\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Histograma con bordes fijos",
+                description="Contar valores por tramo sin perder los que se salen.",
+                instructions=(
+                    "Implementa `histograma(valores, bordes)` que devuelva la lista de conteos, uno por tramo. Con `bordes = [0, 50, 100, 200]` hay **tres** tramos: `[0, 50)`, `[50, 100)` y `[100, 200]`.\n"
+                    "\n"
+                    "- Un valor menor que el primer borde cuenta en el **primer** tramo.\n"
+                    "- Un valor mayor o igual que el ultimo borde cuenta en el **ultimo** tramo.\n"
+                    "- Asi, `sum(histograma(valores, bordes)) == len(valores)` siempre.\n"
+                    "- Si `bordes` tiene menos de dos elementos, lanza `ValueError` (no hay ningun tramo que contar).\n"
+                    "\n"
+                    "Ejemplo: `histograma([10, 60, 70, 120, 999], [0, 50, 100, 200])` es `[1, 2, 2]`."
+                ),
+                starter_code=(
+                    "def histograma(valores, bordes):\n"
+                    "    # TODO: ValueError si no hay al menos dos bordes\n"
+                    "    # TODO: un conteo por tramo; los extremos al primero y al ultimo\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "conteos = [0] * (len(bordes) - 1): siempre hay un tramo menos que bordes.",
+                    "Trata primero los dos extremos: v < bordes[0] va al tramo 0 y v >= bordes[-1] al ultimo.",
+                    "Para el resto, avanza mientras v >= bordes[i + 1] y ese i es el tramo.",
+                    "Comprueba len(bordes) < 2 antes de nada y lanza ValueError.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "tramos y extremos",
+                        "code": (
+                            "bordes = [0, 50, 100, 200]\n"
+                            "assert histograma([10, 60, 70, 120, 999], bordes) == [1, 2, 2]\n"
+                            "assert histograma([-5, 0, 49.9], bordes) == [3, 0, 0]\n"
+                            "assert histograma([], bordes) == [0, 0, 0]\n"
+                            "assert histograma([50, 99.99], bordes) == [0, 2, 0], 'el borde pertenece al tramo de la derecha'\n"
+                            "assert histograma([200, 1e9], bordes) == [0, 0, 2], 'lo que se pasa va al ultimo tramo'\n"
+                        ),
+                    },
+                    {
+                        "name": "nunca se pierde un valor",
+                        "code": (
+                            "bordes = [0, 10, 20, 30, 40]\n"
+                            "valores = [-100, 0, 5, 10, 19, 20, 29, 30, 39, 40, 1000]\n"
+                            "c = histograma(valores, bordes)\n"
+                            "assert len(c) == 4, c\n"
+                            "assert sum(c) == len(valores), 'la suma de los conteos es el numero de valores'\n"
+                            "assert c == [3, 2, 2, 4], c\n"
+                        ),
+                    },
+                    {
+                        "name": "bordes insuficientes",
+                        "code": (
+                            "for bordes in ([], [0]):\n"
+                            "    try:\n"
+                            "        histograma([1, 2], bordes)\n"
+                            "        raise AssertionError('con menos de dos bordes no hay tramos')\n"
+                            "    except ValueError:\n"
+                            "        pass\n"
+                            "assert histograma([1, 2, 3], [0, 10]) == [3], 'con dos bordes hay un solo tramo'\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="El PSI de dos histogramas",
+                description="Poner un numero a cuanto se movio una distribucion.",
+                instructions=(
+                    "Implementa `psi(referencia, actual)`, que recibe **dos listas de conteos** con los mismos tramos y devuelve el *Population Stability Index*:\n"
+                    "\n"
+                    "1. Pasa cada lista a proporciones dividiendo por su total.\n"
+                    "2. Ponle un suelo de `1e-6` a cada proporcion, con `max(p, 1e-6)`, para que un tramo vacio no acabe en `log(0)`.\n"
+                    "3. Devuelve la suma de `(pa - pe) * math.log(pa / pe)` sobre todos los tramos, donde `pe` es la proporcion en la referencia y `pa` la de la ventana actual.\n"
+                    "\n"
+                    "Lanza `ValueError` si las dos listas no tienen la misma longitud, o si alguna suma 0 (sin datos no hay nada que comparar).\n"
+                    "\n"
+                    "Ejemplo: `psi([10, 40, 30, 20], [12, 38, 32, 18])` es 0.0081 redondeado a 4 decimales."
+                ),
+                starter_code=(
+                    "import math\n"
+                    "\n"
+                    "\n"
+                    "def psi(referencia, actual):\n"
+                    "    # TODO: validar longitudes y totales\n"
+                    "    # TODO: proporciones con suelo y suma de (pa - pe) * log(pa / pe)\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Empieza con las dos comprobaciones: longitudes distintas y algun total a 0 -> raise ValueError.",
+                    "total_e, total_a = sum(referencia), sum(actual)",
+                    "for e, a in zip(referencia, actual): recorre los dos histogramas a la vez.",
+                    "pe = max(e / total_e, 1e-6) y pa = max(a / total_a, 1e-6); acumula (pa - pe) * math.log(pa / pe).",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "identicas, ruido y movimiento",
+                        "code": (
+                            "ref = [10, 40, 30, 20]\n"
+                            "assert psi(ref, ref) == 0.0, psi(ref, ref)\n"
+                            "assert round(psi(ref, [12, 38, 32, 18]), 4) == 0.0081, psi(ref, [12, 38, 32, 18])\n"
+                            "assert round(psi(ref, [25, 35, 25, 15]), 4) == 0.1676, psi(ref, [25, 35, 25, 15])\n"
+                            "assert round(psi(ref, [40, 30, 20, 10]), 4) == 0.5545, psi(ref, [40, 30, 20, 10])\n"
+                        ),
+                    },
+                    {
+                        "name": "no depende del tamano de la muestra",
+                        "code": (
+                            "ref = [10, 40, 30, 20]\n"
+                            "a = psi(ref, [20, 80, 60, 40])\n"
+                            "assert abs(a) < 1e-9, 'la misma forma con el doble de datos no es drift'\n"
+                            "b = psi([100, 400, 300, 200], [12, 38, 32, 18])\n"
+                            "assert round(b, 4) == 0.0081, b\n"
+                        ),
+                    },
+                    {
+                        "name": "un tramo vacio no rompe el calculo",
+                        "code": (
+                            "v = psi([10, 40, 30, 20], [0, 40, 30, 30])\n"
+                            "assert v == v and v not in (float('inf'), float('-inf')), 'el suelo evita el infinito'\n"
+                            "assert round(v, 4) == 1.1918, v\n"
+                            "assert round(psi([0, 50, 50], [10, 45, 45]), 4) == 1.1618, psi([0, 50, 50], [10, 45, 45])\n"
+                        ),
+                    },
+                    {
+                        "name": "entradas imposibles",
+                        "code": (
+                            "for ref, act in ([[1, 2], [1, 2, 3]], [[1], []], [[0, 0], [1, 2]], [[1, 2], [0, 0]]):\n"
+                            "    try:\n"
+                            "        psi(ref, act)\n"
+                            "        raise AssertionError(f'{ref} vs {act} deberia lanzar ValueError')\n"
+                            "    except ValueError:\n"
+                            "        pass\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Drift de una variable categorica",
+                description="Categorias nuevas, desaparecidas y cuanto se movio el reparto.",
+                instructions=(
+                    "Implementa `drift_categorico(referencia, actual)`. Los dos argumentos son diccionarios `{categoria: cantidad}`. `psi` ya viene escrita. Devuelve un diccionario con:\n"
+                    "\n"
+                    "- `'nuevas'`: las categorias que aparecen en `actual` (con cantidad mayor que 0) y que en `referencia` no estan o valen 0, **en orden alfabetico**;\n"
+                    "- `'desaparecidas'`: al reves, las que estaban en la referencia y hoy no aparecen, tambien ordenadas;\n"
+                    "- `'psi'`: el PSI de las dos, redondeado a 4 decimales, contando las categorias en el **orden alfabetico de la union** de ambas y usando `.get(c, 0)` para las que falten en un lado.\n"
+                    "\n"
+                    "Ejemplo: con `{'ES': 500, 'PT': 300, 'IT': 200}` y `{'ES': 400, 'PT': 250, 'FR': 350}` devuelve `'nuevas': ['FR']` y `'desaparecidas': ['IT']`."
+                ),
+                starter_code=(
+                    "import math\n"
+                    "\n"
+                    "\n"
+                    "def psi(referencia, actual):\n"
+                    "    if len(referencia) != len(actual):\n"
+                    "        raise ValueError('los histogramas no tienen los mismos tramos')\n"
+                    "    total_e, total_a = sum(referencia), sum(actual)\n"
+                    "    if total_e == 0 or total_a == 0:\n"
+                    "        raise ValueError('no hay datos que comparar')\n"
+                    "    acumulado = 0.0\n"
+                    "    for e, a in zip(referencia, actual):\n"
+                    "        pe = max(e / total_e, 1e-6)\n"
+                    "        pa = max(a / total_a, 1e-6)\n"
+                    "        acumulado += (pa - pe) * math.log(pa / pe)\n"
+                    "    return acumulado\n"
+                    "\n"
+                    "\n"
+                    "def drift_categorico(referencia, actual):\n"
+                    "    # TODO: universo = union ordenada de las dos\n"
+                    "    # TODO: nuevas, desaparecidas y psi sobre ese universo\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "universo = sorted(set(referencia) | set(actual)) fija el orden de todo lo demas.",
+                    "referencia.get(c, 0) devuelve 0 para una categoria que solo existe en el otro lado.",
+                    "nuevas = [c for c in universo if referencia.get(c, 0) == 0 and actual.get(c, 0) > 0]",
+                    "Construye las dos listas de conteos recorriendo el universo y pasaselas a psi.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "una entra y otra se va",
+                        "code": (
+                            "r = drift_categorico({'ES': 500, 'PT': 300, 'IT': 200}, {'ES': 400, 'PT': 250, 'FR': 350})\n"
+                            "assert r['nuevas'] == ['FR'], r\n"
+                            "assert r['desaparecidas'] == ['IT'], r\n"
+                            "assert r['psi'] > 0.25, r\n"
+                        ),
+                    },
+                    {
+                        "name": "mismo reparto, sin drift",
+                        "code": (
+                            "r = drift_categorico({'ES': 50, 'PT': 30}, {'ES': 100, 'PT': 60})\n"
+                            "assert r == {'nuevas': [], 'desaparecidas': [], 'psi': 0.0}, r\n"
+                            "r = drift_categorico({'ES': 50, 'PT': 30}, {'PT': 30, 'ES': 50})\n"
+                            "assert r['psi'] == 0.0, 'el orden del diccionario no cambia nada'\n"
+                        ),
+                    },
+                    {
+                        "name": "orden alfabetico y categorias a cero",
+                        "code": (
+                            "r = drift_categorico({'zeta': 10, 'alfa': 10}, {'omega': 5, 'beta': 5, 'alfa': 10, 'zeta': 0})\n"
+                            "assert r['nuevas'] == ['beta', 'omega'], r['nuevas']\n"
+                            "assert r['desaparecidas'] == ['zeta'], r['desaparecidas']\n"
+                            "r = drift_categorico({'a': 10, 'b': 0}, {'a': 10})\n"
+                            "assert r == {'nuevas': [], 'desaparecidas': [], 'psi': 0.0}, r\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Vigilar una columna",
+                description="Histograma, PSI y severidad, con un minimo de muestra.",
+                instructions=(
+                    "Implementa `vigilar_columna(valores, columna, minimo)`. `histograma`, `psi` y `severidad` ya vienen escritas. `columna` es la referencia guardada con el modelo: `{'bordes': [...], 'conteos': [...]}`.\n"
+                    "\n"
+                    "1. Si hay menos de `minimo` valores, devuelve `None`: con pocos datos el PSI se mueve solo.\n"
+                    "2. Cuenta los valores con `histograma` usando **los bordes de la referencia**.\n"
+                    "3. Calcula el PSI entre `columna['conteos']` y esos conteos, en ese orden.\n"
+                    "4. Si `severidad` del PSI es `None` (por debajo de 0.1), devuelve `None`: no hay alerta que dar.\n"
+                    "5. Si no, devuelve `{'psi': <el PSI redondeado a 4 decimales>, 'severidad': <'aviso' o 'critico'>}`.\n"
+                    "\n"
+                    "Ejemplo: con una referencia `[10, 40, 30, 20]` y una ventana que cae toda en el primer tramo, el resultado sale `'critico'`."
+                ),
+                starter_code=(
+                    "def histograma(valores, bordes):\n"
+                    "    if len(bordes) < 2:\n"
+                    "        raise ValueError('hacen falta al menos dos bordes')\n"
+                    "    conteos = [0] * (len(bordes) - 1)\n"
+                    "    for v in valores:\n"
+                    "        if v < bordes[0]:\n"
+                    "            i = 0\n"
+                    "        elif v >= bordes[-1]:\n"
+                    "            i = len(conteos) - 1\n"
+                    "        else:\n"
+                    "            i = 0\n"
+                    "            while v >= bordes[i + 1]:\n"
+                    "                i += 1\n"
+                    "        conteos[i] += 1\n"
+                    "    return conteos\n"
+                    "\n"
+                    "\n"
+                    "import math\n"
+                    "\n"
+                    "\n"
+                    "def psi(referencia, actual):\n"
+                    "    if len(referencia) != len(actual):\n"
+                    "        raise ValueError('los histogramas no tienen los mismos tramos')\n"
+                    "    total_e, total_a = sum(referencia), sum(actual)\n"
+                    "    if total_e == 0 or total_a == 0:\n"
+                    "        raise ValueError('no hay datos que comparar')\n"
+                    "    acumulado = 0.0\n"
+                    "    for e, a in zip(referencia, actual):\n"
+                    "        pe = max(e / total_e, 1e-6)\n"
+                    "        pa = max(a / total_a, 1e-6)\n"
+                    "        acumulado += (pa - pe) * math.log(pa / pe)\n"
+                    "    return acumulado\n"
+                    "\n"
+                    "\n"
+                    "def severidad(valor):\n"
+                    "    if valor >= 0.25:\n"
+                    "        return 'critico'\n"
+                    "    if valor >= 0.1:\n"
+                    "        return 'aviso'\n"
+                    "    return None\n"
+                    "\n"
+                    "\n"
+                    "def vigilar_columna(valores, columna, minimo):\n"
+                    "    # TODO: None si no hay muestra suficiente\n"
+                    "    # TODO: histograma con los bordes de la referencia y psi contra sus conteos\n"
+                    "    # TODO: None si no llega a aviso; si no, psi redondeado y severidad\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "if len(valores) < minimo: return None, antes de calcular nada.",
+                    "conteos = histograma(valores, columna['bordes'])",
+                    "El primer argumento de psi es la referencia: psi(columna['conteos'], conteos).",
+                    "sev = severidad(valor); if sev is None: return None; y si no, devuelve el diccionario con round(valor, 4).",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "muestra insuficiente",
+                        "code": (
+                            "columna = {'bordes': [0, 50, 100, 200], 'conteos': [10, 40, 30]}\n"
+                            "assert vigilar_columna([1, 2, 3], columna, 10) is None\n"
+                            "assert vigilar_columna([], columna, 1) is None\n"
+                            "assert vigilar_columna([1] * 9, columna, 10) is None, 'nueve no llegan a diez'\n"
+                            "r = vigilar_columna([1] * 10, columna, 10)\n"
+                            "assert r is not None and r['severidad'] == 'critico', 'con diez ya se vigila'\n"
+                        ),
+                    },
+                    {
+                        "name": "sin drift no hay alerta",
+                        "code": (
+                            "columna = {'bordes': [0, 50, 100, 200], 'conteos': [10, 40, 30]}\n"
+                            "valores = [10] * 10 + [60] * 40 + [150] * 30\n"
+                            "assert vigilar_columna(valores, columna, 10) is None, 'la misma distribucion no alerta'\n"
+                            "valores = [10] * 12 + [60] * 38 + [150] * 32\n"
+                            "assert vigilar_columna(valores, columna, 10) is None, 'el ruido tampoco'\n"
+                            "movidos = [10] * 40 + [60] * 30 + [150] * 20\n"
+                            "assert vigilar_columna(movidos, columna, 10) is not None, 'pero un cambio real si alerta'\n"
+                        ),
+                    },
+                    {
+                        "name": "aviso y critico",
+                        "code": (
+                            "columna = {'bordes': [0, 50, 100, 200], 'conteos': [10, 40, 30]}\n"
+                            "r = vigilar_columna([10] * 40 + [60] * 30 + [150] * 20, columna, 10)\n"
+                            "assert r is not None and r['severidad'] == 'critico', r\n"
+                            "assert isinstance(r['psi'], float) and r['psi'] == round(r['psi'], 4), r\n"
+                            "assert r['psi'] > 0.25, r\n"
+                            "r2 = vigilar_columna([10] * 10 + [60] * 55 + [150] * 15, columna, 10)\n"
+                            "assert r2 is not None and r2['severidad'] == 'aviso', r2\n"
+                            "assert 0.1 <= r2['psi'] < 0.25, r2\n"
+                        ),
+                    },
+                    {
+                        "name": "usa los bordes de la referencia",
+                        "code": (
+                            "columna = {'bordes': [0, 50, 100, 200], 'conteos': [10, 40, 30]}\n"
+                            "r = vigilar_columna([-5] * 50 + [1000] * 50, columna, 10)\n"
+                            "assert r is not None and r['severidad'] == 'critico', r\n"
+                            "columna2 = {'bordes': [0, 1], 'conteos': [80]}\n"
+                            "assert vigilar_columna([0.5] * 80, columna2, 10) is None, 'un solo tramo nunca se mueve'\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Monitorear el log del dia",
+                description="Servicio, columnas y prediccion en una lista de alertas ordenada.",
+                instructions=(
+                    "Implementa `monitorear(log, referencia, config)`. Ya vienen escritas `resumen_del_servicio`, `histograma`, `psi`, `severidad` y `vigilar_columna`.\n"
+                    "\n"
+                    "- `referencia` tiene `'columnas'` (`{nombre: {'bordes', 'conteos'}}`) y `'prediccion'` (la misma forma, para la salida del modelo).\n"
+                    "- `config` tiene `'orden'` (los nombres de las caracteristicas, en el orden del vector), `'minimo'` (peticiones atendidas antes de opinar) y `'tasa_error_maxima'`.\n"
+                    "\n"
+                    "Devuelve `{'resumen': <el resumen del servicio>, 'alertas': [...]}` construyendo las alertas asi:\n"
+                    "\n"
+                    "1. Si la `tasa_error` del resumen **supera** `config['tasa_error_maxima']`, anade `{'tipo': 'errores', 'valor': <la tasa>, 'severidad': 'critico'}`.\n"
+                    "2. Quedate con las peticiones de codigo 200 (las unicas con `'entrada'` y `'prediccion'`). Si hay menos de `config['minimo']`, anade `{'tipo': 'muestra', 'valor': <cuantas hay>, 'severidad': 'aviso'}` y **no revises ningun drift**.\n"
+                    "3. Si hay muestra suficiente, recorre `config['orden']`: para cada nombre que este en `referencia['columnas']`, junta sus valores (la posicion `i` de cada `'entrada'`) y llama a `vigilar_columna`. Si devuelve algo, anade `{'tipo': 'drift', 'columna': <nombre>, 'psi': ..., 'severidad': ...}`.\n"
+                    "4. Haz lo mismo con las predicciones y `referencia['prediccion']`, con `'columna': 'prediccion'`.\n"
+                    "5. Ordena las alertas dejando las `'critico'` delante, **sin alterar el orden** entre las de la misma severidad (`sorted` es estable)."
+                ),
+                starter_code=(
+                    "def resumen_del_servicio(log):\n"
+                    "    por_codigo = {}\n"
+                    "    for r in log:\n"
+                    "        por_codigo[r['codigo']] = por_codigo.get(r['codigo'], 0) + 1\n"
+                    "    if not log:\n"
+                    "        return {'peticiones': 0, 'por_codigo': {}, 'tasa_error': 0.0}\n"
+                    "    errores = sum(n for c, n in por_codigo.items() if c >= 400)\n"
+                    "    return {'peticiones': len(log), 'por_codigo': por_codigo,\n"
+                    "            'tasa_error': round(errores / len(log), 4)}\n"
+                    "\n"
+                    "\n"
+                    "def histograma(valores, bordes):\n"
+                    "    if len(bordes) < 2:\n"
+                    "        raise ValueError('hacen falta al menos dos bordes')\n"
+                    "    conteos = [0] * (len(bordes) - 1)\n"
+                    "    for v in valores:\n"
+                    "        if v < bordes[0]:\n"
+                    "            i = 0\n"
+                    "        elif v >= bordes[-1]:\n"
+                    "            i = len(conteos) - 1\n"
+                    "        else:\n"
+                    "            i = 0\n"
+                    "            while v >= bordes[i + 1]:\n"
+                    "                i += 1\n"
+                    "        conteos[i] += 1\n"
+                    "    return conteos\n"
+                    "\n"
+                    "\n"
+                    "import math\n"
+                    "\n"
+                    "\n"
+                    "def psi(referencia, actual):\n"
+                    "    if len(referencia) != len(actual):\n"
+                    "        raise ValueError('los histogramas no tienen los mismos tramos')\n"
+                    "    total_e, total_a = sum(referencia), sum(actual)\n"
+                    "    if total_e == 0 or total_a == 0:\n"
+                    "        raise ValueError('no hay datos que comparar')\n"
+                    "    acumulado = 0.0\n"
+                    "    for e, a in zip(referencia, actual):\n"
+                    "        pe = max(e / total_e, 1e-6)\n"
+                    "        pa = max(a / total_a, 1e-6)\n"
+                    "        acumulado += (pa - pe) * math.log(pa / pe)\n"
+                    "    return acumulado\n"
+                    "\n"
+                    "\n"
+                    "def severidad(valor):\n"
+                    "    if valor >= 0.25:\n"
+                    "        return 'critico'\n"
+                    "    if valor >= 0.1:\n"
+                    "        return 'aviso'\n"
+                    "    return None\n"
+                    "\n"
+                    "\n"
+                    "def vigilar_columna(valores, columna, minimo):\n"
+                    "    if len(valores) < minimo:\n"
+                    "        return None\n"
+                    "    conteos = histograma(valores, columna['bordes'])\n"
+                    "    valor = psi(columna['conteos'], conteos)\n"
+                    "    sev = severidad(valor)\n"
+                    "    if sev is None:\n"
+                    "        return None\n"
+                    "    return {'psi': round(valor, 4), 'severidad': sev}\n"
+                    "\n"
+                    "\n"
+                    "def monitorear(log, referencia, config):\n"
+                    "    # TODO: resumen del servicio y alerta de tasa de error\n"
+                    "    # TODO: quedarse con los 200; si no llegan al minimo, alerta de muestra y parar\n"
+                    "    # TODO: vigilar cada columna del orden y la prediccion\n"
+                    "    # TODO: ordenar dejando lo critico delante\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "atendidas = [r for r in log if r['codigo'] == 200] y el minimo se compara contra len(atendidas).",
+                    "Para la columna i: valores = [r['entrada'][i] for r in atendidas], con i = config['orden'].index(nombre) o un enumerate.",
+                    "Cada alerta de drift es {'tipo': 'drift', 'columna': nombre, **resultado} usando lo que devolvio vigilar_columna.",
+                    "alertas = sorted(alertas, key=lambda a: 0 if a['severidad'] == 'critico' else 1) conserva el orden dentro de cada nivel.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "log sano: resumen y ninguna alerta",
+                        "code": (
+                            "referencia = {\n"
+                            "    'columnas': {'importe': {'bordes': [0, 50, 100, 200], 'conteos': [10, 40, 30]},\n"
+                            "                 'pais': {'bordes': [0, 1, 2, 3], 'conteos': [10, 40, 30]}},\n"
+                            "    'prediccion': {'bordes': [0, 0.25, 0.5, 1], 'conteos': [10, 40, 30]},\n"
+                            "}\n"
+                            "config = {'orden': ['importe', 'pais'], 'minimo': 4, 'tasa_error_maxima': 0.2}\n"
+                            "log = [{'codigo': 200, 'entrada': [10.0, 0.0], 'prediccion': 0.1} for _ in range(10)]\n"
+                            "log += [{'codigo': 200, 'entrada': [60.0, 1.0], 'prediccion': 0.3} for _ in range(40)]\n"
+                            "log += [{'codigo': 200, 'entrada': [150.0, 2.0], 'prediccion': 0.8} for _ in range(30)]\n"
+                            "r = monitorear(log, referencia, config)\n"
+                            "assert r['resumen'] == {'peticiones': 80, 'por_codigo': {200: 80}, 'tasa_error': 0.0}, r['resumen']\n"
+                            "assert r['alertas'] == [], r['alertas']\n"
+                        ),
+                    },
+                    {
+                        "name": "muestra insuficiente: ni se mira el drift",
+                        "code": (
+                            "referencia = {\n"
+                            "    'columnas': {'importe': {'bordes': [0, 50, 100, 200], 'conteos': [10, 40, 30]},\n"
+                            "                 'pais': {'bordes': [0, 1, 2, 3], 'conteos': [10, 40, 30]}},\n"
+                            "    'prediccion': {'bordes': [0, 0.25, 0.5, 1], 'conteos': [10, 40, 30]},\n"
+                            "}\n"
+                            "config = {'orden': ['importe', 'pais'], 'minimo': 4, 'tasa_error_maxima': 0.2}\n"
+                            "log = [{'codigo': 200, 'entrada': [10.0, 0.0], 'prediccion': 0.1}] * 3\n"
+                            "r = monitorear(log, referencia, config)\n"
+                            "assert r['alertas'] == [{'tipo': 'muestra', 'valor': 3, 'severidad': 'aviso'}], r['alertas']\n"
+                            "assert r['resumen']['peticiones'] == 3, r['resumen']\n"
+                            "r = monitorear([], referencia, config)\n"
+                            "assert r['alertas'] == [{'tipo': 'muestra', 'valor': 0, 'severidad': 'aviso'}], r['alertas']\n"
+                            "assert r['resumen'] == {'peticiones': 0, 'por_codigo': {}, 'tasa_error': 0.0}, r['resumen']\n"
+                        ),
+                    },
+                    {
+                        "name": "drift de una columna y de la prediccion",
+                        "code": (
+                            "referencia = {\n"
+                            "    'columnas': {'importe': {'bordes': [0, 50, 100, 200], 'conteos': [10, 40, 30]},\n"
+                            "                 'pais': {'bordes': [0, 1, 2, 3], 'conteos': [10, 40, 30]}},\n"
+                            "    'prediccion': {'bordes': [0, 0.25, 0.5, 1], 'conteos': [10, 40, 30]},\n"
+                            "}\n"
+                            "config = {'orden': ['importe', 'pais'], 'minimo': 4, 'tasa_error_maxima': 0.2}\n"
+                            "log = [{'codigo': 200, 'entrada': [10.0, 0.0], 'prediccion': 0.1} for _ in range(60)]\n"
+                            "log += [{'codigo': 200, 'entrada': [60.0, 1.0], 'prediccion': 0.3} for _ in range(20)]\n"
+                            "r = monitorear(log, referencia, config)\n"
+                            "tipos = [(a['tipo'], a.get('columna'), a['severidad']) for a in r['alertas']]\n"
+                            "assert ('drift', 'importe', 'critico') in tipos, tipos\n"
+                            "assert ('drift', 'prediccion', 'critico') in tipos, tipos\n"
+                            "assert all(a['psi'] > 0.25 for a in r['alertas'] if a['tipo'] == 'drift'), r['alertas']\n"
+                        ),
+                    },
+                    {
+                        "name": "la tasa de error es lo primero",
+                        "code": (
+                            "referencia = {\n"
+                            "    'columnas': {'importe': {'bordes': [0, 50, 100, 200], 'conteos': [10, 40, 30]},\n"
+                            "                 'pais': {'bordes': [0, 1, 2, 3], 'conteos': [10, 40, 30]}},\n"
+                            "    'prediccion': {'bordes': [0, 0.25, 0.5, 1], 'conteos': [10, 40, 30]},\n"
+                            "}\n"
+                            "config = {'orden': ['importe', 'pais'], 'minimo': 4, 'tasa_error_maxima': 0.2}\n"
+                            "log = [{'codigo': 200, 'entrada': [10.0, 0.0], 'prediccion': 0.1} for _ in range(10)]\n"
+                            "log += [{'codigo': 200, 'entrada': [60.0, 1.0], 'prediccion': 0.3} for _ in range(40)]\n"
+                            "log += [{'codigo': 200, 'entrada': [150.0, 2.0], 'prediccion': 0.8} for _ in range(30)]\n"
+                            "log += [{'codigo': 422, 'errores': ['importe: se esperaba numero']} for _ in range(40)]\n"
+                            "r = monitorear(log, referencia, config)\n"
+                            "assert r['alertas'][0] == {'tipo': 'errores', 'valor': 0.3333, 'severidad': 'critico'}, r['alertas']\n"
+                            "assert len(r['alertas']) == 1, 'los 200 siguen sin drift: no se inventan alertas'\n"
+                            "assert r['resumen']['por_codigo'] == {200: 80, 422: 40}, r['resumen']\n"
+                        ),
+                    },
+                    {
+                        "name": "lo critico primero, sin barajar el resto",
+                        "code": (
+                            "referencia = {\n"
+                            "    'columnas': {'a': {'bordes': [0, 1, 2], 'conteos': [50, 50]},\n"
+                            "                 'b': {'bordes': [0, 1, 2], 'conteos': [50, 50]}},\n"
+                            "    'prediccion': {'bordes': [0, 1, 2], 'conteos': [50, 50]},\n"
+                            "}\n"
+                            "config = {'orden': ['a', 'b'], 'minimo': 10, 'tasa_error_maxima': 0.5}\n"
+                            "log = [{'codigo': 200, 'entrada': [0.0, 1.5], 'prediccion': 0.5} for _ in range(70)]\n"
+                            "log += [{'codigo': 200, 'entrada': [1.5, 1.5], 'prediccion': 0.5} for _ in range(30)]\n"
+                            "r = monitorear(log, referencia, config)\n"
+                            "cols = [(a['columna'], a['severidad']) for a in r['alertas']]\n"
+                            "assert cols == [('b', 'critico'), ('prediccion', 'critico'), ('a', 'aviso')], cols\n"
+                            "assert all(a['tipo'] == 'drift' for a in r['alertas'])\n"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
