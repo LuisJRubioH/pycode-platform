@@ -18345,6 +18345,763 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="MLOps 5 · CI/CD de modelos: de candidato a produccion",
+        description=(
+            "La decision de desplegar, escrita como codigo: puerta de calidad, "
+            "champion contra challenger con margen, rollout por porcentajes con huella "
+            "del id, criterio de rollback y una tuberia con cuatro finales."
+        ),
+        content=(
+            "# MLOps 5: CI/CD de modelos, de candidato a produccion\n"
+            "\n"
+            "En MLOps 2 el mejor run quedo registrado como una version en `staging`. En MLOps 3 aprendio a atender peticiones y en MLOps 4 a vigilarse. Falta la decision que nadie quiere firmar a mano un viernes: **¿esta version sustituye a la que hay sirviendo?** Esta leccion escribe esa decision como codigo, con sus reglas, su reparto de trafico y su marcha atras.\n"
+            "\n"
+            "## Por que la decision no puede ser de alguien mirando una metrica\n"
+            "\n"
+            "El candidato de Nebula tiene un AUC de 0.87 y el modelo que sirve hoy tiene 0.86. ¿Se despliega? Con esa pregunta sobre la mesa aparecen siempre las mismas tres trampas:\n"
+            "\n"
+            "1. **El 0.01 de mas es ruido.** Con 400 casos de test, esa diferencia cabe entera dentro del azar.\n"
+            "2. **Nadie comparo contra lo correcto.** El liston no es 0.8 ni lo que diga el ticket: es **el modelo que ya esta sirviendo**.\n"
+            "3. **Si sale mal, la vuelta atras se improvisa.** A las dos de la mañana, con el trafico entrando.\n"
+            "\n"
+            "Lo que sigue convierte cada una de esas trampas en una regla que se cumple o no se cumple, y que corre igual el martes que el viernes. Al terminar tendras un `desplegar` que rechaza, promueve o da marcha atras, y que deja escrito por que.\n"
+            "\n"
+            "## La puerta de calidad: reglas escritas, no criterio\n"
+            "\n"
+            "Una **puerta de calidad** es una lista de requisitos que el candidato cumple o no. Se escriben como datos, igual que el contrato de MLOps 3, y se revisan **todos**: quien entrega el modelo quiere la lista completa de lo que le falta, no el primer problema.\n"
+            "\n"
+            "```python\n"
+            "requisitos = {'auc': {'minimo': 0.85},                               # cuanto hay que acertar como minimo\n"
+            "              'latencia_ms': {'maximo': 200}}                        # y en cuanto tiempo como maximo\n"
+            "\n"
+            "def revisar_requisitos(metricas, requisitos):                        # la puerta, escrita una vez\n"
+            "    motivos = []                                                     # se acumulan, como los errores de MLOps 3\n"
+            "    for nombre, regla in requisitos.items():                         # el orden del diccionario manda\n"
+            "        if nombre not in metricas:                                   # el caso que mas se cuela\n"
+            "            motivos.append(f'{nombre}: no medida')                   # no medir no es aprobar\n"
+            "        elif 'minimo' in regla and metricas[nombre] < regla['minimo']: # elif: un motivo por requisito\n"
+            "            motivos.append(f\"{nombre}: {metricas[nombre]} < {regla['minimo']}\") # el motivo dice el numero y el liston\n"
+            "        elif 'maximo' in regla and metricas[nombre] > regla['maximo']: # el mismo requisito puede traer los dos\n"
+            "            motivos.append(f\"{nombre}: {metricas[nombre]} > {regla['maximo']}\")\n"
+            "    return motivos                                                   # vacia = pasa\n"
+            "\n"
+            "print(revisar_requisitos({'auc': 0.87, 'latencia_ms': 120}, requisitos))   # []: pasa\n"
+            "print(revisar_requisitos({'auc': 0.81, 'latencia_ms': 350}, requisitos))   # las dos razones, no la primera\n"
+            "print(revisar_requisitos({'auc': 0.9}, requisitos))                       # ['latencia_ms: no medida']\n"
+            "```\n"
+            "\n"
+            "Que una metrica **no este medida** cuente como fallo es lo que impide el truco mas comun: quitar del informe la metrica incomoda. Y como los motivos son texto, la puerta explica su decision sin que nadie tenga que leer el codigo.\n"
+            "\n"
+            "## Champion y challenger: el liston es lo que ya sirve\n"
+            "\n"
+            "El modelo en produccion es el **champion**; el candidato que quiere sustituirlo, el **challenger**. Se comparan sobre el mismo conjunto de test, y para promover no basta con ganar: hay que ganar por un **margen**, porque una diferencia diminuta es ruido de muestreo.\n"
+            "\n"
+            "```python\n"
+            "def comparar_modelos(campeon, retador, metrica, margen, mayor_es_mejor=True): # por defecto, mas alto es mejor\n"
+            "    if metrica not in campeon or metrica not in retador:             # tiene que estar medida en los dos\n"
+            "        raise ValueError(f'{metrica}: no medida en los dos modelos')  # sin el mismo numero no hay comparacion\n"
+            "    delta = retador[metrica] - campeon[metrica]                      # cuanto mejora el retador\n"
+            "    if not mayor_es_mejor:                                           # con una perdida, bajar es mejorar\n"
+            "        delta = -delta                                               # invertido: el resto del codigo no se entera\n"
+            "    return {'delta': round(delta, 4), 'gana': delta >= margen}       # ganar por menos del margen no cuenta\n"
+            "\n"
+            "print(comparar_modelos({'auc': 0.86}, {'auc': 0.87}, 'auc', 0.02))   # {'delta': 0.01, 'gana': False}: ruido\n"
+            "print(comparar_modelos({'auc': 0.86}, {'auc': 0.91}, 'auc', 0.02))   # {'delta': 0.05, 'gana': True}\n"
+            "print(comparar_modelos({'perdida': 0.30}, {'perdida': 0.22},              # bajar la perdida es mejorar\n"
+            "                       'perdida', 0.05, mayor_es_mejor=False))        # {'delta': 0.08, 'gana': True}\n"
+            "```\n"
+            "\n"
+            "`mayor_es_mejor=False` existe porque la mitad de las metricas se leen al reves: en el AUC gana el mas alto y en la perdida el mas bajo. Y el **primer** modelo de todos no tiene contra quien competir: cuando no hay champion, la comparacion se salta y basta con la puerta de calidad.\n"
+            "\n"
+            "## Repartir el trafico sin sorteos\n"
+            "\n"
+            "Aunque gane en el test, el challenger no se lleva el 100% del trafico de golpe: se le da **1%, luego 10%, luego 50%**. Y el reparto no se sortea con `random`, se calcula con una huella del id de la peticion, por dos motivos que importan.\n"
+            "\n"
+            "```python\n"
+            "import hashlib                                                       # la misma huella de MLOps 1 y 2\n"
+            "\n"
+            "def asignar_variante(peticion_id, porcentaje):                       # que variante atiende esta peticion\n"
+            "    if not 0 <= porcentaje <= 100:                                   # un porcentaje imposible es un error, no un 0\n"
+            "        raise ValueError('el porcentaje va de 0 a 100')\n"
+            "    huella = hashlib.sha256(peticion_id.encode('utf-8')).hexdigest() # texto -> huella estable\n"
+            "    cubo = int(huella, 16) % 100                                     # huella -> un cubo de 0 a 99\n"
+            "    return 'challenger' if cubo < porcentaje else 'champion'         # los cubos bajos entran primero\n"
+            "\n"
+            "print(asignar_variante('p-1', 0), asignar_variante('p-1', 100))      # champion challenger\n"
+            "print(asignar_variante('p-1', 10) == asignar_variante('p-1', 10))    # True: el mismo id, siempre lo mismo\n"
+            "ids = [f'p-{i}' for i in range(2000)]                                # dos mil peticiones\n"
+            "diez = {i for i in ids if asignar_variante(i, 10) == 'challenger'}   # quienes entran con el 10%...\n"
+            "cincuenta = {i for i in ids if asignar_variante(i, 50) == 'challenger'} # ...y quienes con el 50%\n"
+            "print(round(len(diez) / len(ids), 3))                                # ~0.1: el reparto sale en su sitio\n"
+            "print(diez <= cincuenta)                                             # True: al subir al 50% nadie sale del grupo\n"
+            "```\n"
+            "\n"
+            "El primero: **el mismo usuario ve siempre la misma version**, porque su id cae siempre en el mismo cubo; con `random` le tocaria una distinta en cada peticion y la experiencia seria un sorteo. El segundo: **al ampliar del 10% al 50% nadie se sale**, solo entran mas, asi que la comparacion no se reinicia a cada paso.\n"
+            "\n"
+            "## Cuando dar marcha atras\n"
+            "\n"
+            "Durante el rollout las dos versiones sirven a la vez, y cada una deja su log de MLOps 3. Comparar sus tasas de error es lo que decide seguir o volver — con la misma cautela de MLOps 4: **con poca muestra no se decide nada**.\n"
+            "\n"
+            "```python\n"
+            "def tasa_error(log):                                                 # la misma cuenta de MLOps 4\n"
+            "    if not log:                                                      # sin peticiones no hay tasa\n"
+            "        return 0.0                                                   # sin peticiones, sin errores\n"
+            "    return sum(1 for r in log if r['codigo'] >= 400) / len(log)      # 4xx y 5xx, como en MLOps 4\n"
+            "\n"
+            "def evaluar_rollout(log_champion, log_challenger, minimo, tolerancia): # que hacer con este paso\n"
+            "    if len(log_champion) < minimo or len(log_challenger) < minimo:   # los dos lados necesitan muestra\n"
+            "        return 'sin datos'                                           # todavia no toca opinar\n"
+            "    if tasa_error(log_challenger) > tasa_error(log_champion) + tolerancia: # peor que el campeon, y no por poco\n"
+            "        return 'rollback'                                            # el nuevo rompe mas: fuera\n"
+            "    return 'seguir'                                                  # aguanta: se le puede dar mas trafico\n"
+            "\n"
+            "bueno = [{'codigo': 200}] * 95 + [{'codigo': 500}] * 5               # 5% de errores\n"
+            "malo = [{'codigo': 200}] * 80 + [{'codigo': 500}] * 20               # 20% de errores\n"
+            "print(evaluar_rollout(bueno, malo, 50, 0.02))                        # rollback\n"
+            "print(evaluar_rollout(bueno, bueno, 50, 0.02))                       # seguir\n"
+            "print(evaluar_rollout(bueno, malo, 500, 0.02))                       # sin datos: 100 peticiones no bastan\n"
+            "```\n"
+            "\n"
+            "La **tolerancia** evita el rollback nervioso: dos errores de diferencia en cien peticiones no son una regresion. Y `'sin datos'` es su propia respuesta, distinta de `'seguir'`: no es que vaya bien, es que todavia no se sabe, y con eso no se amplia el trafico.\n"
+            "\n"
+            "## Promover es cambiar una etapa, no sobrescribir un archivo\n"
+            "\n"
+            "Cuando el rollout termina bien, promover es exactamente lo que ya hacia el registro de MLOps 2: la version nueva pasa a `production` y la anterior se **archiva**, no se borra. Por eso el rollback es barato.\n"
+            "\n"
+            "```python\n"
+            "registro = [{'version': 1, 'run_id': 'run-7', 'etapa': 'production'},   # el champion de hoy\n"
+            "            {'version': 2, 'run_id': 'run-9', 'etapa': 'staging'}]     # el challenger\n"
+            "\n"
+            "def promover(registro, version):                                     # el registro de MLOps 2, tal cual\n"
+            "    for v in registro:                                               # solo una version en produccion\n"
+            "        if v['etapa'] == 'production':\n"
+            "            v['etapa'] = 'archivado'                                 # la anterior se guarda, no se pierde\n"
+            "    registro[version - 1]['etapa'] = 'production'                    # la version N esta en la posicion N-1\n"
+            "\n"
+            "promover(registro, 2)                                                # el challenger pasa a produccion\n"
+            "print([(v['version'], v['etapa']) for v in registro])                # [(1, 'archivado'), (2, 'production')]\n"
+            "promover(registro, 1)                                                # rollback: volver al de siempre\n"
+            "print([(v['version'], v['etapa']) for v in registro])                # [(1, 'production'), (2, 'archivado')]\n"
+            "```\n"
+            "\n"
+            "Un despliegue que consiste en copiar `modelo.pkl` encima del anterior no tiene esta propiedad: la marcha atras exige encontrar el archivo viejo, si es que alguien lo guardo. Con etapas, volver es una linea.\n"
+            "\n"
+            "## La tuberia entera y sus cuatro finales\n"
+            "\n"
+            "Todo junto es una funcion que recibe al candidato y devuelve **siempre la misma forma**: un estado, los motivos y el historial de lo que fue pasando. Cuatro finales posibles, y ninguno es una excepcion que alguien tenga que atrapar.\n"
+            "\n"
+            "```python\n"
+            "def desplegar_demo(candidato, campeon, pasos, medir_fn):             # la tuberia, recortada al esqueleto\n"
+            "    historial = []                                                   # lo que fue pasando, paso a paso\n"
+            "    if candidato['metricas']['auc'] < 0.85:                          # la puerta, resumida para el ejemplo\n"
+            "        return {'estado': 'rechazado', 'motivos': ['auc baja'], 'historial': historial}\n"
+            "    for porcentaje in pasos:                                         # 1% -> 10% -> 50%\n"
+            "        decision = medir_fn(porcentaje)                              # lo que digan los logs de ese paso\n"
+            "        historial.append({'porcentaje': porcentaje, 'decision': decision}) # queda escrito aunque se pare aqui\n"
+            "        if decision != 'seguir':                                     # rollback o sin datos: se para aqui\n"
+            "            estado = 'rollback' if decision == 'rollback' else 'pausado' # romper y no saber no son lo mismo\n"
+            "            return {'estado': estado, 'motivos': [], 'historial': historial}\n"
+            "    return {'estado': 'promovido', 'motivos': [], 'historial': historial} # todos los pasos aguantaron\n"
+            "\n"
+            "bueno = {'metricas': {'auc': 0.9}}                                   # un candidato que pasa la puerta\n"
+            "print(desplegar_demo(bueno, None, [1, 10, 50], lambda p: 'seguir')['estado'])        # promovido\n"
+            "print(desplegar_demo(bueno, None, [1, 10, 50], lambda p: 'rollback')['historial'])   # se paro en el 1%\n"
+            "print(desplegar_demo({'metricas': {'auc': 0.5}}, None, [1], lambda p: 'seguir'))     # rechazado, sin tocar trafico\n"
+            "```\n"
+            "\n"
+            "Los cuatro finales dicen cosas distintas y se tratan distinto: **rechazado** (no paso la puerta, el trafico ni se toco), **rollback** (rompia mas y se volvio atras), **pausado** (no hay datos suficientes todavia, se espera) y **promovido**. Meter los cuatro en un `True`/`False` es perder justo la informacion por la que se monta todo esto.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            '- **Comparar contra un numero fijo.** "AUC mayor que 0.8" aprueba un modelo peor que el que ya sirve. El liston es el champion, medido sobre el mismo test.\n'
+            "- **Promover por una mejora minuscula.** Un +0.002 es ruido de muestreo y cuesta un despliegue entero. Exige un margen y escribelo en la configuracion.\n"
+            "- **Repartir el trafico con `random`.** El mismo usuario veria una version distinta en cada peticion y al ampliar el porcentaje cambiaria el grupo entero. Usa una huella del id: estable y monotona.\n"
+            '- **Tratar "sin datos" como "va bien".** Si el paso del 1% acumulo 30 peticiones, no ha demostrado nada. Estado propio y a esperar, sin ampliar.\n'
+            "- **Dar marcha atras al primer error.** Sin tolerancia, un 500 aislado tumba el despliegue. Compara tasas con un margen.\n"
+            "- **Desplegar sobrescribiendo el artefacto.** Sin la version anterior registrada no hay rollback, solo un reentrenamiento de urgencia.\n"
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **Puerta de calidad**: requisitos como datos, todos los motivos juntos y una metrica no medida cuenta como fallo.\n"
+            "- **Champion/challenger**: se compara contra lo que sirve hoy, con un margen y sabiendo si la metrica se lee al alza o a la baja.\n"
+            "- **Rollout**: 1% -> 10% -> 50% con `sha256(id) % 100`, que es estable por usuario y monotono al ampliar.\n"
+            "- **Rollback**: tasas de error con tolerancia y un minimo de peticiones; `'sin datos'` no es `'seguir'`.\n"
+            "- **Promover**: cambiar la etapa en el registro y archivar la anterior, que es lo que hace barata la vuelta atras.\n"
+            "- **La tuberia**: misma forma siempre (`estado`, `motivos`, `historial`) y cuatro finales: rechazado, rollback, pausado, promovido.\n"
+        ),
+        difficulty="intermediate",
+        category="mlops",
+        order=48,
+        track="track-6",
+        estimated_duration=65,
+        prerequisites_titles=[
+            "MLOps 4 · Monitoreo y drift: cuando el modelo deja de servir"
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Revisar los requisitos",
+                description="La lista completa de lo que le falta al candidato.",
+                instructions=(
+                    "Implementa `revisar_requisitos(metricas, requisitos)` que devuelva la lista de motivos por los que un candidato no pasa. `requisitos` es `{nombre: regla}`, donde la regla puede traer `'minimo'`, `'maximo'` o los dos.\n"
+                    "\n"
+                    "Recorre los requisitos **en su orden** y, por cada uno:\n"
+                    "\n"
+                    "- si la metrica no esta en `metricas`, anade `f'{nombre}: no medida'` (no medir no es aprobar);\n"
+                    "- si hay `'minimo'` y el valor es **menor**, anade `f\"{nombre}: {valor} < {minimo}\"`;\n"
+                    "- si no, si hay `'maximo'` y el valor es **mayor**, anade `f\"{nombre}: {valor} > {maximo}\"`.\n"
+                    "\n"
+                    "Un requisito aporta **como mucho un motivo**. Si el candidato cumple todo, devuelve la lista vacia.\n"
+                    "\n"
+                    "Ejemplo: con `{'auc': {'minimo': 0.85}, 'latencia_ms': {'maximo': 200}}` y unas metricas `{'auc': 0.81, 'latencia_ms': 350}` devuelve `['auc: 0.81 < 0.85', 'latencia_ms: 350 > 200']`."
+                ),
+                starter_code=(
+                    "def revisar_requisitos(metricas, requisitos):\n"
+                    "    # TODO: recorrer los requisitos y acumular los motivos\n"
+                    "    # TODO: no medida / por debajo del minimo / por encima del maximo\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "motivos = [] y un for nombre, regla in requisitos.items(): al final return motivos.",
+                    "Primero if nombre not in metricas, y el resto con elif para que solo salga un motivo por requisito.",
+                    "'minimo' in regla and metricas[nombre] < regla['minimo'] es la condicion del segundo caso.",
+                    "Los mensajes salen de f-strings: f'{nombre}: no medida' y f\"{nombre}: {metricas[nombre]} < {regla['minimo']}\".",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "pasa y no pasa",
+                        "code": (
+                            "requisitos = {'auc': {'minimo': 0.85}, 'latencia_ms': {'maximo': 200}}\n"
+                            "assert revisar_requisitos({'auc': 0.87, 'latencia_ms': 120}, requisitos) == []\n"
+                            "r = revisar_requisitos({'auc': 0.81, 'latencia_ms': 350}, requisitos)\n"
+                            "assert r == ['auc: 0.81 < 0.85', 'latencia_ms: 350 > 200'], r\n"
+                            "assert revisar_requisitos({'auc': 0.85, 'latencia_ms': 200}, requisitos) == [], 'el limite justo pasa'\n"
+                        ),
+                    },
+                    {
+                        "name": "una metrica que falta es un fallo",
+                        "code": (
+                            "requisitos = {'auc': {'minimo': 0.85}, 'latencia_ms': {'maximo': 200}}\n"
+                            "assert revisar_requisitos({'auc': 0.9}, requisitos) == ['latencia_ms: no medida']\n"
+                            "assert revisar_requisitos({}, requisitos) == ['auc: no medida', 'latencia_ms: no medida']\n"
+                            "assert revisar_requisitos({'auc': 0.9, 'latencia_ms': 10}, {}) == [], 'sin requisitos no hay motivos'\n"
+                        ),
+                    },
+                    {
+                        "name": "un requisito, un motivo",
+                        "code": (
+                            "requisitos = {'error': {'minimo': 0.0, 'maximo': 0.1}}\n"
+                            "assert revisar_requisitos({'error': 0.05}, requisitos) == []\n"
+                            "assert revisar_requisitos({'error': 0.4}, requisitos) == ['error: 0.4 > 0.1']\n"
+                            "assert revisar_requisitos({'error': -1}, requisitos) == ['error: -1 < 0.0']\n"
+                            "assert len(revisar_requisitos({'error': -1}, requisitos)) == 1, 'como mucho un motivo por requisito'\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Repartir el trafico",
+                description="Asignar cada peticion a una variante sin sortearla.",
+                instructions=(
+                    "Implementa `asignar_variante(peticion_id, porcentaje)` que devuelva `'challenger'` o `'champion'`.\n"
+                    "\n"
+                    "1. Si `porcentaje` no esta entre 0 y 100 (ambos incluidos), lanza `ValueError`.\n"
+                    "2. Calcula la huella `hashlib.sha256(peticion_id.encode('utf-8')).hexdigest()`.\n"
+                    "3. Conviertela a numero con `int(huella, 16)` y quedate con `% 100`: el **cubo** de esa peticion, de 0 a 99.\n"
+                    "4. Devuelve `'challenger'` si el cubo es **menor** que `porcentaje`, y `'champion'` si no.\n"
+                    "\n"
+                    "Asi el reparto tiene dos propiedades que un `random` no da: el mismo id cae siempre en la misma variante, y al subir el porcentaje solo entra gente nueva, nadie sale.\n"
+                    "\n"
+                    "Ejemplo: con `porcentaje` 0 todas las peticiones son `'champion'`; con 100, todas `'challenger'`."
+                ),
+                starter_code=(
+                    "import hashlib\n"
+                    "\n"
+                    "\n"
+                    "def asignar_variante(peticion_id, porcentaje):\n"
+                    "    # TODO: ValueError si el porcentaje se sale de 0..100\n"
+                    "    # TODO: huella sha256 del id -> cubo de 0 a 99 -> variante\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "if not 0 <= porcentaje <= 100: raise ValueError(...) va lo primero.",
+                    "hashlib.sha256 necesita bytes: peticion_id.encode('utf-8').",
+                    "int(huella, 16) lee la huella como numero en base 16; el % 100 lo mete en 0..99.",
+                    "return 'challenger' if cubo < porcentaje else 'champion'",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "los extremos y el porcentaje invalido",
+                        "code": (
+                            "ids = [f'p-{i}' for i in range(200)]\n"
+                            "assert all(asignar_variante(i, 0) == 'champion' for i in ids), 'con 0 no entra nadie'\n"
+                            "assert all(asignar_variante(i, 100) == 'challenger' for i in ids), 'con 100 entran todos'\n"
+                            "for p in (-1, 101, 150):\n"
+                            "    try:\n"
+                            "        asignar_variante('p-1', p)\n"
+                            "        raise AssertionError(f'{p} deberia lanzar ValueError')\n"
+                            "    except ValueError:\n"
+                            "        pass\n"
+                        ),
+                    },
+                    {
+                        "name": "estable y monotono",
+                        "code": (
+                            "ids = [f'p-{i}' for i in range(2000)]\n"
+                            "assert all(asignar_variante(i, 10) == asignar_variante(i, 10) for i in ids), 'el mismo id, lo mismo'\n"
+                            "diez = {i for i in ids if asignar_variante(i, 10) == 'challenger'}\n"
+                            "cincuenta = {i for i in ids if asignar_variante(i, 50) == 'challenger'}\n"
+                            "assert diez <= cincuenta, 'al ampliar el porcentaje nadie sale del grupo'\n"
+                            "assert len(diez) < len(cincuenta), 'y entra gente nueva'\n"
+                        ),
+                    },
+                    {
+                        "name": "el reparto sale en su sitio",
+                        "code": (
+                            "ids = [f'peticion-{i}' for i in range(4000)]\n"
+                            "for p in (10, 50, 90):\n"
+                            "    n = sum(1 for i in ids if asignar_variante(i, p) == 'challenger')\n"
+                            "    assert abs(n / len(ids) * 100 - p) < 3, (p, n / len(ids))\n"
+                            "assert asignar_variante('p-1', 30) in ('champion', 'challenger')\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="La puerta de calidad",
+                description="Requisitos y tamano del test, con el veredicto y sus motivos.",
+                instructions=(
+                    "Implementa `puerta_de_calidad(candidato, requisitos, minimo_casos)`. `revisar_requisitos` ya viene escrita.\n"
+                    "\n"
+                    "`candidato` es un diccionario con `'metricas'` (otro diccionario) y `'casos'` (cuantos casos de test se usaron para medirlo).\n"
+                    "\n"
+                    "1. Empieza por los motivos que devuelva `revisar_requisitos`, en ese orden.\n"
+                    "2. Si `candidato['casos']` es **menor** que `minimo_casos`, anade al final `f\"casos: {candidato['casos']} < {minimo_casos}\"`: una metrica medida sobre cuatro casos no demuestra nada, por buena que sea.\n"
+                    "3. Devuelve `{'pasa': <True si no hay ningun motivo>, 'motivos': <la lista>}`.\n"
+                    "\n"
+                    "Ejemplo: un candidato con `auc` 0.9 y 400 casos, contra `{'auc': {'minimo': 0.85}}` y un minimo de 100 casos, da `{'pasa': True, 'motivos': []}`."
+                ),
+                starter_code=(
+                    "def revisar_requisitos(metricas, requisitos):\n"
+                    "    motivos = []\n"
+                    "    for nombre, regla in requisitos.items():\n"
+                    "        if nombre not in metricas:\n"
+                    "            motivos.append(f'{nombre}: no medida')\n"
+                    "        elif 'minimo' in regla and metricas[nombre] < regla['minimo']:\n"
+                    "            motivos.append(f\"{nombre}: {metricas[nombre]} < {regla['minimo']}\")\n"
+                    "        elif 'maximo' in regla and metricas[nombre] > regla['maximo']:\n"
+                    "            motivos.append(f\"{nombre}: {metricas[nombre]} > {regla['maximo']}\")\n"
+                    "    return motivos\n"
+                    "\n"
+                    "\n"
+                    "def puerta_de_calidad(candidato, requisitos, minimo_casos):\n"
+                    "    # TODO: los motivos de los requisitos, y despues el de los casos\n"
+                    "    # TODO: pasa solo si no hay ningun motivo\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "motivos = revisar_requisitos(candidato['metricas'], requisitos) ya te da la primera parte.",
+                    "El motivo de los casos va despues: motivos.append(...) solo si candidato['casos'] < minimo_casos.",
+                    "'pasa': not motivos aprovecha que una lista vacia es falsa.",
+                    "Devuelve el diccionario con las dos claves, siempre, tambien cuando pasa.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "pasa limpio",
+                        "code": (
+                            "requisitos = {'auc': {'minimo': 0.85}, 'latencia_ms': {'maximo': 200}}\n"
+                            "c = {'metricas': {'auc': 0.9, 'latencia_ms': 120}, 'casos': 400}\n"
+                            "assert puerta_de_calidad(c, requisitos, 100) == {'pasa': True, 'motivos': []}\n"
+                        ),
+                    },
+                    {
+                        "name": "pocos casos tumban un buen modelo",
+                        "code": (
+                            "requisitos = {'auc': {'minimo': 0.85}}\n"
+                            "c = {'metricas': {'auc': 0.99}, 'casos': 7}\n"
+                            "r = puerta_de_calidad(c, requisitos, 100)\n"
+                            "assert r == {'pasa': False, 'motivos': ['casos: 7 < 100']}, r\n"
+                            "c2 = {'metricas': {'auc': 0.99}, 'casos': 100}\n"
+                            "assert puerta_de_calidad(c2, requisitos, 100)['pasa'] is True, 'el minimo justo pasa'\n"
+                        ),
+                    },
+                    {
+                        "name": "los motivos se juntan y en orden",
+                        "code": (
+                            "requisitos = {'auc': {'minimo': 0.85}, 'latencia_ms': {'maximo': 200}}\n"
+                            "c = {'metricas': {'auc': 0.5}, 'casos': 10}\n"
+                            "r = puerta_de_calidad(c, requisitos, 100)\n"
+                            "assert r['pasa'] is False\n"
+                            "assert r['motivos'] == ['auc: 0.5 < 0.85', 'latencia_ms: no medida', 'casos: 10 < 100'], r['motivos']\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Champion contra challenger",
+                description="Comparar con margen, y en el sentido correcto de la metrica.",
+                instructions=(
+                    "Implementa `comparar_modelos(campeon, retador, metrica, margen, mayor_es_mejor=True)`. Los dos primeros argumentos son diccionarios de metricas.\n"
+                    "\n"
+                    "1. Si la metrica falta en cualquiera de los dos, lanza `ValueError`: sin el mismo numero medido en ambos no hay comparacion posible.\n"
+                    "2. Calcula `delta = retador[metrica] - campeon[metrica]`.\n"
+                    "3. Si `mayor_es_mejor` es `False` (una perdida, una latencia), cambiale el signo: bajar es mejorar.\n"
+                    "4. Devuelve `{'delta': <delta redondeado a 4 decimales>, 'gana': <True si delta >= margen>}`.\n"
+                    "\n"
+                    "Fijate en que se gana **por el margen o mas**: una mejora menor que el margen es ruido de muestreo y no justifica un despliegue.\n"
+                    "\n"
+                    "Ejemplo: `comparar_modelos({'auc': 0.86}, {'auc': 0.87}, 'auc', 0.02)` da `{'delta': 0.01, 'gana': False}`."
+                ),
+                starter_code=(
+                    "def comparar_modelos(campeon, retador, metrica, margen, mayor_es_mejor=True):\n"
+                    "    # TODO: ValueError si la metrica no esta en los dos\n"
+                    "    # TODO: delta, invertido si menor es mejor, y el veredicto con el margen\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "if metrica not in campeon or metrica not in retador: raise ValueError(...)",
+                    "delta = retador[metrica] - campeon[metrica]",
+                    "if not mayor_es_mejor: delta = -delta, y el resto del codigo no se entera.",
+                    "return {'delta': round(delta, 4), 'gana': delta >= margen}",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "gana, no gana y empata en el margen",
+                        "code": (
+                            "assert comparar_modelos({'auc': 0.86}, {'auc': 0.87}, 'auc', 0.02) == {'delta': 0.01, 'gana': False}\n"
+                            "assert comparar_modelos({'auc': 0.86}, {'auc': 0.91}, 'auc', 0.02) == {'delta': 0.05, 'gana': True}\n"
+                            "assert comparar_modelos({'auc': 0.86}, {'auc': 0.88}, 'auc', 0.02)['gana'] is True, 'el margen justo gana'\n"
+                            "assert comparar_modelos({'auc': 0.9}, {'auc': 0.7}, 'auc', 0.02) == {'delta': -0.2, 'gana': False}\n"
+                        ),
+                    },
+                    {
+                        "name": "metricas donde menor es mejor",
+                        "code": (
+                            "r = comparar_modelos({'perdida': 0.30}, {'perdida': 0.22}, 'perdida', 0.05, mayor_es_mejor=False)\n"
+                            "assert r == {'delta': 0.08, 'gana': True}, r\n"
+                            "r = comparar_modelos({'perdida': 0.30}, {'perdida': 0.42}, 'perdida', 0.05, mayor_es_mejor=False)\n"
+                            "assert r == {'delta': -0.12, 'gana': False}, r\n"
+                            "r = comparar_modelos({'perdida': 0.30}, {'perdida': 0.22}, 'perdida', 0.05)\n"
+                            "assert r['gana'] is False, 'por defecto mayor es mejor: bajar la perdida no gana'\n"
+                        ),
+                    },
+                    {
+                        "name": "sin la metrica en los dos no hay comparacion",
+                        "code": (
+                            "for campeon, retador in ([{'auc': 0.8}, {}], [{}, {'auc': 0.8}], [{'f1': 0.8}, {'auc': 0.9}]):\n"
+                            "    try:\n"
+                            "        comparar_modelos(campeon, retador, 'auc', 0.01)\n"
+                            "        raise AssertionError('deberia lanzar ValueError')\n"
+                            "    except ValueError:\n"
+                            "        pass\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Seguir, parar o volver atras",
+                description="Decidir un paso del rollout comparando los dos logs.",
+                instructions=(
+                    "Implementa `evaluar_rollout(log_champion, log_challenger, minimo, tolerancia)`, que decide que hacer en un paso del rollout mirando los logs de las dos variantes (peticiones con su `'codigo'`, como las de MLOps 3).\n"
+                    "\n"
+                    "Devuelve una de estas tres cadenas:\n"
+                    "\n"
+                    "- `'sin datos'` si **cualquiera** de los dos logs tiene menos de `minimo` peticiones. No es que vaya bien: es que todavia no se sabe.\n"
+                    "- `'rollback'` si la tasa de error del challenger supera la del champion **mas** la `tolerancia`.\n"
+                    "- `'seguir'` en cualquier otro caso.\n"
+                    "\n"
+                    "La tasa de error de un log es la proporcion de peticiones con codigo mayor o igual que 400, y la de un log vacio es `0.0`.\n"
+                    "\n"
+                    "Ejemplo: con un champion al 5% de errores, un challenger al 20% y tolerancia 0.02, devuelve `'rollback'`."
+                ),
+                starter_code=(
+                    "def tasa_error(log):\n"
+                    "    if not log:\n"
+                    "        return 0.0\n"
+                    "    return sum(1 for r in log if r['codigo'] >= 400) / len(log)\n"
+                    "\n"
+                    "\n"
+                    "def evaluar_rollout(log_champion, log_challenger, minimo, tolerancia):\n"
+                    "    # TODO: 'sin datos' si alguno no llega al minimo de peticiones\n"
+                    "    # TODO: 'rollback' si el challenger rompe mas alla de la tolerancia\n"
+                    "    # TODO: 'seguir' en el resto de casos\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "La comprobacion del minimo va la primera, antes de calcular ninguna tasa.",
+                    "len(log_champion) < minimo or len(log_challenger) < minimo cubre los dos logs.",
+                    "tasa_error(log_challenger) > tasa_error(log_champion) + tolerancia es la condicion del rollback.",
+                    "Si ninguna de las dos se cumple, el paso va bien: devuelve 'seguir'.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "las tres decisiones",
+                        "code": (
+                            "bueno = [{'codigo': 200}] * 95 + [{'codigo': 500}] * 5\n"
+                            "malo = [{'codigo': 200}] * 80 + [{'codigo': 500}] * 20\n"
+                            "assert evaluar_rollout(bueno, malo, 50, 0.02) == 'rollback'\n"
+                            "assert evaluar_rollout(bueno, bueno, 50, 0.02) == 'seguir'\n"
+                            "assert evaluar_rollout(bueno, malo, 500, 0.02) == 'sin datos', 'el minimo manda sobre todo lo demas'\n"
+                            "assert evaluar_rollout([], [], 1, 0.02) == 'sin datos'\n"
+                        ),
+                    },
+                    {
+                        "name": "la tolerancia y su limite",
+                        "code": (
+                            "champion = [{'codigo': 200}] * 90 + [{'codigo': 500}] * 10\n"
+                            "igual = [{'codigo': 200}] * 88 + [{'codigo': 500}] * 12\n"
+                            "assert evaluar_rollout(champion, igual, 50, 0.02) == 'seguir', 'justo en la tolerancia aguanta'\n"
+                            "peor = [{'codigo': 200}] * 87 + [{'codigo': 500}] * 13\n"
+                            "assert evaluar_rollout(champion, peor, 50, 0.02) == 'rollback'\n"
+                            "assert evaluar_rollout(champion, peor, 50, 0.1) == 'seguir', 'con mas tolerancia, aguanta'\n"
+                        ),
+                    },
+                    {
+                        "name": "mejorar nunca es rollback",
+                        "code": (
+                            "champion = [{'codigo': 200}] * 70 + [{'codigo': 422}] * 30\n"
+                            "mejor = [{'codigo': 200}] * 100\n"
+                            "assert evaluar_rollout(champion, mejor, 50, 0.0) == 'seguir'\n"
+                            "assert evaluar_rollout(mejor, champion, 50, 0.0) == 'rollback', 'y al reves si'\n"
+                            "assert evaluar_rollout(mejor, mejor, 50, 0.0) == 'seguir', 'dos logs perfectos siguen'\n"
+                        ),
+                    },
+                    {
+                        "name": "los 4xx tambien cuentan",
+                        "code": (
+                            "champion = [{'codigo': 200}] * 100\n"
+                            "challenger = [{'codigo': 200}] * 80 + [{'codigo': 422}] * 20\n"
+                            "assert evaluar_rollout(champion, challenger, 50, 0.02) == 'rollback', 'un 422 es un error'\n"
+                            "challenger = [{'codigo': 200}] * 80 + [{'codigo': 301}] * 20\n"
+                            "assert evaluar_rollout(champion, challenger, 50, 0.02) == 'seguir', 'un 301 no lo es'\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="La tuberia de despliegue",
+                description="De candidato a produccion: puerta, comparacion, rollout y final.",
+                instructions=(
+                    "Implementa `desplegar(candidato, campeon, config, medir_fn)`. Ya vienen escritas `revisar_requisitos`, `puerta_de_calidad`, `comparar_modelos`, `tasa_error` y `evaluar_rollout`.\n"
+                    "\n"
+                    "- `candidato` y `campeon` son diccionarios con `'metricas'` y `'casos'`; `campeon` puede ser `None` si todavia no hay nada en produccion.\n"
+                    "- `config` trae `'requisitos'`, `'minimo_casos'`, `'metrica'`, `'margen'`, `'pasos'` (la lista de porcentajes), `'minimo_peticiones'` y `'tolerancia'`.\n"
+                    "- `medir_fn(porcentaje)` devuelve `{'champion': <log>, 'challenger': <log>}` con lo que paso en ese paso del rollout.\n"
+                    "\n"
+                    "Devuelve **siempre** `{'estado': ..., 'motivos': [...], 'historial': [...]}`:\n"
+                    "\n"
+                    "1. Pasa la puerta de calidad. Si no pasa: estado `'rechazado'`, sus motivos y el historial vacio (el trafico no se toca).\n"
+                    "2. Si hay campeon, compara con `config['metrica']` y `config['margen']`. Si el candidato no gana: estado `'rechazado'` y motivos `[f\"no mejora al campeon: delta {delta}\"]`. Sin campeon, este paso se salta.\n"
+                    "3. Recorre `config['pasos']`. En cada uno llama a `medir_fn(porcentaje)`, decide con `evaluar_rollout(logs['champion'], logs['challenger'], config['minimo_peticiones'], config['tolerancia'])` y anade `{'porcentaje': porcentaje, 'decision': decision}` al historial.\n"
+                    "4. Si la decision es `'rollback'`, para ahi con estado `'rollback'`; si es `'sin datos'`, para con estado `'pausado'`. En los dos casos los motivos van vacios: el historial ya lo cuenta.\n"
+                    "5. Si todos los pasos dicen `'seguir'`, estado `'promovido'`.\n"
+                    "\n"
+                    "Los cuatro finales son `'rechazado'`, `'rollback'`, `'pausado'` y `'promovido'`."
+                ),
+                starter_code=(
+                    "def revisar_requisitos(metricas, requisitos):\n"
+                    "    motivos = []\n"
+                    "    for nombre, regla in requisitos.items():\n"
+                    "        if nombre not in metricas:\n"
+                    "            motivos.append(f'{nombre}: no medida')\n"
+                    "        elif 'minimo' in regla and metricas[nombre] < regla['minimo']:\n"
+                    "            motivos.append(f\"{nombre}: {metricas[nombre]} < {regla['minimo']}\")\n"
+                    "        elif 'maximo' in regla and metricas[nombre] > regla['maximo']:\n"
+                    "            motivos.append(f\"{nombre}: {metricas[nombre]} > {regla['maximo']}\")\n"
+                    "    return motivos\n"
+                    "\n"
+                    "\n"
+                    "def puerta_de_calidad(candidato, requisitos, minimo_casos):\n"
+                    "    motivos = revisar_requisitos(candidato['metricas'], requisitos)\n"
+                    "    if candidato['casos'] < minimo_casos:\n"
+                    "        motivos.append(f\"casos: {candidato['casos']} < {minimo_casos}\")\n"
+                    "    return {'pasa': not motivos, 'motivos': motivos}\n"
+                    "\n"
+                    "\n"
+                    "def comparar_modelos(campeon, retador, metrica, margen, mayor_es_mejor=True):\n"
+                    "    if metrica not in campeon or metrica not in retador:\n"
+                    "        raise ValueError(f'{metrica}: no medida en los dos modelos')\n"
+                    "    delta = retador[metrica] - campeon[metrica]\n"
+                    "    if not mayor_es_mejor:\n"
+                    "        delta = -delta\n"
+                    "    return {'delta': round(delta, 4), 'gana': delta >= margen}\n"
+                    "\n"
+                    "\n"
+                    "def tasa_error(log):\n"
+                    "    if not log:\n"
+                    "        return 0.0\n"
+                    "    return sum(1 for r in log if r['codigo'] >= 400) / len(log)\n"
+                    "\n"
+                    "\n"
+                    "def evaluar_rollout(log_champion, log_challenger, minimo, tolerancia):\n"
+                    "    if len(log_champion) < minimo or len(log_challenger) < minimo:\n"
+                    "        return 'sin datos'\n"
+                    "    if tasa_error(log_challenger) > tasa_error(log_champion) + tolerancia:\n"
+                    "        return 'rollback'\n"
+                    "    return 'seguir'\n"
+                    "\n"
+                    "\n"
+                    "def desplegar(candidato, campeon, config, medir_fn):\n"
+                    "    # TODO: puerta de calidad -> rechazado con sus motivos\n"
+                    "    # TODO: comparacion con el campeon, si lo hay\n"
+                    "    # TODO: recorrer los pasos, llamar a medir_fn y anotar el historial\n"
+                    "    # TODO: rollback / pausado / promovido\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "veredicto = puerta_de_calidad(candidato, config['requisitos'], config['minimo_casos']) y si no pasa, vuelve ya.",
+                    "La comparacion solo si campeon is not None: comparar_modelos(campeon['metricas'], candidato['metricas'], config['metrica'], config['margen']).",
+                    "historial = [] fuera del bucle; dentro, historial.append({'porcentaje': p, 'decision': decision}).",
+                    "Un solo return al final con 'promovido', y returns tempranos para rechazado, rollback y pausado.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "camino feliz: promovido",
+                        "code": (
+                            "config = {\n"
+                            "    'requisitos': {'auc': {'minimo': 0.85}},\n"
+                            "    'minimo_casos': 100,\n"
+                            "    'metrica': 'auc',\n"
+                            "    'margen': 0.02,\n"
+                            "    'pasos': [1, 10, 50],\n"
+                            "    'minimo_peticiones': 50,\n"
+                            "    'tolerancia': 0.02,\n"
+                            "}\n"
+                            "candidato = {'version': 2, 'metricas': {'auc': 0.90}, 'casos': 400}\n"
+                            "campeon = {'version': 1, 'metricas': {'auc': 0.86}, 'casos': 400}\n"
+                            "sano = [{'codigo': 200}] * 95 + [{'codigo': 500}] * 5\n"
+                            "roto = [{'codigo': 200}] * 80 + [{'codigo': 500}] * 20\n"
+                            "llamadas = []\n"
+                            "def medir_fn(p):\n"
+                            "    llamadas.append(p)\n"
+                            "    return {'champion': sano, 'challenger': sano}\n"
+                            "r = desplegar(candidato, campeon, config, medir_fn)\n"
+                            "assert r['estado'] == 'promovido' and r['motivos'] == [], r\n"
+                            "assert llamadas == [1, 10, 50], llamadas\n"
+                            "assert r['historial'] == [{'porcentaje': 1, 'decision': 'seguir'},\n"
+                            "                          {'porcentaje': 10, 'decision': 'seguir'},\n"
+                            "                          {'porcentaje': 50, 'decision': 'seguir'}], r['historial']\n"
+                        ),
+                    },
+                    {
+                        "name": "la puerta rechaza sin tocar el trafico",
+                        "code": (
+                            "config = {\n"
+                            "    'requisitos': {'auc': {'minimo': 0.85}},\n"
+                            "    'minimo_casos': 100,\n"
+                            "    'metrica': 'auc',\n"
+                            "    'margen': 0.02,\n"
+                            "    'pasos': [1, 10, 50],\n"
+                            "    'minimo_peticiones': 50,\n"
+                            "    'tolerancia': 0.02,\n"
+                            "}\n"
+                            "candidato = {'version': 2, 'metricas': {'auc': 0.90}, 'casos': 400}\n"
+                            "campeon = {'version': 1, 'metricas': {'auc': 0.86}, 'casos': 400}\n"
+                            "sano = [{'codigo': 200}] * 95 + [{'codigo': 500}] * 5\n"
+                            "roto = [{'codigo': 200}] * 80 + [{'codigo': 500}] * 20\n"
+                            "llamadas = []\n"
+                            "def medir_fn(p):\n"
+                            "    llamadas.append(p)\n"
+                            "    return {'champion': sano, 'challenger': sano}\n"
+                            "malo = {'version': 2, 'metricas': {'auc': 0.5}, 'casos': 10}\n"
+                            "r = desplegar(malo, campeon, config, medir_fn)\n"
+                            "assert r['estado'] == 'rechazado', r\n"
+                            "assert r['motivos'] == ['auc: 0.5 < 0.85', 'casos: 10 < 100'], r['motivos']\n"
+                            "assert r['historial'] == [] and llamadas == [], 'sin pasar la puerta no se reparte trafico'\n"
+                        ),
+                    },
+                    {
+                        "name": "no mejora al campeon",
+                        "code": (
+                            "config = {\n"
+                            "    'requisitos': {'auc': {'minimo': 0.85}},\n"
+                            "    'minimo_casos': 100,\n"
+                            "    'metrica': 'auc',\n"
+                            "    'margen': 0.02,\n"
+                            "    'pasos': [1, 10, 50],\n"
+                            "    'minimo_peticiones': 50,\n"
+                            "    'tolerancia': 0.02,\n"
+                            "}\n"
+                            "candidato = {'version': 2, 'metricas': {'auc': 0.90}, 'casos': 400}\n"
+                            "campeon = {'version': 1, 'metricas': {'auc': 0.86}, 'casos': 400}\n"
+                            "sano = [{'codigo': 200}] * 95 + [{'codigo': 500}] * 5\n"
+                            "roto = [{'codigo': 200}] * 80 + [{'codigo': 500}] * 20\n"
+                            "llamadas = []\n"
+                            "def medir_fn(p):\n"
+                            "    llamadas.append(p)\n"
+                            "    return {'champion': sano, 'challenger': sano}\n"
+                            "justo = {'version': 2, 'metricas': {'auc': 0.87}, 'casos': 400}\n"
+                            "r = desplegar(justo, campeon, config, medir_fn)\n"
+                            "assert r['estado'] == 'rechazado' and llamadas == [], r\n"
+                            "assert r['motivos'] == ['no mejora al campeon: delta 0.01'], r['motivos']\n"
+                            "r = desplegar(justo, None, config, medir_fn)\n"
+                            "assert r['estado'] == 'promovido', 'sin campeon no hay contra quien comparar'\n"
+                        ),
+                    },
+                    {
+                        "name": "rollback en el segundo paso",
+                        "code": (
+                            "config = {\n"
+                            "    'requisitos': {'auc': {'minimo': 0.85}},\n"
+                            "    'minimo_casos': 100,\n"
+                            "    'metrica': 'auc',\n"
+                            "    'margen': 0.02,\n"
+                            "    'pasos': [1, 10, 50],\n"
+                            "    'minimo_peticiones': 50,\n"
+                            "    'tolerancia': 0.02,\n"
+                            "}\n"
+                            "candidato = {'version': 2, 'metricas': {'auc': 0.90}, 'casos': 400}\n"
+                            "campeon = {'version': 1, 'metricas': {'auc': 0.86}, 'casos': 400}\n"
+                            "sano = [{'codigo': 200}] * 95 + [{'codigo': 500}] * 5\n"
+                            "roto = [{'codigo': 200}] * 80 + [{'codigo': 500}] * 20\n"
+                            "def medir_fn(p):\n"
+                            "    return {'champion': sano, 'challenger': sano if p == 1 else roto}\n"
+                            "r = desplegar(candidato, campeon, config, medir_fn)\n"
+                            "assert r['estado'] == 'rollback' and r['motivos'] == [], r\n"
+                            "assert r['historial'] == [{'porcentaje': 1, 'decision': 'seguir'},\n"
+                            "                          {'porcentaje': 10, 'decision': 'rollback'}], r['historial']\n"
+                        ),
+                    },
+                    {
+                        "name": "sin datos deja el despliegue pausado",
+                        "code": (
+                            "config = {\n"
+                            "    'requisitos': {'auc': {'minimo': 0.85}},\n"
+                            "    'minimo_casos': 100,\n"
+                            "    'metrica': 'auc',\n"
+                            "    'margen': 0.02,\n"
+                            "    'pasos': [1, 10, 50],\n"
+                            "    'minimo_peticiones': 50,\n"
+                            "    'tolerancia': 0.02,\n"
+                            "}\n"
+                            "candidato = {'version': 2, 'metricas': {'auc': 0.90}, 'casos': 400}\n"
+                            "campeon = {'version': 1, 'metricas': {'auc': 0.86}, 'casos': 400}\n"
+                            "sano = [{'codigo': 200}] * 95 + [{'codigo': 500}] * 5\n"
+                            "roto = [{'codigo': 200}] * 80 + [{'codigo': 500}] * 20\n"
+                            "def medir_fn(p):\n"
+                            "    return {'champion': sano[:10], 'challenger': sano[:10]}\n"
+                            "r = desplegar(candidato, campeon, config, medir_fn)\n"
+                            "assert r['estado'] == 'pausado', r\n"
+                            "assert r['historial'] == [{'porcentaje': 1, 'decision': 'sin datos'}], r['historial']\n"
+                            "assert r['estado'] != 'promovido' and r['estado'] != 'rollback', 'no es ni bueno ni malo'\n"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
