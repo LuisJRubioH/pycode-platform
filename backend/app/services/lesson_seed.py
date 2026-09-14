@@ -15391,6 +15391,627 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="MLOps 1 · Reproducibilidad: semillas, huellas y manifiestos",
+        description=(
+            "Repetir un experimento y explicar por que cambio un resultado: semillas, "
+            "division train/test reproducible, huellas SHA-256 de datos y configuracion "
+            "en formato canonico y un manifiesto con el entorno y las metricas."
+        ),
+        content=(
+            "# MLOps 1: reproducibilidad\n"
+            "\n"
+            "En los Tracks 3 y 4 entrenaste modelos que funcionaban en tu editor. Llevarlos a produccion empieza por una pregunta incomoda: **¿podrias volver a obtener exactamente el mismo modelo?** Esta leccion construye las piezas que lo hacen posible: semillas, huellas de los datos y de la configuracion, y un manifiesto que acompana a cada experimento.\n"
+            "\n"
+            "## Por que la reproducibilidad va primero\n"
+            "\n"
+            'Nebula entrena un modelo que predice que pedidos se van a devolver. El martes daba 0.91 de accuracy; hoy, con "el mismo codigo", da 0.87. ¿Que cambio? Pudo ser:\n'
+            "\n"
+            "1. **Los datos.** Alguien anadio los pedidos de ayer, o corrigio una columna.\n"
+            "2. **La configuracion.** Un `max_depth` de 4 paso a 5 en una rama que ya nadie recuerda.\n"
+            "3. **El azar.** La division train/test o la inicializacion salieron distintas.\n"
+            "4. **El entorno.** Se actualizo numpy o scikit-learn.\n"
+            "\n"
+            "Si no guardaste cual de las cuatro era, no hay forma de saberlo: solo queda volver a probar a ciegas. Al terminar tendras una funcion que ejecuta un experimento y devuelve un **manifiesto** con todo lo necesario para repetirlo y para explicar por que dos resultados difieren.\n"
+            "\n"
+            "## Semillas: el azar bajo control\n"
+            "\n"
+            "Los ordenadores no generan azar de verdad: generan secuencias que *parecen* aleatorias a partir de un numero inicial, la **semilla**. Misma semilla, misma secuencia.\n"
+            "\n"
+            "```python\n"
+            "import random                                             # azar de la libreria estandar\n"
+            "\n"
+            "azar = random.Random(42)                                  # un generador propio, con semilla 42\n"
+            "print([azar.randint(1, 100) for _ in range(3)])           # [82, 15, 4]\n"
+            "\n"
+            "otro = random.Random(42)                                  # otro generador con la misma semilla\n"
+            "print([otro.randint(1, 100) for _ in range(3)])           # [82, 15, 4]: la secuencia se repite\n"
+            "\n"
+            "print(random.Random(7).randint(1, 100))                   # 42: otra semilla, otra secuencia\n"
+            "```\n"
+            "\n"
+            "Fijate en que se crea un **generador propio** con `random.Random(semilla)` en vez de llamar a `random.seed(42)`. La version global la comparte todo el programa: si otra funcion saca un numero al azar antes que tu, tu secuencia se desplaza y el resultado cambia sin que hayas tocado nada. numpy sigue la misma idea:\n"
+            "\n"
+            "```python\n"
+            "import numpy as np                                         # numpy trae su propio generador\n"
+            "\n"
+            "rng = np.random.default_rng(0)                             # generador con semilla 0\n"
+            "print(rng.integers(0, 10, size=3))                         # [8 6 5]\n"
+            "print(np.random.default_rng(0).integers(0, 10, size=3))    # [8 6 5]: misma semilla, mismos numeros\n"
+            "```\n"
+            "\n"
+            "## Dividir en train y test siempre igual\n"
+            "\n"
+            "La division train/test es el azar que mas afecta a una metrica: con pocos datos, dos divisiones distintas pueden dar varios puntos de diferencia. Hacerla reproducible es una funcion de cinco lineas.\n"
+            "\n"
+            "```python\n"
+            "import random                                                  # para barajar con semilla\n"
+            "\n"
+            "def dividir(filas, fraccion_test, semilla):\n"
+            "    copia = list(filas)                                        # no desordenar la lista de quien llama\n"
+            "    random.Random(semilla).shuffle(copia)                      # barajar siempre igual con la misma semilla\n"
+            "    n_test = round(len(copia) * fraccion_test)                 # cuantas filas van a test\n"
+            "    return copia[n_test:], copia[:n_test]                      # (train, test)\n"
+            "\n"
+            "pedidos = list(range(10))                                      # 10 pedidos de ejemplo\n"
+            "train, test = dividir(pedidos, 0.3, semilla=1)                 # 7 para entrenar, 3 para evaluar\n"
+            "print(test)                                                    # [6, 8, 9]\n"
+            "print(dividir(pedidos, 0.3, semilla=1)[1] == test)             # True: la division se repite\n"
+            "print(dividir(pedidos, 0.3, semilla=2)[1])                     # [5, 9, 3]: otra semilla, otra division\n"
+            "print(pedidos)                                                 # [0, 1, ..., 9]: el original sigue intacto\n"
+            "```\n"
+            "\n"
+            "`shuffle` desordena la lista **en el sitio**. Sin la copia, la funcion alteraria los datos de quien la llama, y la siguiente division partiria de un orden distinto.\n"
+            "\n"
+            "## Huella de los datos con hashlib\n"
+            "\n"
+            "Guardar una copia de los datos en cada experimento no escala. Lo que se guarda es su **huella**: un resumen corto que cambia en cuanto cambia un solo byte. `hashlib` calcula huellas criptograficas como SHA-256.\n"
+            "\n"
+            "```python\n"
+            "import hashlib                                                         # huellas criptograficas\n"
+            "\n"
+            "texto = 'pedido,importe\\n1001,25.5\\n'                                  # un CSV pequeno\n"
+            "huella = hashlib.sha256(texto.encode('utf-8')).hexdigest()             # texto -> bytes -> 64 caracteres hex\n"
+            "print(huella[:12])                                                     # bb1e500a95ba: con un prefijo basta\n"
+            "cambiado = texto.replace('25.5', '25.6')                               # un solo digito distinto\n"
+            "print(hashlib.sha256(cambiado.encode('utf-8')).hexdigest()[:12])       # 934d58ae2e70: nada que ver\n"
+            "```\n"
+            "\n"
+            "`sha256` trabaja con **bytes**, no con texto: por eso el `.encode('utf-8')`. Doce caracteres hexadecimales son 48 bits: sobra para distinguir las versiones de un conjunto de datos.\n"
+            "\n"
+            "## Filas en formato canonico\n"
+            "\n"
+            "Los datos casi nunca llegan como un texto fijo: son filas (diccionarios) que alguien construyo. El mismo contenido se puede escribir de varias formas, y la huella tiene que ser la misma en todas. Para eso se pasa cada fila a un **formato canonico** con `json.dumps(..., sort_keys=True)`.\n"
+            "\n"
+            "```python\n"
+            "import hashlib                                                          # huellas\n"
+            "import json                                                             # serializar de forma estable\n"
+            "\n"
+            "def huella(texto, n=12):\n"
+            "    return hashlib.sha256(texto.encode('utf-8')).hexdigest()[:n]        # prefijo de n caracteres\n"
+            "\n"
+            "a = {'pedido': 1001, 'importe': 25.5}                                   # una fila...\n"
+            "b = {'importe': 25.5, 'pedido': 1001}                                   # ...la misma, con las claves en otro orden\n"
+            "print(str(a) == str(b))                                                 # False: str respeta el orden de insercion\n"
+            'print(json.dumps(a, sort_keys=True))                                    # {"importe": 25.5, "pedido": 1001}\n'
+            "print(huella(json.dumps(a, sort_keys=True)) == huella(json.dumps(b, sort_keys=True)))  # True\n"
+            "\n"
+            "filas = [{'id': 2}, {'id': 1}]                                          # dos filas en un orden\n"
+            "huellas = [huella(json.dumps(f, sort_keys=True)) for f in filas]        # una huella por fila\n"
+            "invertidas = list(reversed(huellas))                                    # las mismas filas al reves\n"
+            "print(huella(''.join(huellas)) == huella(''.join(invertidas)))          # False: el orden de las filas cuenta\n"
+            "print(huella(''.join(sorted(huellas))) == huella(''.join(sorted(invertidas))))  # True: ordenadas, deja de contar\n"
+            "```\n"
+            "\n"
+            "Que el orden de las filas cuente o no es una **decision**: en una serie temporal importa; en una tabla de pedidos que se lee de una base de datos sin `ORDER BY`, no deberia, o cada consulta daria una huella distinta.\n"
+            "\n"
+            "## Huella de la configuracion\n"
+            "\n"
+            "Con la configuracion pasa lo mismo que con las filas: un diccionario de hiperparametros tiene que dar la misma huella escriba quien lo escriba. Se anade `separators=(',', ':')` para que ni los espacios de `json.dumps` formen parte de lo que se compara.\n"
+            "\n"
+            "```python\n"
+            "import hashlib                                                               # huellas\n"
+            "import json                                                                  # formato canonico\n"
+            "\n"
+            "def huella_config(config):\n"
+            "    canonico = json.dumps(config, sort_keys=True, separators=(',', ':'))     # claves ordenadas, sin espacios\n"
+            "    return hashlib.sha256(canonico.encode('utf-8')).hexdigest()[:12]         # 12 caracteres\n"
+            "\n"
+            "base = {'modelo': 'arbol', 'max_depth': 4, 'fraccion_test': 0.2}             # la configuracion del martes\n"
+            "print(huella_config(base))                                                   # ad387d8b5a04\n"
+            "reordenada = {'fraccion_test': 0.2, 'max_depth': 4, 'modelo': 'arbol'}       # mismos valores, otro orden\n"
+            "print(huella_config(reordenada) == huella_config(base))                      # True\n"
+            "print(huella_config(dict(base, max_depth=5)) == huella_config(base))         # False: cambio un hiperparametro\n"
+            "print(json.dumps(4), json.dumps(4.0))                                        # 4 4.0: para la huella no son iguales\n"
+            "```\n"
+            "\n"
+            "La ultima linea es un aviso: `4` y `4.0` valen lo mismo en Python, pero se escriben distinto y dan huellas distintas. Decide un tipo por hiperparametro y mantenlo.\n"
+            "\n"
+            "## El entorno y el manifiesto\n"
+            "\n"
+            "El ultimo sospechoso es el entorno: la version de Python y de cada libreria. Se anota en un diccionario y, junto con todo lo anterior, forma el **manifiesto** del experimento.\n"
+            "\n"
+            "```python\n"
+            "import json                                                    # el manifiesto se guarda como JSON\n"
+            "import sys                                                     # version de Python\n"
+            "import numpy as np                                             # una libreria cuya version importa\n"
+            "\n"
+            "entorno = {\n"
+            "    'python': f'{sys.version_info.major}.{sys.version_info.minor}',  # p. ej. '3.12'\n"
+            "    'numpy': np.__version__,                                   # la version exacta instalada\n"
+            "}\n"
+            "manifiesto = {\n"
+            "    'datos': {'huella': 'bb1e500a95ba', 'filas': 1200},        # que datos exactamente\n"
+            "    'config': {'huella': 'ad387d8b5a04', 'valores': {'max_depth': 4}},  # con que configuracion\n"
+            "    'semilla': 42,                                             # con que azar\n"
+            "    'entorno': entorno,                                        # con que librerias\n"
+            "    'metricas': {'accuracy': 0.91},                            # y que salio\n"
+            "}\n"
+            "texto = json.dumps(manifiesto, sort_keys=True, indent=2)       # se guarda junto al modelo entrenado\n"
+            "print(json.loads(texto) == manifiesto)                         # True: ida y vuelta sin perder nada\n"
+            "\n"
+            "antes = {'datos': 'bb1e500a95ba', 'config': 'ad387d8b5a04', 'semilla': 42}   # el martes\n"
+            "hoy = {'datos': '934d58ae2e70', 'config': 'ad387d8b5a04', 'semilla': 42}     # hoy\n"
+            "print([k for k in ('datos', 'config', 'semilla') if antes[k] != hoy[k]])     # ['datos']: cambiaron los datos\n"
+            "```\n"
+            "\n"
+            "Con dos manifiestos, la pregunta del principio tiene respuesta en una linea: la metrica bajo porque **cambiaron los datos**, no el codigo ni el azar. Las metricas van en el manifiesto pero no identifican el experimento: son su resultado, no su receta.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            '- **Usar `hash()` para las huellas.** El `hash` de un texto cambia en cada ejecucion de Python (se aleatoriza por seguridad), asi que la "huella" de hoy no coincide con la de manana. Usa `hashlib.sha256`, que da siempre lo mismo en cualquier maquina.\n'
+            "- **Fijar la semilla global con `random.seed` y creer que basta.** Cualquier otra llamada a `random` en el programa consume numeros de esa misma secuencia y desplaza la tuya. Crea un generador propio, `random.Random(semilla)` o `np.random.default_rng(semilla)`, y pasalo a quien lo necesite.\n"
+            "- **Hashear `str(diccionario)` o `json.dumps` sin `sort_keys`.** El mismo contenido con las claves en otro orden da otra huella, y dos experimentos identicos parecen distintos. Pasa siempre por el formato canonico.\n"
+            "- **Barajar la lista original.** `random.shuffle(filas)` desordena los datos de quien llamo a la funcion, y la siguiente division ya no parte del mismo orden. Baraja una copia: `copia = list(filas)`.\n"
+            '- **Guardar solo la metrica.** "accuracy 0.91" sin datos, configuracion, semilla y entorno no se puede repetir ni comparar. El manifiesto entero se guarda con el modelo.\n'
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **Semillas**: `random.Random(semilla)` y `np.random.default_rng(semilla)` dan secuencias repetibles sin depender del estado global.\n"
+            "- **Division reproducible**: copiar, barajar con semilla y cortar; misma semilla, mismos conjuntos, y el original intacto.\n"
+            "- **Huella con hashlib**: `hashlib.sha256(texto.encode('utf-8')).hexdigest()[:12]` resume cualquier contenido y cambia con un solo byte.\n"
+            "- **Formato canonico**: `json.dumps(fila, sort_keys=True)` para que el orden de las claves no cambie la huella; ordenar las huellas de las filas si su orden no debe contar.\n"
+            "- **Huella de la configuracion**: el mismo formato canonico con `separators=(',', ':')`; cuidado con `4` frente a `4.0`.\n"
+            "- **Manifiesto**: datos, configuracion, semilla, entorno y metricas en un JSON junto al modelo; comparando dos se explica por que cambio un resultado.\n"
+        ),
+        difficulty="intermediate",
+        category="mlops",
+        order=44,
+        track="track-6",
+        estimated_duration=60,
+        prerequisites_titles=["AI 6 · Evaluar sistemas con LLM"],
+        exercises=[
+            ExerciseTemplate(
+                title="Huella de un texto",
+                description="Un prefijo de SHA-256 que identifica un contenido.",
+                instructions=(
+                    "Implementa `huella(texto, n=12)` que devuelva los primeros `n` caracteres del SHA-256 hexadecimal del texto codificado en UTF-8.\n"
+                    "\n"
+                    "Ejemplos:\n"
+                    "\n"
+                    "- `huella('hola')` → `'b221d9dbb083'`\n"
+                    "- `huella('hola', n=6)` → `'b221d9'`\n"
+                    "- `huella('Hola')` → `'e633f4fc79ba'` (una mayuscula lo cambia todo)"
+                ),
+                starter_code=(
+                    "import hashlib\n"
+                    "\n"
+                    "\n"
+                    "def huella(texto, n=12):\n"
+                    "    # TODO: texto -> bytes UTF-8 -> sha256 -> hexdigest -> primeros n caracteres\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "hashlib.sha256 necesita bytes: texto.encode('utf-8').",
+                    "hashlib.sha256(datos).hexdigest() devuelve un str de 64 caracteres; corta con [:n].",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "valores conocidos",
+                        "code": (
+                            "assert huella('hola') == 'b221d9dbb083', huella('hola')\n"
+                            "assert huella('Hola') == 'e633f4fc79ba', huella('Hola')\n"
+                        ),
+                    },
+                    {
+                        "name": "respeta n y funciona con tildes",
+                        "code": (
+                            "assert huella('hola', n=6) == 'b221d9', huella('hola', n=6)\n"
+                            "h = huella('envío', n=64)\n"
+                            "import hashlib\n"
+                            "assert h == hashlib.sha256('envío'.encode('utf-8')).hexdigest(), h\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Dividir con semilla",
+                description="La misma semilla da siempre los mismos conjuntos de train y test.",
+                instructions=(
+                    "Implementa `dividir(filas, fraccion_test, semilla)` que devuelva la tupla `(train, test)`:\n"
+                    "\n"
+                    "1. Haz una **copia** de `filas` (la lista original no se puede modificar).\n"
+                    "2. Barajala con `random.Random(semilla).shuffle(...)`.\n"
+                    "3. `n_test = round(len(filas) * fraccion_test)`; `test` son las primeras `n_test` filas de la copia barajada y `train` el resto.\n"
+                    "\n"
+                    "Ejemplo: `dividir(list(range(10)), 0.3, 1)` → `([7, 5, 3, 0, 4, 1, 2], [6, 8, 9])`"
+                ),
+                starter_code=(
+                    "import random\n"
+                    "\n"
+                    "\n"
+                    "def dividir(filas, fraccion_test, semilla):\n"
+                    "    # TODO: copiar, barajar con un generador propio y cortar\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "copia = list(filas) crea una lista nueva; random.Random(semilla).shuffle(copia) la baraja en el sitio.",
+                    "Con n_test = round(len(copia) * fraccion_test): return copia[n_test:], copia[:n_test].",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "division exacta y repetible",
+                        "code": (
+                            "r = dividir(list(range(10)), 0.3, 1)\n"
+                            "assert tuple(r) == ([7, 5, 3, 0, 4, 1, 2], [6, 8, 9]), r\n"
+                            "assert tuple(dividir(list(range(10)), 0.3, 1)) == tuple(r)\n"
+                            "assert tuple(dividir(list(range(10)), 0.3, 2)) == ([4, 6, 7, 2, 8, 1, 0], [5, 9, 3])\n"
+                        ),
+                    },
+                    {
+                        "name": "no modifica el original y no pierde filas",
+                        "code": (
+                            "filas = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']\n"
+                            "train, test = dividir(filas, 0.25, 7)\n"
+                            "assert filas == ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'], filas\n"
+                            "assert len(test) == 2 and len(train) == 6, (train, test)\n"
+                            "assert sorted(train + test) == filas\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Huella de una configuracion",
+                description="Mismos hiperparametros, misma huella, en cualquier orden.",
+                instructions=(
+                    "Implementa `huella_config(config)` que devuelva los primeros 12 caracteres del SHA-256 de la configuracion en formato canonico: `json.dumps(config, sort_keys=True, separators=(',', ':'))`, codificado en UTF-8.\n"
+                    "\n"
+                    "- El orden de las claves no puede cambiar la huella, tampoco en diccionarios anidados.\n"
+                    "- Cualquier cambio de valor si la cambia.\n"
+                    "\n"
+                    "Ejemplo: `huella_config({'modelo': 'arbol', 'max_depth': 4, 'fraccion_test': 0.2})` → `'ad387d8b5a04'`"
+                ),
+                starter_code=(
+                    "import hashlib\n"
+                    "import json\n"
+                    "\n"
+                    "\n"
+                    "def huella_config(config):\n"
+                    "    # TODO: formato canonico con json.dumps y huella de 12 caracteres\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "sort_keys=True ordena las claves en todos los niveles, tambien en los diccionarios anidados.",
+                    "separators=(',', ':') quita los espacios que json.dumps pone por defecto.",
+                    "return hashlib.sha256(canonico.encode('utf-8')).hexdigest()[:12]",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "valor conocido",
+                        "code": (
+                            "h = huella_config({'modelo': 'arbol', 'max_depth': 4, 'fraccion_test': 0.2})\n"
+                            "assert h == 'ad387d8b5a04', h\n"
+                        ),
+                    },
+                    {
+                        "name": "el orden de las claves no importa, tampoco anidado",
+                        "code": (
+                            "a = {'modelo': 'arbol', 'params': {'max_depth': 4, 'min_samples': 2}, 'semilla': 1}\n"
+                            "b = {'semilla': 1, 'params': {'min_samples': 2, 'max_depth': 4}, 'modelo': 'arbol'}\n"
+                            "assert isinstance(huella_config(a), str) and len(huella_config(a)) == 12, huella_config(a)\n"
+                            "assert huella_config(a) == huella_config(b)\n"
+                        ),
+                    },
+                    {
+                        "name": "cualquier cambio de valor cambia la huella",
+                        "code": (
+                            "base = {'modelo': 'arbol', 'params': {'max_depth': 4}}\n"
+                            "h = huella_config(base)\n"
+                            "assert isinstance(h, str) and len(h) == 12, h\n"
+                            "assert huella_config({'modelo': 'arbol', 'params': {'max_depth': 5}}) != h\n"
+                            "assert huella_config({'modelo': 'bosque', 'params': {'max_depth': 4}}) != h\n"
+                            "assert huella_config({'modelo': 'arbol', 'params': {'max_depth': 4.0}}) != h\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Huella de un conjunto de datos",
+                description="Una huella por fila, combinadas, con o sin importar el orden.",
+                instructions=(
+                    "Implementa `huella_datos(filas, ignorar_orden=False)` para una lista de filas (diccionarios). Devuelve un `str` de 12 caracteres que:\n"
+                    "\n"
+                    "- no cambia si una fila tiene sus claves en otro orden;\n"
+                    "- cambia si cambia cualquier valor, o si se anade o se quita una fila (**tambien una repetida**);\n"
+                    "- con `ignorar_orden=False` cambia si las filas cambian de orden; con `ignorar_orden=True`, no.\n"
+                    "\n"
+                    "Usa `huella` (ya viene en el starter): una huella por fila con `json.dumps(fila, sort_keys=True)`, unelas en un solo texto (ordenadas si `ignorar_orden`) y devuelve la huella de ese texto."
+                ),
+                starter_code=(
+                    "import hashlib\n"
+                    "import json\n"
+                    "\n"
+                    "\n"
+                    "def huella(texto, n=12):\n"
+                    "    return hashlib.sha256(texto.encode('utf-8')).hexdigest()[:n]\n"
+                    "\n"
+                    "\n"
+                    "def huella_datos(filas, ignorar_orden=False):\n"
+                    "    # TODO: una huella por fila en formato canonico\n"
+                    "    # TODO: si ignorar_orden, ordenarlas; unirlas y devolver la huella del conjunto\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "huellas = [huella(json.dumps(fila, sort_keys=True)) for fila in filas]",
+                    "Un set perderia las filas repetidas: ordena con sorted(huellas), no conviertas en set.",
+                    "return huella(''.join(huellas)) despues de ordenar o no segun ignorar_orden.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "claves en otro orden, misma huella",
+                        "code": (
+                            "a = [{'pedido': 1, 'importe': 10.0}, {'pedido': 2, 'importe': 5.5}]\n"
+                            "b = [{'importe': 10.0, 'pedido': 1}, {'importe': 5.5, 'pedido': 2}]\n"
+                            "h = huella_datos(a)\n"
+                            "assert isinstance(h, str) and len(h) == 12, h\n"
+                            "assert huella_datos(b) == h\n"
+                        ),
+                    },
+                    {
+                        "name": "el orden de las filas segun ignorar_orden",
+                        "code": (
+                            "a = [{'pedido': 1}, {'pedido': 2}, {'pedido': 3}]\n"
+                            "b = [{'pedido': 3}, {'pedido': 1}, {'pedido': 2}]\n"
+                            "assert isinstance(huella_datos(a), str) and len(huella_datos(a)) == 12\n"
+                            "assert huella_datos(a) != huella_datos(b)\n"
+                            "assert huella_datos(a, ignorar_orden=True) == huella_datos(b, ignorar_orden=True)\n"
+                        ),
+                    },
+                    {
+                        "name": "valores y filas repetidas cuentan",
+                        "code": (
+                            "a = [{'pedido': 1}, {'pedido': 2}]\n"
+                            "h = huella_datos(a, ignorar_orden=True)\n"
+                            "assert isinstance(h, str) and len(h) == 12, h\n"
+                            "assert huella_datos([{'pedido': 1}, {'pedido': 9}], ignorar_orden=True) != h\n"
+                            "assert huella_datos([{'pedido': 1}, {'pedido': 2}, {'pedido': 2}], ignorar_orden=True) != h\n"
+                            "assert huella_datos([{'pedido': 1}], ignorar_orden=True) != h\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Explicar por que cambio un resultado",
+                description="Comparar dos manifiestos y listar las causas posibles.",
+                instructions=(
+                    "Un manifiesto tiene esta forma:\n"
+                    "\n"
+                    "```\n"
+                    "{'datos': {'huella': ..., 'filas': ...}, 'config': {'huella': ..., 'valores': {...}},\n"
+                    " 'semilla': ..., 'entorno': {'python': '3.12', 'numpy': '2.0.2', ...}, 'metricas': {...}}\n"
+                    "```\n"
+                    "\n"
+                    "Implementa `diferencias(antes, despues)` que devuelva una **lista de textos** con lo que cambio, en este orden:\n"
+                    "\n"
+                    "1. `'datos'` si cambio la huella de los datos;\n"
+                    "2. `'config'` si cambio la huella de la configuracion;\n"
+                    "3. `'semilla'` si cambio la semilla;\n"
+                    "4. una entrada `'entorno: <paquete> <antes> -> <despues>'` por cada paquete con otra version, en orden alfabetico de paquete. Si un paquete falta en uno de los dos, su version se escribe `ausente`.\n"
+                    "\n"
+                    "Las `metricas` no son una causa: no aparecen nunca. Si no cambio nada, devuelve `[]`.\n"
+                    "\n"
+                    "Ejemplo: `['datos', 'entorno: numpy 1.26.4 -> 2.0.2', 'entorno: sklearn ausente -> 1.5.0']`"
+                ),
+                starter_code=(
+                    "def diferencias(antes, despues):\n"
+                    "    cambios = []\n"
+                    "    # TODO: 'datos', 'config' y 'semilla', en ese orden\n"
+                    "    # TODO: paquetes del entorno (union de claves, orden alfabetico, 'ausente' si falta)\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Compara antes['datos']['huella'] con despues['datos']['huella']; igual con config.",
+                    "La union de paquetes: sorted(set(antes['entorno']) | set(despues['entorno'])).",
+                    "antes['entorno'].get(paquete, 'ausente') da la version o 'ausente'.",
+                    "cambios.append(f'entorno: {paquete} {va} -> {vd}') solo si va != vd; al final return cambios.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "nada cambia salvo las metricas",
+                        "code": (
+                            "m = {'datos': {'huella': 'aaa', 'filas': 10}, 'config': {'huella': 'ccc', 'valores': {}},\n"
+                            "     'semilla': 1, 'entorno': {'numpy': '2.0.2'}, 'metricas': {'accuracy': 0.9}}\n"
+                            "otro = {'datos': {'huella': 'aaa', 'filas': 10}, 'config': {'huella': 'ccc', 'valores': {}},\n"
+                            "        'semilla': 1, 'entorno': {'numpy': '2.0.2'}, 'metricas': {'accuracy': 0.7}}\n"
+                            "r = diferencias(m, otro)\n"
+                            "assert r == [], r\n"
+                        ),
+                    },
+                    {
+                        "name": "datos, config y semilla en orden",
+                        "code": (
+                            "a = {'datos': {'huella': 'aaa', 'filas': 10}, 'config': {'huella': 'ccc', 'valores': {}},\n"
+                            "     'semilla': 1, 'entorno': {}, 'metricas': {}}\n"
+                            "b = {'datos': {'huella': 'bbb', 'filas': 11}, 'config': {'huella': 'ccc', 'valores': {}},\n"
+                            "     'semilla': 2, 'entorno': {}, 'metricas': {}}\n"
+                            "assert diferencias(a, b) == ['datos', 'semilla'], diferencias(a, b)\n"
+                            "c = dict(b, config={'huella': 'ddd', 'valores': {}})\n"
+                            "assert diferencias(a, c) == ['datos', 'config', 'semilla'], diferencias(a, c)\n"
+                        ),
+                    },
+                    {
+                        "name": "entorno ordenado y con ausente",
+                        "code": (
+                            "a = {'datos': {'huella': 'x', 'filas': 1}, 'config': {'huella': 'y', 'valores': {}}, 'semilla': 0,\n"
+                            "     'entorno': {'python': '3.12', 'numpy': '1.26.4', 'pandas': '2.2.0'}, 'metricas': {}}\n"
+                            "b = {'datos': {'huella': 'x', 'filas': 1}, 'config': {'huella': 'y', 'valores': {}}, 'semilla': 0,\n"
+                            "     'entorno': {'python': '3.12', 'numpy': '2.0.2', 'sklearn': '1.5.0'}, 'metricas': {}}\n"
+                            "r = diferencias(a, b)\n"
+                            "assert r == ['entorno: numpy 1.26.4 -> 2.0.2', 'entorno: pandas 2.2.0 -> ausente', 'entorno: sklearn ausente -> 1.5.0'], r\n"
+                        ),
+                    },
+                    {
+                        "name": "todo a la vez",
+                        "code": (
+                            "a = {'datos': {'huella': 'x', 'filas': 1}, 'config': {'huella': 'y', 'valores': {}}, 'semilla': 0,\n"
+                            "     'entorno': {'numpy': '1.26.4'}, 'metricas': {}}\n"
+                            "b = {'datos': {'huella': 'z', 'filas': 1}, 'config': {'huella': 'w', 'valores': {}}, 'semilla': 3,\n"
+                            "     'entorno': {'numpy': '2.0.2'}, 'metricas': {}}\n"
+                            "r = diferencias(a, b)\n"
+                            "assert r == ['datos', 'config', 'semilla', 'entorno: numpy 1.26.4 -> 2.0.2'], r\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Ejecutar un experimento reproducible",
+                description="Dividir, entrenar y devolver el manifiesto con su identificador.",
+                instructions=(
+                    "Implementa `ejecutar_experimento(filas, config, semilla, entrenar_fn, entorno)`. `entrenar_fn(train, test, config)` es una funcion que entrena y devuelve un diccionario de metricas. Las funciones `huella`, `huella_config`, `huella_datos` y `dividir` ya vienen escritas.\n"
+                    "\n"
+                    "1. Divide con `dividir(filas, config['fraccion_test'], semilla)`.\n"
+                    "2. Llama a `entrenar_fn(train, test, config)` y guarda sus metricas.\n"
+                    "3. Construye el manifiesto:\n"
+                    "\n"
+                    "```\n"
+                    "{'datos': {'huella': huella_datos(filas), 'filas': len(filas)},\n"
+                    " 'config': {'huella': huella_config(config), 'valores': config},\n"
+                    " 'semilla': semilla,\n"
+                    " 'entorno': una copia de entorno,\n"
+                    " 'metricas': metricas}\n"
+                    "```\n"
+                    "\n"
+                    "4. Anadele `'id'`: la `huella_config` de un diccionario con **solo** `datos`, `config`, `semilla` y `entorno` del manifiesto. Las metricas no forman parte del id: dos ejecuciones con la misma receta tienen el mismo id aunque el resultado cambie.\n"
+                    "\n"
+                    "Devuelve el manifiesto."
+                ),
+                starter_code=(
+                    "import hashlib\n"
+                    "import json\n"
+                    "import random\n"
+                    "\n"
+                    "\n"
+                    "def huella(texto, n=12):\n"
+                    "    return hashlib.sha256(texto.encode('utf-8')).hexdigest()[:n]\n"
+                    "\n"
+                    "\n"
+                    "def huella_config(config):\n"
+                    "    return huella(json.dumps(config, sort_keys=True, separators=(',', ':')))\n"
+                    "\n"
+                    "\n"
+                    "def huella_datos(filas, ignorar_orden=False):\n"
+                    "    huellas = [huella(json.dumps(fila, sort_keys=True)) for fila in filas]\n"
+                    "    if ignorar_orden:\n"
+                    "        huellas = sorted(huellas)\n"
+                    "    return huella(''.join(huellas))\n"
+                    "\n"
+                    "\n"
+                    "def dividir(filas, fraccion_test, semilla):\n"
+                    "    copia = list(filas)\n"
+                    "    random.Random(semilla).shuffle(copia)\n"
+                    "    n_test = round(len(copia) * fraccion_test)\n"
+                    "    return copia[n_test:], copia[:n_test]\n"
+                    "\n"
+                    "\n"
+                    "def ejecutar_experimento(filas, config, semilla, entrenar_fn, entorno):\n"
+                    "    # TODO: dividir, entrenar, manifiesto e id\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "train, test = dividir(filas, config['fraccion_test'], semilla); metricas = entrenar_fn(train, test, config)",
+                    "dict(entorno) crea una copia: si quien llama cambia su diccionario despues, el manifiesto no se entera.",
+                    "receta = {k: manifiesto[k] for k in ('datos', 'config', 'semilla', 'entorno')}",
+                    "manifiesto['id'] = huella_config(receta) y return manifiesto.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "entrena con la division reproducible",
+                        "code": (
+                            "filas = [{'pedido': i, 'devuelto': i % 3 == 0} for i in range(20)]\n"
+                            "config = {'modelo': 'arbol', 'max_depth': 3, 'fraccion_test': 0.25}\n"
+                            "llamadas = []\n"
+                            "def entrenar_fn(train, test, cfg):\n"
+                            "    llamadas.append((train, test, cfg))\n"
+                            "    return {'accuracy': 0.8, 'n_test': len(test)}\n"
+                            "m = ejecutar_experimento(filas, config, 5, entrenar_fn, {'numpy': '2.0.2'})\n"
+                            "assert len(llamadas) == 1, llamadas\n"
+                            "esperado = dividir(filas, 0.25, 5)\n"
+                            "assert (llamadas[0][0], llamadas[0][1]) == esperado\n"
+                            "assert llamadas[0][2] == config\n"
+                            "assert m['metricas'] == {'accuracy': 0.8, 'n_test': 5}, m['metricas']\n"
+                        ),
+                    },
+                    {
+                        "name": "estructura del manifiesto",
+                        "code": (
+                            "import json\n"
+                            "filas = [{'pedido': 1}, {'pedido': 2}, {'pedido': 3}, {'pedido': 4}]\n"
+                            "config = {'max_depth': 2, 'fraccion_test': 0.5}\n"
+                            "entorno = {'python': '3.12', 'numpy': '2.0.2'}\n"
+                            "m = ejecutar_experimento(filas, config, 1, lambda tr, te, c: {'accuracy': 1.0}, entorno)\n"
+                            "assert m['datos'] == {'huella': huella_datos(filas), 'filas': 4}, m['datos']\n"
+                            "assert m['config'] == {'huella': huella_config(config), 'valores': config}, m['config']\n"
+                            "assert m['semilla'] == 1 and m['entorno'] == entorno\n"
+                            "entorno['numpy'] = '9.9'\n"
+                            "assert m['entorno']['numpy'] == '2.0.2', 'el manifiesto debe guardar una copia del entorno'\n"
+                            "assert json.loads(json.dumps(m)) == m\n"
+                        ),
+                    },
+                    {
+                        "name": "el id depende de la receta, no de las metricas",
+                        "code": (
+                            "filas = [{'pedido': i} for i in range(8)]\n"
+                            "config = {'max_depth': 2, 'fraccion_test': 0.25}\n"
+                            "resultados = iter([0.9, 0.7, 0.9])\n"
+                            "def entrenar_fn(train, test, cfg):\n"
+                            "    return {'accuracy': next(resultados)}\n"
+                            "a = ejecutar_experimento(filas, config, 1, entrenar_fn, {'numpy': '2.0.2'})\n"
+                            "b = ejecutar_experimento(filas, config, 1, entrenar_fn, {'numpy': '2.0.2'})\n"
+                            "c = ejecutar_experimento(filas, config, 2, entrenar_fn, {'numpy': '2.0.2'})\n"
+                            "assert isinstance(a['id'], str) and len(a['id']) == 12, a.get('id')\n"
+                            "assert a['metricas'] != b['metricas']\n"
+                            "assert a['id'] == b['id'], 'misma receta, mismo id'\n"
+                            "assert c['id'] != a['id'], 'otra semilla, otro id'\n"
+                        ),
+                    },
+                    {
+                        "name": "el id es la huella de datos, config, semilla y entorno",
+                        "code": (
+                            "filas = [{'pedido': 1}, {'pedido': 2}]\n"
+                            "config = {'fraccion_test': 0.5}\n"
+                            "m = ejecutar_experimento(filas, config, 3, lambda tr, te, c: {'accuracy': 0.5}, {'numpy': '2.0.2'})\n"
+                            "receta = {k: m[k] for k in ('datos', 'config', 'semilla', 'entorno')}\n"
+                            "assert m['id'] == huella_config(receta), m\n"
+                            "otro = ejecutar_experimento(filas, config, 3, lambda tr, te, c: {'accuracy': 0.5}, {'numpy': '2.1.0'})\n"
+                            "assert otro['id'] != m['id'], 'otro entorno, otro id'\n"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
