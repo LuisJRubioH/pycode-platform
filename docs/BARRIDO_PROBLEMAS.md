@@ -184,6 +184,24 @@ abra. El runtime de Pyodide no está aquí (se carga desde el CDN, lazy), así q
 1 MB es código propio y librerías. Un `React.lazy` por ruta y un `manualChunks` para
 Monaco arreglan la mayor parte.
 
+**Resuelto (2026-09-13)**. La carga inicial pasa de 1.115 kB (323 kB gzip) a
+243 kB (76 kB gzip) más la página visitada, y desaparece el aviso de 500 kB:
+
+- `React.lazy` por ruta, con un `Suspense` por página para que la barra de
+  navegación no desaparezca mientras llega.
+- `manualChunks`: React y el router aparte (cambian poco y se cachean entre
+  deploys) y los iconos de lucide juntos (salían en más de 20 chunks de 0,3 kB).
+- Resaltado propio (`components/resaltado.ts`) con solo la gramática de Python:
+  rehype-highlight importaba siempre las 37 de lowlight. El chunk de Markdown
+  baja de 180 kB a 29 kB.
+- Dashboard sigue pesando 413 kB (recharts), pero solo se descarga al visitarlo.
+- Monaco no estaba en el bundle: `@monaco-editor/react` lo carga del CDN.
+
+Lo que trae partir el bundle y quedó cubierto: un deploy borra los chunks de
+una pestaña abierta. `main.tsx` recarga una vez (como mucho una por minuto) y
+un límite de error por ruta muestra "No se pudo cargar esta página" en vez de
+dejar la app en blanco; el límite se reinicia al cambiar de ruta.
+
 ### 7. Cobertura de tests del frontend
 
 3 archivos de test (`MarkdownCodeBlock`, `CodeEditor`, `Lessons`) para 20 páginas y

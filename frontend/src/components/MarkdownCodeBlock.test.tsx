@@ -24,7 +24,7 @@ describe('MarkdownCodeBlock', () => {
 
   it('copia el codigo plano, sin las marcas del resaltado', async () => {
     const user = setupConPortapapeles()
-    // Asi es como llega tras rehype-highlight: tokens envueltos en spans.
+    // Asi es como llega tras el resaltado (resaltado.ts): tokens envueltos en spans.
     render(
       <MarkdownCodeBlock>
         <code className="hljs language-python">

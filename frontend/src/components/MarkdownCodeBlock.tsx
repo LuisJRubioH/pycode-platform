@@ -4,7 +4,7 @@ import { Check, Copy } from 'lucide-react'
 /**
  * Reemplaza el `<pre>` que genera react-markdown para añadirle un boton de
  * copiar. El texto se lee del DOM con una ref en vez de recorrer el AST:
- * rehype-highlight envuelve cada token en `<span>`, asi que reconstruir el
+ * el resaltado (resaltado.ts) envuelve cada token en `<span>`, asi que reconstruir el
  * codigo desde `children` obligaria a caminar el arbol. Usamos `textContent`
  * y no `innerText` porque dentro de un `<pre>` dan el mismo resultado y
  * `textContent` no depende del layout (ni falta en jsdom).

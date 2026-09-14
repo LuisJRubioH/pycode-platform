@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import rehypeHighlight from 'rehype-highlight'
+import resaltarCodigo from './resaltado'
 // Tema del resaltado. Se empaqueta con el bundle: no sale ninguna peticion
 // a un CDN, asi que no hay que tocar la CSP.
 import 'highlight.js/styles/github-dark.css'
@@ -42,7 +42,7 @@ const Markdown: React.FC<MarkdownProps> = ({ children, className = 'prose prose-
   <div className={`${className} ${CODIGO_INLINE}`}>
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeHighlight]}
+      rehypePlugins={[resaltarCodigo]}
       components={COMPONENTES}
     >
       {children}
