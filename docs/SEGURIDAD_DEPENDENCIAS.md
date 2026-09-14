@@ -1,8 +1,9 @@
 # Triaje de alertas de dependencias (Dependabot)
 
 Criterio de priorización P1-P4 de PyCode y la clasificación de las alertas
-abiertas. **Snapshot: 2026-09-03, 35 alertas abiertas.** Nada de esto está
-aplicado todavía: es el triaje, no el parche.
+abiertas. **Triaje: 2026-09-03 (35 alertas). Aplicado el 2026-09-13**: de 34
+abiertas ese día quedan las 2 de `react-router` aceptadas como P4 (ver
+"Estado tras aplicar", al final).
 
 Regenerar el inventario:
 
@@ -101,14 +102,18 @@ un atacante ya controlase la entrada del build.
 > `returnTo`, un deep-link de vuelta tras login). Ahí la migración a
 > `react-router` 7.x deja de ser opcional. Revisar esta nota al tocar el routing.
 
-## Acciones propuestas (sin aplicar)
+## Acciones (aplicadas el 2026-09-13 salvo la 4)
 
-1. `pillow` `12.2.0 → 12.3.0` en `requirements.txt` + regenerar `requirements.lock`.
-   Cierra 13 de 35 alertas con un cambio de una línea.
+1. ~~`pillow` `12.2.0 → 12.3.0`~~ — **hecho** (`requirements.txt` y
+   `requirements.lock`). Cierra 13 alertas; los tests de certificados (PDF con
+   reportlab) pasan.
 2. ~~`dompurify`~~ — hecho, ver arriba.
-3. Una tanda única de devDependencies (P3) con `npm audit fix` y `npm run build`
-   + `npm run test` en verde. `vite` y `vitest` son los que más riesgo de rotura
-   tienen: van en su propio commit.
+3. ~~Tanda de devDependencies (P3)~~ — **hecho**, en dos commits:
+   - `npm audit fix` sin `--force` para las transitivas: `js-yaml`,
+     `brace-expansion`, `browserslist`, `baseline-browser-mapping`, `postcss`,
+     `nanoid`, `@babel/core`.
+   - `vite` 5 → 6.4.3 y `vitest` 1 → 3.2.7 (cierra la crítica #56 y `esbuild`),
+     verificado con Pyodide real en dev y en `vite preview`.
 4. ~~Dejar `react-router` en 6.30.4~~ — subido a **6.30.6** (cierra #92). #93 y #94
    solo tienen parche en 7.18, que es una migración mayor: se quedan en 6.x
    mientras no se cumpla el disparador de arriba. **Releer este documento**
@@ -116,3 +121,17 @@ un atacante ya controlase la entrada del build.
 
 CI ya corre `pip-audit` y `npm audit` en el job `audit`, y Dependabot abre PRs
 semanales para pip, npm y actions.
+
+## Estado tras aplicar (2026-09-13)
+
+`npm audit` queda en 4 avisos moderados y ninguno llega al alumno por una vía
+explotable hoy:
+
+| Aviso | Paquete | Prioridad | Por qué se queda |
+|---|---|---|---|
+| #93, #94 | `react-router` | P4 | Solo se parchean en 7.18 (migración mayor) y no tienen alcance: ver arriba. |
+| GHSA-82fw-gwwq-j7x9 | `@vitest/mocker` | P3 | Path traversal en los mocks de Vitest mientras corren los tests. Solo se corrige en Vitest 5; no viaja a producción. |
+
+Gotcha al subir Vite: la **primera** carga en frío del servidor de desarrollo
+optimiza dependencias y recarga la página; una prueba automática que empiece
+justo entonces puede fallar sin que haya un error real.
