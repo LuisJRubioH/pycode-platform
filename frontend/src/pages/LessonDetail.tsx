@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Clock, Code2 } from 'lucide-react'
 import Markdown from '../components/Markdown'
+import { LessonIndex, LessonSections } from '../components/LessonContent'
+import { partirEnSecciones } from '../components/lessonSecciones'
 import { api } from '../services/api'
 import { saveTutorContext } from '../services/tutorContext'
 
@@ -39,6 +41,10 @@ const LessonDetail: React.FC = () => {
   const [lesson, setLesson] = useState<LessonDetailPayload | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  // Secciones `##` del contenido: alimentan el indice con anclas y los bloques
+  // de Objetivo / Errores comunes / Resumen.
+  const partes = useMemo(() => partirEnSecciones(lesson?.content || ''), [lesson?.content])
 
   useEffect(() => {
     const loadLesson = async () => {
@@ -127,76 +133,88 @@ const LessonDetail: React.FC = () => {
         Volver al listado
       </Link>
 
-      {/* La tarjeta ocupa el ancho de la pagina; la columna de texto va dentro,
-          centrada y con la medida por defecto de `prose` (~65ch). Antes tenia
-          `max-w-none`, que la estiraba a 110-120 caracteres por linea. */}
-      <div className="card p-6">
-        <Markdown className="prose prose-slate mx-auto">{lesson.content || ''}</Markdown>
-      </div>
-
-      <div className="card p-6 space-y-4">
-        <h2 className="text-xl font-semibold text-slate-900">Ejercicios de esta leccion</h2>
-
-        {lesson.exercises.length === 0 ? (
-          <p className="text-sm text-slate-500">No hay ejercicios asociados todavia.</p>
-        ) : (
-          <div className="space-y-4">
-            {lesson.exercises.map((exercise) => (
-              <div key={exercise.id} className="rounded-xl border border-slate-200 p-4 bg-slate-50">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-primary-600" />
-                    {exercise.title}
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    {exercise.completed && (
-                      <span className="text-[10px] uppercase tracking-wide text-emerald-700 bg-emerald-100 rounded px-1.5 py-0.5 font-semibold inline-flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Hecho
-                      </span>
-                    )}
-                    <span className="text-xs px-2 py-1 rounded-full bg-primary-100 text-primary-700">
-                      {exercise.difficulty} · {exercise.points} pts
-                    </span>
-                  </div>
-                </div>
-
-                <p className="text-sm text-slate-600 mt-2">{exercise.description}</p>
-                {/* El enunciado es Markdown, como la leccion: antes salian los
-                    backticks y los ** literales. */}
-                <Markdown className="prose prose-sm prose-slate max-w-none mt-2">
-                  {exercise.instructions || ''}
-                </Markdown>
-
-                {exercise.hints?.length > 0 && (
-                  <div className="mt-3 text-xs text-slate-500">
-                    Pistas: {exercise.hints.join(' · ')}
-                  </div>
-                )}
-
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <button
-                    onClick={() => practiceExercise(exercise)}
-                    className={exercise.completed ? 'btn-secondary' : 'btn-primary'}
-                  >
-                    <Code2 className="h-4 w-4 mr-2" />
-                    {exercise.completed ? 'Revisar' : 'Practicar en editor'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      rememberForTutor(exercise)
-                      navigate('/tutor')
-                    }}
-                    className="btn-secondary"
-                  >
-                    Revisar con tutor
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </button>
-                </div>
-              </div>
-            ))}
+      {/* Indice a la izquierda en pantallas anchas; en moviles va arriba,
+          plegado. La columna de texto sigue centrada con la medida de `prose`
+          (~65ch): antes tenia `max-w-none` y se estiraba a 110-120 caracteres. */}
+      {/* Sin `items-start`: la columna del indice tiene que estirarse hasta el
+          final de la leccion para que su `sticky` tenga recorrido. */}
+      <div className="grid gap-6 lg:grid-cols-[15rem,minmax(0,1fr)]">
+        <LessonIndex
+          entradas={[
+            ...partes.secciones.map((s) => ({ id: s.id, titulo: s.titulo })),
+            ...(lesson.exercises.length > 0 ? [{ id: 'ejercicios', titulo: 'Ejercicios' }] : []),
+          ]}
+        />
+        <div className="space-y-8 min-w-0">
+          <div className="card p-6 sm:p-8">
+            <LessonSections intro={partes.intro} secciones={partes.secciones} />
           </div>
-        )}
+
+          <div id="ejercicios" className="card p-6 space-y-4 scroll-mt-6">
+            <h2 className="text-xl font-semibold text-slate-900">Ejercicios de esta leccion</h2>
+
+            {lesson.exercises.length === 0 ? (
+              <p className="text-sm text-slate-500">No hay ejercicios asociados todavia.</p>
+            ) : (
+              <div className="space-y-4">
+                {lesson.exercises.map((exercise) => (
+                  <div key={exercise.id} className="rounded-xl border border-slate-200 p-4 bg-slate-50">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 text-primary-600" />
+                        {exercise.title}
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        {exercise.completed && (
+                          <span className="text-[10px] uppercase tracking-wide text-emerald-700 bg-emerald-100 rounded px-1.5 py-0.5 font-semibold inline-flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            Hecho
+                          </span>
+                        )}
+                        <span className="text-xs px-2 py-1 rounded-full bg-primary-100 text-primary-700">
+                          {exercise.difficulty} · {exercise.points} pts
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-sm text-slate-600 mt-2">{exercise.description}</p>
+                    {/* El enunciado es Markdown, como la leccion: antes salian los
+                        backticks y los ** literales. */}
+                    <Markdown className="prose prose-sm prose-slate max-w-none mt-2">
+                      {exercise.instructions || ''}
+                    </Markdown>
+
+                    {exercise.hints?.length > 0 && (
+                      <div className="mt-3 text-xs text-slate-500">
+                        Pistas: {exercise.hints.join(' · ')}
+                      </div>
+                    )}
+
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <button
+                        onClick={() => practiceExercise(exercise)}
+                        className={exercise.completed ? 'btn-secondary' : 'btn-primary'}
+                      >
+                        <Code2 className="h-4 w-4 mr-2" />
+                        {exercise.completed ? 'Revisar' : 'Practicar en editor'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          rememberForTutor(exercise)
+                          navigate('/tutor')
+                        }}
+                        className="btn-secondary"
+                      >
+                        Revisar con tutor
+                        <ArrowRight className="h-4 w-4 ml-2" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )
