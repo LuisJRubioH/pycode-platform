@@ -318,3 +318,27 @@ def test_track0_va_delante_de_track1():
     python = [x.order for x in LESSON_TEMPLATES if x.track == "track-1"]
     assert fundamentos and python
     assert max(fundamentos) < min(python)
+
+
+def test_ninguna_categoria_se_comparte_entre_tracks():
+    """Una categoría no puede vivir en dos tracks a la vez.
+
+    `Competencies.tsx` agrupa por `category` y mapea cada una a un track, así
+    que una categoría compartida funde dos competencias en una tarjeta y la
+    manda al track equivocado. Pasó de verdad: Track 0 nació usando
+    `fundamentos`, que ya usaban cuatro lecciones de Track 1.
+    """
+    from collections import defaultdict
+
+    from app.services.lesson_seed import LESSON_TEMPLATES
+
+    tracks_por_categoria = defaultdict(set)
+    for leccion in LESSON_TEMPLATES:
+        tracks_por_categoria[leccion.category].add(leccion.track)
+
+    compartidas = {
+        categoria: sorted(tracks)
+        for categoria, tracks in tracks_por_categoria.items()
+        if len(tracks) > 1
+    }
+    assert not compartidas, f"categorías en más de un track: {compartidas}"

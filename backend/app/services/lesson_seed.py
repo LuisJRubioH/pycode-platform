@@ -913,6 +913,624 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
         ],
     ),
     LessonTemplate(
+        title="Fundamentos 4 · Condicionales",
+        description=(
+            "Decidir: Si/SiNo, decisiones encadenadas, condiciones compuestas con Y, O y NO, y por que el orden de las preguntas importa."
+        ),
+        content=(
+            "# Condicionales\n"
+            "\n"
+            "Hasta ahora todos los algoritmos hacian siempre lo mismo. Un condicional es lo que les permite **decidir**: mirar un dato y tomar un camino u otro. Es la primera vez que dos ejecuciones del mismo algoritmo pueden no parecerse en nada.\n"
+            "\n"
+            "## Por que hace falta decidir\n"
+            "\n"
+            'El algoritmo de la propina que viste en la leccion 1 sirve para cualquier cuenta. Pero en cuanto la regla real aparece —*"si la cuenta pasa de 50 euros, la propina es del 5%; si no, del 10%"*— hace falta algo que mire el dato y elija. Eso es un `Si`.\n'
+            "\n"
+            "Y decidir es donde se cuelan la mitad de los errores de un programa, porque hay que acertar con **tres cosas a la vez**: la condicion, que se hace cuando se cumple y que se hace cuando no.\n"
+            "\n"
+            "## Si ... Entonces ... FinSi\n"
+            "\n"
+            "La forma mas simple: un bloque que se ejecuta **solo si** la condicion es cierta.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Envio\n"
+            "    Leer peso\n"
+            "    coste <- 5\n"
+            "    Si peso > 10 Entonces\n"
+            "        coste <- coste + 3           // esta linea solo se ejecuta si pesa mas de 10\n"
+            "    FinSi\n"
+            "    Escribir coste\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Con `peso` valiendo 12 escribe 8. Con `peso` valiendo 4 escribe 5: la linea de dentro **no se ejecuta**, y el algoritmo sigue en la primera linea despues del `FinSi`.\n"
+            "\n"
+            "Lo que va dentro del `Si` se escribe mas a la derecha. Esa sangria no es decoracion: es lo que dice donde empieza y acaba el bloque que depende de la condicion.\n"
+            "\n"
+            "## SiNo: el otro camino\n"
+            "\n"
+            "Cuando hay algo que hacer en los dos casos, se añade `SiNo`.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Acceso\n"
+            "    Leer edad\n"
+            "    Si edad >= 18 Entonces\n"
+            '        mensaje <- "Puedes pasar"\n'
+            "    SiNo\n"
+            '        mensaje <- "Todavia no"\n'
+            "    FinSi\n"
+            "    Escribir mensaje                 // se ejecuta siempre: esta fuera del Si\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Se ejecuta **una** de las dos ramas, nunca las dos y nunca ninguna. Y fijate en el `Escribir` del final: esta fuera del condicional, asi que se ejecuta pase lo que pase. Meterlo dentro de cada rama es escribir dos veces lo mismo.\n"
+            "\n"
+            "Los comparadores son los de la leccion 2: `=`, `<>` (distinto), `<`, `<=`, `>`, `>=`.\n"
+            "\n"
+            "## Encadenar decisiones\n"
+            "\n"
+            "Con mas de dos casos, los `Si` se meten unos dentro de otros. El de dentro **solo se evalua si el de fuera fue falso**, y eso es justo lo que se quiere:\n"
+            "\n"
+            "```\n"
+            "Algoritmo Nota\n"
+            "    Leer puntos\n"
+            "    Si puntos >= 90 Entonces\n"
+            '        nota <- "A"\n'
+            "    SiNo\n"
+            "        Si puntos >= 70 Entonces      // aqui ya se sabe que puntos < 90\n"
+            '            nota <- "B"\n'
+            "        SiNo\n"
+            '            nota <- "C"\n'
+            "        FinSi\n"
+            "    FinSi\n"
+            "    Escribir nota\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            'Con 95 sale "A". Con 80: falla la primera, entra en el `SiNo`, cumple la segunda y sale "B". Con 60 sale "C".\n'
+            "\n"
+            "Como cada rama ya sabe que fallaron las anteriores, **no hay que repetir la parte que ya se descarto**: la segunda condicion es `puntos >= 70` a secas, no `puntos < 90 Y puntos >= 70`.\n"
+            "\n"
+            'Por eso **el orden importa**. Si se pregunta primero por `puntos >= 70`, un 95 tambien la cumple y saldria "B": el caso de la "A" se vuelve inalcanzable. Las condiciones encadenadas van de la mas exigente a la menos.\n'
+            "\n"
+            "## Condiciones compuestas: Y, O, NO\n"
+            "\n"
+            "Se combinan condiciones para preguntar por dos cosas a la vez.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Descuento\n"
+            "    edad <- 20\n"
+            "    socio <- Verdadero\n"
+            "    Escribir edad >= 18 Y edad < 65         // Verdadero: las DOS se cumplen\n"
+            "    Escribir edad < 18 O socio = Verdadero  // Verdadero: basta con una\n"
+            "    Escribir NO socio                       // Falso: NO le da la vuelta\n"
+            "    Escribir edad > 30 Y socio              // Falso: la primera falla\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "- **`Y`**: cierto solo si **las dos** partes lo son.\n"
+            "- **`O`**: cierto si lo es **al menos una**.\n"
+            "- **`NO`**: le da la vuelta a lo que tenga delante.\n"
+            "\n"
+            "El error clasico es escribir con `Y` una condicion que ningun valor puede cumplir: `edad > 65 Y edad < 18` no es cierta jamas, porque no hay ningun numero que sea las dos cosas. Cuando una rama no se ejecuta nunca, sospecha del `Y`.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            "- **Poner fuera del `Si` lo que iba dentro.** La sangria decide que depende de la condicion. Una linea mal colocada se ejecuta siempre, y el fallo solo se ve con los datos que no cumplen la condicion.\n"
+            "- **Ordenar mal las condiciones encadenadas.** Si la primera es la menos exigente, se lleva todos los casos y las siguientes no se ejecutan nunca. De la mas exigente a la menos.\n"
+            "- **Repetir lo que ya se descarto.** Dentro del `SiNo` de `puntos >= 90` ya se sabe que son menos de 90. Volver a escribirlo no es mas seguro, es mas largo y se desincroniza al cambiar un numero.\n"
+            '- **Usar `Y` donde iba `O`.** "Si es menor de edad Y no es socio" es mucho mas estrecho que "O". Pregunta: ¿tienen que cumplirse las dos, o basta con una?\n'
+            "- **Escribir una condicion imposible.** `edad > 65 Y edad < 18` nunca es cierta. Si una rama no salta nunca, empieza por ahi.\n"
+            "- **Confundir `=` con `<-`.** En una condicion `=` pregunta. `Si edad <- 18` no tiene sentido: eso guarda, no compara.\n"
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **`Si ... Entonces ... FinSi`**: el bloque de dentro se ejecuta solo si la condicion es cierta; la sangria marca cual es ese bloque.\n"
+            "- **`SiNo`**: el otro camino; se ejecuta exactamente una de las dos ramas.\n"
+            "- **Encadenar**: `Si` dentro del `SiNo`, de la condicion mas exigente a la menos, sin repetir lo ya descartado.\n"
+            "- **`Y`** pide las dos, **`O`** se conforma con una, **`NO`** le da la vuelta.\n"
+            "- **Comparadores**: `=`, `<>`, `<`, `<=`, `>`, `>=`.\n"
+            "- Una rama que no salta nunca suele ser un `Y` imposible o un orden mal puesto.\n"
+        ),
+        difficulty="beginner",
+        category="algoritmos",
+        order=-7,
+        track="track-0",
+        estimated_duration=35,
+        prerequisites_titles=[
+            "Fundamentos 3 · Traza de ejecucion",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Que rama se ejecuta",
+                description="Seguir un Si/SiNo con un valor concreto.",
+                instructions=(
+                    "Con `peso` valiendo 4, ¿que linea se ejecuta dentro del condicional?"
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="mcq",
+                spec={
+                    "pseudocodigo": "Algoritmo Envio\n    peso <- 4\n    coste <- 5\n    Si peso > 10 Entonces\n        coste <- coste + 3\n    FinSi\n    Escribir coste\nFinAlgoritmo",
+                    "pregunta": "¿Que pasa con `coste <- coste + 3`?",
+                    "opciones": [
+                        "Se ejecuta, y coste acaba valiendo 8.",
+                        "No se ejecuta, y coste sigue valiendo 5.",
+                        "Se ejecuta dos veces.",
+                        "Da error porque no hay SiNo.",
+                    ],
+                },
+                answer_key={
+                    "correcta": 1,
+                    "motivo": "Correcto: 4 no es mayor que 10, asi que el bloque se salta entero.",
+                    "pista": "Evalua la condicion con peso = 4. ¿Es cierta?",
+                },
+            ),
+            ExerciseTemplate(
+                title="Las dos ramas",
+                description="Un Si/SiNo completo, con la salida fuera del condicional.",
+                instructions=(
+                    "Sigue el algoritmo y escribe la salida. Fijate en que el `Escribir` esta **fuera** del condicional."
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": 'Algoritmo Acceso\n    edad <- 15\n    Si edad >= 18 Entonces\n        mensaje <- "Puedes pasar"\n    SiNo\n        mensaje <- "Todavia no"\n    FinSi\n    Escribir mensaje\nFinAlgoritmo',
+                    "ayuda": "Escribe el texto sin comillas.",
+                },
+                answer_key={"salida": "Todavia no"},
+            ),
+            ExerciseTemplate(
+                title="Condiciones compuestas",
+                description="Evaluar Y, O y NO con unos valores dados.",
+                instructions=(
+                    "Con `edad` valiendo 20 y `socio` valiendo Verdadero, calcula las cuatro condiciones y escribe las cuatro lineas de salida.\n"
+                    "\n"
+                    "Escribe `Verdadero` o `Falso` en cada linea."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": "Algoritmo Condiciones\n    edad <- 20\n    socio <- Verdadero\n    Escribir edad >= 18 Y edad < 65\n    Escribir edad < 18 O socio\n    Escribir NO socio\n    Escribir edad > 30 Y socio\nFinAlgoritmo"
+                },
+                answer_key={"salida": "Verdadero\nVerdadero\nFalso\nFalso"},
+            ),
+            ExerciseTemplate(
+                title="Decisiones encadenadas",
+                description="Un Si dentro del SiNo, con tres casos posibles.",
+                instructions=(
+                    "Este algoritmo asigna una nota. Completa la tabla con la nota que sale para cada valor de `puntos`.\n"
+                    "\n"
+                    "Recuerda que el `Si` de dentro **solo se evalua** si el de fuera fue falso."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": 'Algoritmo Nota\n    Si puntos >= 90 Entonces\n        nota <- "A"\n    SiNo\n        Si puntos >= 70 Entonces\n            nota <- "B"\n        SiNo\n            nota <- "C"\n        FinSi\n    FinSi\nFinAlgoritmo',
+                    "columnas": ["nota"],
+                    "filas": [
+                        {"etiqueta": "puntos = 95", "fijas": ["A"]},
+                        {"etiqueta": "puntos = 90"},
+                        {"etiqueta": "puntos = 80"},
+                        {"etiqueta": "puntos = 70"},
+                        {"etiqueta": "puntos = 69"},
+                    ],
+                    "ayuda": "Escribe solo la letra, sin comillas. La primera fila es el ejemplo.",
+                },
+                answer_key={
+                    "columnas": ["nota"],
+                    "etiquetas_filas": [
+                        "puntos = 95",
+                        "puntos = 90",
+                        "puntos = 80",
+                        "puntos = 70",
+                        "puntos = 69",
+                    ],
+                    "celdas": [["A"], ["A"], ["B"], ["B"], ["C"]],
+                },
+            ),
+            ExerciseTemplate(
+                title="La rama que no salta nunca",
+                description="Detectar una condicion imposible.",
+                instructions=(
+                    "En este algoritmo hay una rama que **no se ejecuta jamas**, con ningun valor de `edad`. ¿Cual es el problema?"
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=20,
+                exercise_type="mcq",
+                spec={
+                    "pseudocodigo": 'Algoritmo Tarifa\n    Leer edad\n    Si edad > 65 Y edad < 18 Entonces\n        tarifa <- "reducida"\n    SiNo\n        tarifa <- "normal"\n    FinSi\nFinAlgoritmo',
+                    "pregunta": "¿Por que nunca sale la tarifa reducida?",
+                    "opciones": [
+                        "Porque falta leer la tarifa antes.",
+                        "Porque ningun numero es a la vez mayor que 65 y menor que 18: con `Y` hacen falta las dos.",
+                        "Porque el SiNo siempre gana.",
+                        "Porque las condiciones estan al reves y habria que cambiar > por <.",
+                    ],
+                },
+                answer_key={
+                    "correcta": 1,
+                    "motivo": "Eso es: con `Y` tienen que cumplirse las dos, y aqui se excluyen. La regla queria un `O`.",
+                    "pista": "Busca un numero que cumpla las dos partes a la vez. ¿Existe?",
+                },
+            ),
+            ExerciseTemplate(
+                title="El orden de las condiciones",
+                description="Traza de una cadena mal ordenada frente a una bien ordenada.",
+                instructions=(
+                    "Estos dos algoritmos quieren hacer lo mismo, pero preguntan en distinto orden. Completa la tabla con la nota que da **cada uno** para cada valor de `puntos`.\n"
+                    "\n"
+                    "```\n"
+                    "BIEN                          MAL\n"
+                    "Si puntos >= 90 Entonces      Si puntos >= 70 Entonces\n"
+                    '    nota <- "A"                   nota <- "B"\n'
+                    "SiNo                          SiNo\n"
+                    "    Si puntos >= 70 Entonces      Si puntos >= 90 Entonces\n"
+                    '        nota <- "B"                   nota <- "A"\n'
+                    "    SiNo                          SiNo\n"
+                    '        nota <- "C"                   nota <- "C"\n'
+                    "    FinSi                         FinSi\n"
+                    "FinSi                         FinSi\n"
+                    "```"
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=25,
+                exercise_type="trace_table",
+                spec={
+                    "columnas": ["bien", "mal"],
+                    "filas": [
+                        {"etiqueta": "puntos = 95"},
+                        {"etiqueta": "puntos = 75"},
+                        {"etiqueta": "puntos = 40"},
+                    ],
+                    "ayuda": "Una letra por celda, sin comillas. Fijate en que le pasa al 95 en la version de la derecha.",
+                },
+                answer_key={
+                    "columnas": ["bien", "mal"],
+                    "etiquetas_filas": ["puntos = 95", "puntos = 75", "puntos = 40"],
+                    "celdas": [["A", "B"], ["B", "B"], ["C", "C"]],
+                },
+            ),
+        ],
+    ),
+    LessonTemplate(
+        title="Fundamentos 5 · Bucles",
+        description=(
+            "Repetir: Mientras y Para, contadores y acumuladores, condicion de parada y el uno de mas que se lleva media hora de depuracion."
+        ),
+        content=(
+            "# Bucles\n"
+            "\n"
+            "Un bucle repite un bloque de instrucciones. Es lo que permite que un algoritmo de diez lineas procese diez mil pedidos, y es tambien donde mas se equivoca todo el mundo: por una vuelta de mas, por una de menos, o porque no termina.\n"
+            "\n"
+            "## Por que repetir\n"
+            "\n"
+            "Sumar tres numeros se puede escribir a mano. Sumar los numeros del 1 al 100 tambien, con mucha paciencia. Sumar los de una lista que todavia no sabes cuanto mide, no.\n"
+            "\n"
+            "Un bucle separa **lo que se repite** de **cuantas veces se repite**, y eso es lo que hace que el algoritmo no dependa del tamaño del problema.\n"
+            "\n"
+            "## Mientras: repetir hasta que algo cambie\n"
+            "\n"
+            "`Mientras` comprueba la condicion **antes** de cada vuelta. Si es falsa desde el principio, el bloque no se ejecuta ni una vez.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Cuenta\n"
+            "    i <- 1\n"
+            "    Mientras i <= 3 Hacer\n"
+            "        Escribir i                   // 1, despues 2, despues 3\n"
+            "        i <- i + 1                   // sin esta linea, i se queda en 1 para siempre\n"
+            "    FinMientras\n"
+            '    Escribir "Fin"\n'
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Escribe 1, 2, 3 y Fin. Tres detalles que hay que tener siempre en la cabeza:\n"
+            "\n"
+            "1. La condicion se comprueba **antes** de entrar, tambien la primera vez.\n"
+            "2. Dentro tiene que haber algo que **acerque la condicion a ser falsa**. Aqui, `i <- i + 1`.\n"
+            "3. Al salir, `i` vale **4**, no 3: la vuelta que no se hace es la que dejo la condicion en falso.\n"
+            "\n"
+            "## Contadores y acumuladores\n"
+            "\n"
+            "Son las dos variables que aparecen en casi todos los bucles, y conviene distinguirlas:\n"
+            "\n"
+            "```\n"
+            "Algoritmo Estadisticas\n"
+            "    suma <- 0                        // acumulador: empieza en 0 porque se le SUMA\n"
+            "    cuantos <- 0                     // contador: cuenta vueltas\n"
+            "    i <- 2\n"
+            "    Mientras i <= 6 Hacer\n"
+            "        suma <- suma + i             // el acumulador crece segun el dato\n"
+            "        cuantos <- cuantos + 1       // el contador crece de uno en uno, siempre\n"
+            "        i <- i + 2                   // 2, 4, 6\n"
+            "    FinMientras\n"
+            "    Escribir suma                    // 12\n"
+            "    Escribir cuantos                 // 3\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "- Un **contador** sube de uno en uno. Responde *¿cuantas veces?*\n"
+            "- Un **acumulador** va juntando valores. Responde *¿cuanto en total?*\n"
+            "\n"
+            "Los dos se inicializan **antes** del bucle. Un acumulador que empieza dentro se reinicia en cada vuelta y acaba valiendo solo lo ultimo; es un error que da resultados casi creibles, que son los peores.\n"
+            "\n"
+            "Para multiplicar, el acumulador empieza en **1**, no en 0: cualquier cosa por cero es cero.\n"
+            "\n"
+            "## Para: cuando sabes cuantas vueltas\n"
+            "\n"
+            "Cuando el numero de vueltas se sabe de antemano, `Para` dice lo mismo en una linea: la variable, donde empieza y donde acaba.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Tabla\n"
+            "    total <- 0\n"
+            "    Para i <- 1 Hasta 4 Hacer\n"
+            "        total <- total + i           // i vale 1, 2, 3 y 4\n"
+            "    FinPara\n"
+            "    Escribir total                   // 10\n"
+            "    Escribir i                       // 5: al salir, i ya se paso del final\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "`Para i <- 1 Hasta 4` da **cuatro** vueltas, con `i` valiendo 1, 2, 3 y 4. El limite esta incluido. Y no hace falta escribir `i <- i + 1`: el `Para` ya se encarga.\n"
+            "\n"
+            'Los dos bucles hacen lo mismo. Se elige `Para` cuando las vueltas se cuentan (*"para cada uno de los 10 productos"*) y `Mientras` cuando dependen de algo que pasa (*"mientras queden pedidos sin revisar"*).\n'
+            "\n"
+            "## Cuando el bucle no termina\n"
+            "\n"
+            "Un bucle no termina si nada acerca la condicion a ser falsa:\n"
+            "\n"
+            "```\n"
+            "Algoritmo Infinito\n"
+            "    saldo <- 100\n"
+            "    Mientras saldo > 0 Hacer\n"
+            "        Escribir saldo\n"
+            "    FinMientras                      // saldo nunca cambia: vueltas infinitas\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Falta la linea que baja `saldo`. La comprobacion es siempre la misma: **elige la variable de la condicion y busca donde cambia dentro del bucle**. Si no cambia, o cambia en la direccion equivocada, no termina.\n"
+            "\n"
+            "## El uno de mas\n"
+            "\n"
+            "Es el error mas comun con bucles, y merece su propia seccion.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Limites\n"
+            "    Para i <- 1 Hasta 5 Hacer\n"
+            "        Escribir i\n"
+            "    FinPara                          // escribe 1 2 3 4 5: CINCO vueltas\n"
+            "\n"
+            "    j <- 1\n"
+            "    Mientras j < 5 Hacer\n"
+            "        Escribir j\n"
+            "        j <- j + 1\n"
+            "    FinMientras                      // escribe 1 2 3 4: CUATRO vueltas\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "`Hasta 5` incluye el 5. `Mientras j < 5` no llega a ejecutarse con `j` valiendo 5. Un `<` donde iba un `<=` quita exactamente una vuelta, que es justo lo que cuesta mas ver leyendo el codigo y se ve enseguida trazando.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            "- **Olvidar la linea que hace avanzar el bucle.** Sin `i <- i + 1` (o sin nada que cambie la condicion), vueltas infinitas. Busca siempre donde cambia la variable de la condicion.\n"
+            "- **Inicializar el acumulador dentro del bucle.** Se reinicia en cada vuelta y acaba valiendo solo la ultima. Va antes.\n"
+            "- **Empezar en 0 un acumulador que multiplica.** Todo por cero es cero. Para multiplicar se empieza en 1.\n"
+            "- **Confundir `<` con `<=`.** Una vuelta de mas o de menos. Traza tres vueltas y lo ves.\n"
+            "- **Creer que el contador se queda en el ultimo valor util.** Al salir vale uno mas: por eso salio.\n"
+            "- **Usar `Mientras` para algo contado.** Si sabes cuantas vueltas son, `Para` lo dice en una linea y no se te olvida el incremento.\n"
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **`Mientras`**: comprueba antes de cada vuelta; si la condicion nace falsa, no entra ninguna vez.\n"
+            "- **`Para i <- a Hasta b`**: vueltas contadas, con el limite incluido y el incremento automatico.\n"
+            "- **Contador** cuenta vueltas; **acumulador** junta valores. Los dos se inicializan **antes** (en 0 para sumar, en 1 para multiplicar).\n"
+            "- **No termina** si nada acerca la condicion a falsa: mira donde cambia la variable de la condicion.\n"
+            "- **Al salir**, la variable del bucle vale uno mas que la ultima vuelta.\n"
+            "- **`<` frente a `<=`**: exactamente una vuelta de diferencia.\n"
+        ),
+        difficulty="beginner",
+        category="algoritmos",
+        order=-6,
+        track="track-0",
+        estimated_duration=35,
+        prerequisites_titles=[
+            "Fundamentos 4 · Condicionales",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Un Para sencillo",
+                description="La salida de un bucle con limites incluidos.",
+                instructions=(
+                    "Sigue el bucle y escribe la salida, una linea por cada `Escribir`.\n"
+                    "\n"
+                    "Recuerda que `Hasta 4` **incluye** el 4."
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": "Algoritmo Cuenta\n    Para i <- 1 Hasta 4 Hacer\n        Escribir i\n    FinPara\nFinAlgoritmo"
+                },
+                answer_key={"salida": "1\n2\n3\n4"},
+            ),
+            ExerciseTemplate(
+                title="Cuantas vueltas da este Mientras",
+                description="La diferencia entre < y <=.",
+                instructions=(
+                    "¿Cuantas veces se ejecuta el `Escribir` de este bucle?\n"
+                    "\n"
+                    "Fijate bien en el comparador."
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="mcq",
+                spec={
+                    "pseudocodigo": "Algoritmo Vueltas\n    j <- 1\n    Mientras j < 5 Hacer\n        Escribir j\n        j <- j + 1\n    FinMientras\nFinAlgoritmo",
+                    "pregunta": "¿Cuantas veces escribe algo?",
+                    "opciones": ["3 veces", "4 veces", "5 veces", "6 veces"],
+                },
+                answer_key={
+                    "correcta": 1,
+                    "motivo": "Correcto: j vale 1, 2, 3 y 4; con 5 la condicion ya es falsa.",
+                    "pista": "Anota los valores de j que ENTRAN en el bucle y cuentalos.",
+                },
+            ),
+            ExerciseTemplate(
+                title="Contador y acumulador",
+                description="Dos variables que crecen de forma distinta.",
+                instructions=(
+                    "Completa la traza con el estado **al terminar** cada vuelta.\n"
+                    "\n"
+                    "`suma` es el acumulador y `cuantos` el contador: uno crece segun el dato y el otro de uno en uno."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Algoritmo Estadisticas\n    suma <- 0\n    cuantos <- 0\n    i <- 2\n    Mientras i <= 6 Hacer\n        suma <- suma + i\n        cuantos <- cuantos + 1\n        i <- i + 2\n    FinMientras\nFinAlgoritmo",
+                    "columnas": ["i", "suma", "cuantos"],
+                    "filas": [
+                        {"etiqueta": "Antes del bucle", "fijas": ["2", "0", "0"]},
+                        {"etiqueta": "Fin de la vuelta 1"},
+                        {"etiqueta": "Fin de la vuelta 2"},
+                        {"etiqueta": "Fin de la vuelta 3"},
+                    ],
+                    "ayuda": "Ojo a cuanto vale i en la ultima fila: por eso el bucle acaba.",
+                },
+                answer_key={
+                    "columnas": ["i", "suma", "cuantos"],
+                    "etiquetas_filas": [
+                        "Antes del bucle",
+                        "Fin de la vuelta 1",
+                        "Fin de la vuelta 2",
+                        "Fin de la vuelta 3",
+                    ],
+                    "celdas": [
+                        ["2", "0", "0"],
+                        ["4", "2", "1"],
+                        ["6", "6", "2"],
+                        ["8", "12", "3"],
+                    ],
+                },
+            ),
+            ExerciseTemplate(
+                title="Un acumulador que multiplica",
+                description="Por que este no puede empezar en 0.",
+                instructions=(
+                    "Sigue el algoritmo y escribe las dos lineas de salida.\n"
+                    "\n"
+                    "Los dos bucles hacen lo mismo, pero sus acumuladores empiezan distinto."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": "Algoritmo Producto\n    a <- 1\n    Para i <- 1 Hasta 4 Hacer\n        a <- a * i\n    FinPara\n    Escribir a\n\n    b <- 0\n    Para i <- 1 Hasta 4 Hacer\n        b <- b * i\n    FinPara\n    Escribir b\nFinAlgoritmo"
+                },
+                answer_key={"salida": "24\n0"},
+            ),
+            ExerciseTemplate(
+                title="El bucle que sale por dos motivos",
+                description="Trazar una condicion compuesta con Y.",
+                instructions=(
+                    "Este bucle sigue **mientras queden ambas cosas**: saldo positivo y menos de 4 meses. Completa la traza con el estado al terminar cada vuelta, y si la condicion sigue siendo cierta.\n"
+                    "\n"
+                    "Escribe `Verdadero` o `Falso` en la ultima columna."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=20,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Algoritmo Saldo\n    saldo <- 100\n    mes <- 0\n    Mientras saldo > 0 Y mes < 4 Hacer\n        saldo <- saldo - 40\n        mes <- mes + 1\n    FinMientras\nFinAlgoritmo",
+                    "columnas": ["saldo", "mes", "sigue"],
+                    "filas": [
+                        {
+                            "etiqueta": "Antes del bucle",
+                            "fijas": ["100", "0", "Verdadero"],
+                        },
+                        {"etiqueta": "Fin de la vuelta 1"},
+                        {"etiqueta": "Fin de la vuelta 2"},
+                        {"etiqueta": "Fin de la vuelta 3"},
+                    ],
+                    "ayuda": "Con `Y` basta con que falle una parte para que la condicion sea Falso.",
+                },
+                answer_key={
+                    "columnas": ["saldo", "mes", "sigue"],
+                    "etiquetas_filas": [
+                        "Antes del bucle",
+                        "Fin de la vuelta 1",
+                        "Fin de la vuelta 2",
+                        "Fin de la vuelta 3",
+                    ],
+                    "celdas": [
+                        ["100", "0", "Verdadero"],
+                        ["60", "1", "Verdadero"],
+                        ["20", "2", "Verdadero"],
+                        ["-20", "3", "Falso"],
+                    ],
+                },
+            ),
+            ExerciseTemplate(
+                title="Bucle con decision dentro",
+                description="Dos acumuladores que no crecen en las mismas vueltas.",
+                instructions=(
+                    "Este bucle reparte cada numero en uno de dos acumuladores segun sea par o impar. Completa la traza con el estado al terminar cada vuelta.\n"
+                    "\n"
+                    "`n MOD 2` es el resto de dividir entre 2: vale 0 cuando `n` es par. En cada vuelta **solo uno** de los dos acumuladores cambia; el otro repite su valor."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=25,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Algoritmo Repartir\n    pares <- 0\n    impares <- 0\n    Para n <- 1 Hasta 5 Hacer\n        Si n MOD 2 = 0 Entonces\n            pares <- pares + n\n        SiNo\n            impares <- impares + n\n        FinSi\n    FinPara\nFinAlgoritmo",
+                    "columnas": ["pares", "impares"],
+                    "filas": [
+                        {"etiqueta": "Antes del bucle", "fijas": ["0", "0"]},
+                        {"etiqueta": "Fin de la vuelta n = 1"},
+                        {"etiqueta": "Fin de la vuelta n = 2"},
+                        {"etiqueta": "Fin de la vuelta n = 3"},
+                        {"etiqueta": "Fin de la vuelta n = 4"},
+                        {"etiqueta": "Fin de la vuelta n = 5"},
+                    ],
+                },
+                answer_key={
+                    "columnas": ["pares", "impares"],
+                    "etiquetas_filas": [
+                        "Antes del bucle",
+                        "Fin de la vuelta n = 1",
+                        "Fin de la vuelta n = 2",
+                        "Fin de la vuelta n = 3",
+                        "Fin de la vuelta n = 4",
+                        "Fin de la vuelta n = 5",
+                    ],
+                    "celdas": [
+                        ["0", "0"],
+                        ["0", "1"],
+                        ["2", "1"],
+                        ["2", "4"],
+                        ["6", "4"],
+                        ["6", "9"],
+                    ],
+                },
+            ),
+        ],
+    ),
+    LessonTemplate(
         title="Python desde Cero",
         description=(
             "Tu primer programa: print, variables, f-strings y como se lee un "

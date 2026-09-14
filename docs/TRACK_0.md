@@ -4,8 +4,8 @@ Tramo de entrada de PyCode, previo a Track 1 (Python). El alumno aprende a **raz
 algoritmos antes de escribir código**: pseudocódigo, trazas de ejecución, estructuras de
 datos elementales y diagramas de flujo.
 
-> Estado: **piloto en marcha** (2026-09-14). Infraestructura hecha y lecciones 1-3
-> construidas; quedan las lecciones 4-11 y el capstone. Este documento sigue siendo la
+> Estado: **piloto en marcha** (2026-09-14). Infraestructura hecha y lecciones 1-5
+> construidas; quedan las lecciones 6-10 y el capstone. Este documento sigue siendo la
 > fuente de verdad del track; el README enlaza aquí.
 
 ## Por qué existe
@@ -61,7 +61,7 @@ Reglas que gobiernan la solución:
 `trace_table` es el tipo central del track. Si solo se implementa uno, es ese.
 
 **Hechos (2026-09-14)**: `trace_table`, `predict_output` y `mcq`, que son los que usan las
-lecciones 1-3. Cada uno es un componente en `frontend/src/components/track0/` y un
+lecciones 1-5. Cada uno es un componente en `frontend/src/components/track0/` y un
 `_validar_<tipo>` en `backend/app/services/track0_service.py`; añadir uno nuevo es
 escribir ese par y registrarlo en `TIPOS` y en `VALIDADORES`, sin tocar el endpoint ni
 la página de lección (regla 5, ya verificada).
@@ -82,8 +82,8 @@ Fuera de alcance: editor gráfico de diagramas.
 | 1 | Qué es un algoritmo | Entrada/proceso/salida, precisión, finitud, ambigüedad | ✅ |
 | 2 | Variables, tipos y expresiones | Asignación, evaluación de expresiones, tipos en pseudocódigo | ✅ |
 | 3 | Traza de ejecución | Seguir un algoritmo a mano — **habilidad central del track** | ✅ |
-| 4 | Condicionales | Decisiones simples, anidadas, condiciones compuestas | |
-| 5 | Bucles | Mientras / Para, contadores, acumuladores, condición de parada | |
+| 4 | Condicionales | Decisiones simples, anidadas, condiciones compuestas | ✅ |
+| 5 | Bucles | Mientras / Para, contadores, acumuladores, condición de parada | ✅ |
 | 6 | Diagramas de flujo | Símbolos y equivalencia con el pseudocódigo | |
 | 7 | Descomposición | Subprogramas, parámetros, valor de retorno | |
 | 8 | Arreglos y recorridos | Indexación, recorrido completo, búsqueda lineal | |
@@ -143,7 +143,9 @@ nunca por sintaxis de Python.
 ## ELO y competencias
 
 Categoría propia **`algoritmos`** (no `fundamentos`: esa ya la usan cuatro lecciones de
-Track 1 y las dos competencias se habrían fundido en una). Registrada en `Competencies.tsx`
+Track 1 y las dos competencias se habrían fundido en una). El error se coló de verdad al
+escribir las lecciones 4 y 5, así que ahora hay un guard rail que lo impide:
+`test_ninguna_categoria_se_comparte_entre_tracks`. Registrada en `Competencies.tsx`
 (`CATEGORY_LABELS`, `CATEGORY_TO_TRACK`, `TRACK_INFO` y `TRACK_ORDER`) y en
 `backend/app/core/tracks.py`. Verificado: un alumno de Track 0 aparece en
 `/progress/competencies` y en `/progress/track-status` como cualquier otro.
@@ -162,6 +164,6 @@ progreso, competencias y track-status no se enteran de que el ejercicio no era c
 ## Ubicación en el orden curricular
 
 `Lesson.order` es global y monótono (Track 1 va del 1 al 10, Track 2 del 11 al 21...), así que
-Track 0 usa **órdenes negativos**: -10, -9 y -8 para las lecciones 1-3, y hasta el 0 para las
+Track 0 usa **órdenes negativos**: -10 a -6 para las lecciones 1-5, y hasta el 0 para las
 que faltan. Alternativa descartada: renumerar las 48 lecciones existentes, que toca contenido
 ya verificado en producción a cambio de nada.
