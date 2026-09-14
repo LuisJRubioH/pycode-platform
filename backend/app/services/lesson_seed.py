@@ -13486,6 +13486,651 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="AI 4 · RAG de punta a punta",
+        description=(
+            "El pipeline completo sobre los documentos de una tienda: tokenizar, "
+            "indexar una vez, recuperar con umbral de relevancia, citar fuentes "
+            "y generar con un LLM inyectable (falso en los tests, real en el editor)."
+        ),
+        content=(
+            "# AI 4: RAG de punta a punta\n"
+            "\n"
+            "En AI 1, 2 y 3 construiste las piezas por separado: similitud coseno, chunks, indice, prompt y la llamada al LLM. Un sistema real no es la suma de las piezas: es lo que pasa **entre** ellas. Esta leccion las une en un pipeline que responde preguntas sobre los documentos de **Nebula**, una tienda online ficticia, y le anade las tres defensas que separan una demo de algo que se puede poner delante de un usuario.\n"
+            "\n"
+            "## Por que un RAG de punta a punta\n"
+            "\n"
+            "Nebula quiere un asistente que conteste sobre sus politicas de envio, pagos y devoluciones. Con las piezas sueltas aparecen tres problemas en cuanto llegan preguntas de verdad:\n"
+            "\n"
+            "1. **Preguntas que los documentos no responden.** El retriever siempre devuelve *algo*, aunque no tenga que ver. El LLM recibe ruido y **inventa** una respuesta con tono seguro.\n"
+            '2. **Respuestas que no se pueden comprobar.** Si el asistente dice "tienes 30 dias", nadie sabe de que documento lo saco, ni si lo saco de alguno.\n'
+            "3. **Indexar en cada pregunta.** Recalcular los embeddings de todo el corpus por cada consulta no escala.\n"
+            "\n"
+            'Al terminar tendras una funcion `responder` que recupera solo lo relevante, dice "no lo se" sin gastar una llamada al LLM cuando no hay nada, y devuelve la respuesta con las **fuentes** que la respaldan.\n'
+            "\n"
+            "## Tokenizar: el mismo tratamiento para documentos y preguntas\n"
+            "\n"
+            "Antes de comparar textos hay que partirlos en palabras de la misma forma. Si el documento dice `Envio` y la pregunta `envío`, para el ordenador son palabras distintas.\n"
+            "\n"
+            "```python\n"
+            "import re                                                       # expresiones regulares\n"
+            "import unicodedata                                              # para separar las tildes\n"
+            "\n"
+            "def tokenizar(texto):\n"
+            "    minusculas = texto.lower()                                  # 'Envío' -> 'envío'\n"
+            "    separado = unicodedata.normalize('NFD', minusculas)         # la tilde queda como caracter aparte\n"
+            "    sin_tildes = separado.encode('ascii', 'ignore').decode()    # y se descarta: 'envio'\n"
+            "    return re.findall(r'\\w+', sin_tildes)                       # solo palabras, sin signos\n"
+            "\n"
+            "print(tokenizar('¿Cuánto cuesta el envío?'))   # ['cuanto', 'cuesta', 'el', 'envio']\n"
+            "```\n"
+            "\n"
+            "`re.findall(r'\\w+', texto)` devuelve todos los trozos formados por letras, numeros o `_`: los signos de puntuacion quedan fuera sin tener que listarlos.\n"
+            "\n"
+            "## Un embedding que puedes construir: bolsa de palabras\n"
+            "\n"
+            "En AI 1 los embeddings te venian dados. Para que el pipeline funcione de verdad en el editor, construimos uno sencillo: un **vocabulario** (todas las palabras del corpus, ordenadas) y, para cada texto, un vector que cuenta cuantas veces aparece cada palabra.\n"
+            "\n"
+            "```python\n"
+            "import re                                                      # para partir en palabras\n"
+            "import numpy as np                                             # para los vectores\n"
+            "\n"
+            "def tokenizar(texto):                                          # version corta: no quita tildes\n"
+            "    return re.findall(r'\\w+', texto.lower())                   # minusculas y solo palabras\n"
+            "\n"
+            "def vocabulario(textos):                                       # todas las palabras del corpus\n"
+            "    palabras = set()                                           # cada palabra, una sola vez\n"
+            "    for texto in textos:                                       # recorre cada texto del corpus\n"
+            "        palabras.update(tokenizar(texto))                      # anade todas las del texto\n"
+            "    return sorted(palabras)                                    # orden fijo: cada palabra, su columna\n"
+            "\n"
+            "def embed_bow(texto, vocab):                                   # texto -> vector de conteos\n"
+            "    columna = {palabra: i for i, palabra in enumerate(vocab)}  # palabra -> posicion en el vector\n"
+            "    vector = np.zeros(len(vocab))                              # un hueco por palabra\n"
+            "    for palabra in tokenizar(texto):                           # recorre las palabras del texto\n"
+            "        if palabra in columna:                                 # las que no estan en el vocabulario no cuentan\n"
+            "            vector[columna[palabra]] += 1                      # suma 1 en su columna\n"
+            "    return vector                                              # un numero por palabra del vocabulario\n"
+            "\n"
+            "vocab = vocabulario(['el envio es gratis', 'el pago es seguro'])\n"
+            "print(vocab)                                     # ['el', 'envio', 'es', 'gratis', 'pago', 'seguro']\n"
+            "print(embed_bow('envio gratis, envio rapido', vocab))   # [0. 2. 0. 1. 0. 0.]  'rapido' no esta\n"
+            "```\n"
+            "\n"
+            "La bolsa de palabras tiene un limite claro: para ella `devolver` y `devoluciones` no se parecen en nada, porque son palabras distintas. Un **modelo de embeddings** captura que significan casi lo mismo. Lo importante es que la interfaz es identica (texto entra, vector sale): cambiar `embed_bow` por un modelo real no toca el resto del pipeline.\n"
+            "\n"
+            "## Indexar una sola vez\n"
+            "\n"
+            "El indice se construye **una vez**, cuando cambian los documentos, y se guarda. Por cada pregunta solo se embede la pregunta.\n"
+            "\n"
+            "```python\n"
+            "import re                                                            # para partir en palabras\n"
+            "import numpy as np                                                   # para la matriz\n"
+            "\n"
+            "def tokenizar(texto):                                                # version corta: no quita tildes\n"
+            "    return re.findall(r'\\w+', texto.lower())                         # minusculas y solo palabras\n"
+            "\n"
+            "def construir_indice(textos):                                        # se llama UNA vez, no por pregunta\n"
+            "    vocab = sorted({p for t in textos for p in tokenizar(t)})        # vocabulario del corpus\n"
+            "    columna = {p: i for i, p in enumerate(vocab)}                    # palabra -> columna\n"
+            "    matriz = np.zeros((len(textos), len(vocab)))                     # una fila por texto\n"
+            "    for fila, texto in enumerate(textos):                            # cada texto rellena su fila\n"
+            "        for palabra in tokenizar(texto):                             # y cada palabra, su columna\n"
+            "            matriz[fila, columna[palabra]] += 1                      # cuenta la palabra en su columna\n"
+            "    return {'textos': textos, 'vocab': vocab, 'matriz': matriz}      # todo lo que la busqueda necesita\n"
+            "\n"
+            "indice = construir_indice(['envio gratis desde 50 euros', 'pago con tarjeta'])\n"
+            "print(indice['matriz'].shape)                    # (2, 8): 2 textos, 8 palabras distintas\n"
+            "```\n"
+            "\n"
+            "Con documentos largos, primero los partes en chunks (AI 2) y cada chunk es un `texto` del indice. En produccion la matriz se guarda en una base vectorial y no se recalcula al arrancar.\n"
+            "\n"
+            "## No mandes contexto que no sirve: umbral de relevancia\n"
+            "\n"
+            "`top_k` devuelve siempre `k` resultados, aunque el mejor tenga similitud 0.05. La defensa es un **umbral**: lo que no llega, no entra. Y si no llega nada, no se llama al LLM.\n"
+            "\n"
+            "```python\n"
+            "import numpy as np                       # para el algebra de vectores\n"
+            "\n"
+            "matriz = np.array([[1.0, 1.0, 0.0],      # 'envio gratis'\n"
+            "                   [0.0, 0.0, 1.0]])     # 'pago tarjeta'\n"
+            "consulta = np.array([1.0, 0.0, 0.0])     # la pregunta solo menciona 'envio'\n"
+            "\n"
+            "normas = np.linalg.norm(matriz, axis=1) * np.linalg.norm(consulta)   # denominador del coseno\n"
+            "sims = np.divide(matriz @ consulta, normas, out=np.zeros(len(matriz)), where=normas != 0)\n"
+            "print(sims.round(2))                     # [0.71 0.  ]\n"
+            "\n"
+            "umbral = 0.3\n"
+            "orden = np.argsort(sims)[::-1]           # de mas a menos parecido\n"
+            "relevantes = [(int(i), float(sims[i])) for i in orden if sims[i] >= umbral]\n"
+            "print(relevantes)                        # [(0, 0.7071...)]  el de pagos queda fuera\n"
+            "```\n"
+            "\n"
+            "`np.divide(..., where=normas != 0)` evita dividir por cero cuando la pregunta no comparte ninguna palabra con el vocabulario: esa similitud queda en 0 en vez de `nan`. El valor del umbral se ajusta mirando preguntas reales: muy alto y dejas fuera contexto util, muy bajo y vuelve el ruido.\n"
+            "\n"
+            "## Fuentes numeradas y citas\n"
+            "\n"
+            "Para poder comprobar una respuesta, cada fragmento entra al prompt con un **numero**, y se le pide al modelo que cite ese numero junto a cada dato. Despues se leen las citas de la respuesta.\n"
+            "\n"
+            "```python\n"
+            "import re                                                       # para leer las citas\n"
+            "\n"
+            "def prompt_con_fuentes(pregunta, fragmentos):                   # fragmentos en orden de relevancia\n"
+            "    fuentes = '\\n'.join(f'[{i}] {texto}' for i, texto in enumerate(fragmentos, start=1))  # [1] ..., [2] ...\n"
+            "    return (\n"
+            "        'Responde usando solo las fuentes numeradas. '          # nada de conocimiento propio\n"
+            "        'Cita cada dato con su numero entre corchetes, por ejemplo [1]. '   # formato de cita\n"
+            "        'Si las fuentes no bastan, di que no lo sabes.\\n\\n'     # permiso para no inventar\n"
+            "        f'Fuentes:\\n{fuentes}\\n\\nPregunta: {pregunta}'           # contexto y pregunta al final\n"
+            "    )\n"
+            "\n"
+            "def extraer_citas(respuesta, n_fuentes):                        # respuesta del LLM -> numeros citados\n"
+            "    citas = []                                                  # lista: conserva el orden de aparicion\n"
+            "    for grupo in re.findall(r'\\[([\\d,\\s]+)\\]', respuesta):      # '[1]', '[1, 3]' -> '1', '1, 3'\n"
+            "        for numero in re.findall(r'\\d+', grupo):                # '1, 3' -> '1' y '3'\n"
+            "            n = int(numero)                                     # de texto a entero\n"
+            "            if 1 <= n <= n_fuentes and n not in citas:          # fuera de rango = inventada\n"
+            "                citas.append(n)                                 # la primera vez que aparece\n"
+            "    return citas                                                # p. ej. [2, 1]\n"
+            "\n"
+            "print(extraer_citas('Envio gratis desde 50 euros [2]. Pago seguro [1, 2] [7].', 2))   # [2, 1]\n"
+            "```\n"
+            "\n"
+            "La cita `[7]` no existe (solo hubo 2 fuentes): un modelo que cita fuentes inexistentes esta alucinando, y el codigo tiene que descartarla, no confiar en ella.\n"
+            "\n"
+            "## El pipeline completo\n"
+            "\n"
+            "Todo junto. `llm_fn` se **inyecta**: en los tests es una funcion falsa y predecible; en el editor, `pycode.llm_complete`. Como la llamada al LLM es asincrona, `responder` tambien lo es (`async def`) y se usa con `await`.\n"
+            "\n"
+            "```python\n"
+            "import re                                                                    # tokenizar y citas\n"
+            "import numpy as np                                                           # vectores y coseno\n"
+            "\n"
+            "NO_SE = 'No lo se: no encontre informacion sobre eso en los documentos.'     # respuesta sin contexto\n"
+            "\n"
+            "def tokenizar(texto):                                                        # version corta: no quita tildes\n"
+            "    return re.findall(r'\\w+', texto.lower())                                 # minusculas y solo palabras\n"
+            "\n"
+            "def embed_bow(texto, vocab):                                                 # texto -> vector de conteos\n"
+            "    columna = {p: i for i, p in enumerate(vocab)}                            # palabra -> columna\n"
+            "    vector = np.zeros(len(vocab))                                            # un hueco por palabra\n"
+            "    for p in tokenizar(texto):                                               # recorre las palabras\n"
+            "        if p in columna:                                                     # ignora las desconocidas\n"
+            "            vector[columna[p]] += 1                                          # y cuenta las demas\n"
+            "    return vector                                                            # listo para el coseno\n"
+            "\n"
+            "async def responder(pregunta, indice, llm_fn, k=3, umbral=0.2):\n"
+            "    consulta = embed_bow(pregunta, indice['vocab'])                          # 1. embede la pregunta\n"
+            "    normas = np.linalg.norm(indice['matriz'], axis=1) * np.linalg.norm(consulta)   # denominador del coseno\n"
+            "    sims = np.divide(indice['matriz'] @ consulta, normas, out=np.zeros(len(normas)), where=normas != 0)   # sin nan\n"
+            "    orden = [i for i in np.argsort(sims)[::-1] if sims[i] >= umbral][:k]     # 2. top-k que pasan el umbral\n"
+            "    if not orden:\n"
+            "        return {'respuesta': NO_SE, 'fuentes': []}                           # 3. sin contexto: ni se llama al LLM\n"
+            "    fragmentos = [indice['textos'][i] for i in orden]                        # textos en orden de relevancia\n"
+            "    lista = '\\n'.join(f'[{n}] {t}' for n, t in enumerate(fragmentos, start=1))   # [1] ..., [2] ...\n"
+            "    prompt = f'Responde citando las fuentes [n].\\n\\nFuentes:\\n{lista}\\n\\nPregunta: {pregunta}'   # prompt RAG\n"
+            "    texto = await llm_fn(prompt)                                             # 4. genera\n"
+            "    citas = []                                                               # 5. lee y valida las citas\n"
+            "    for n in map(int, re.findall(r'\\d+', ' '.join(re.findall(r'\\[([\\d,\\s]+)\\]', texto)))):   # todos los numeros citados\n"
+            "        if 1 <= n <= len(fragmentos) and n not in citas:                     # solo los que existen\n"
+            "            citas.append(n)                                                  # sin repetir\n"
+            "    return {'respuesta': texto, 'fuentes': [fragmentos[n - 1] for n in citas]}  # respuesta + sus fuentes\n"
+            "\n"
+            "async def llm_falso(prompt):                     # para probar sin gastar llamadas\n"
+            "    return 'El envio es gratis desde 50 euros [1].'\n"
+            "\n"
+            "textos = ['el envio es gratis desde 50 euros', 'el pago se hace con tarjeta']     # el corpus\n"
+            "vocab = sorted({p for t in textos for p in tokenizar(t)})                         # su vocabulario\n"
+            "indice = {'textos': textos, 'vocab': vocab, 'matriz': np.array([embed_bow(t, vocab) for t in textos])}   # se indexa una vez\n"
+            "\n"
+            "print(await responder('cuanto cuesta el envio', indice, llm_falso))\n"
+            "# {'respuesta': 'El envio es gratis desde 50 euros [1].', 'fuentes': ['el envio es gratis desde 50 euros']}\n"
+            "print(await responder('tienen tienda fisica', indice, llm_falso))\n"
+            "# {'respuesta': 'No lo se: no encontre informacion sobre eso en los documentos.', 'fuentes': []}\n"
+            "```\n"
+            "\n"
+            "Para usar el LLM real, cambia `llm_falso` por `pycode.llm_complete` (con `import pycode` arriba). La respuesta cambiara en cada ejecucion, pero el pipeline es el mismo: por eso los ejercicios comprueban el codigo **alrededor** del modelo, con un LLM falso.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            '- **No usar umbral.** El retriever siempre trae algo y el LLM contesta con seguridad a partir de ruido. Filtra por similitud minima y, si no queda nada, responde "no lo se" sin llamar al modelo: es mas barato y mas honesto.\n'
+            "- **Tokenizar distinto el corpus y la pregunta.** Si el indice guarda `envio` y la pregunta llega como `Envío`, la similitud es 0 aunque hablen de lo mismo. Usa exactamente la misma funcion `tokenizar` en los dos lados.\n"
+            "- **Confiar en las citas del modelo.** Un LLM puede citar `[7]` habiendo recibido 2 fuentes. Valida cada numero contra el rango real antes de mostrarla como fuente.\n"
+            "- **Dividir por la norma sin comprobar que no es 0.** Una pregunta sin palabras del vocabulario da un vector de ceros y un `nan` que se propaga por todo el ranking. Usa `np.divide(..., where=normas != 0)`.\n"
+            "- **Reconstruir el indice en cada pregunta.** Recalcular todos los embeddings por consulta multiplica el coste por el tamano del corpus. Indexa una vez y guarda el resultado.\n"
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **Tokenizar**: minusculas, sin tildes y solo palabras, igual para documentos y preguntas.\n"
+            "- **Bolsa de palabras**: vocabulario ordenado y un contador por palabra; un modelo de embeddings la sustituye sin tocar el resto.\n"
+            "- **Indice**: se construye una vez con textos, vocabulario y matriz.\n"
+            '- **Umbral**: solo entra el contexto relevante; sin contexto, "no lo se" sin llamar al LLM.\n'
+            "- **Fuentes y citas**: fragmentos numerados en el prompt y citas validadas contra el rango real.\n"
+            "- **Pipeline**: `async def responder` con el LLM inyectado, testeable con un LLM falso.\n"
+        ),
+        difficulty="intermediate",
+        category="ai-fundamentos",
+        order=41,
+        track="track-5",
+        estimated_duration=70,
+        prerequisites_titles=["AI 3 · Llamar a un LLM y armar un prompt RAG"],
+        exercises=[
+            ExerciseTemplate(
+                title="Tokenizar y construir el vocabulario",
+                description="Normaliza textos y reune sus palabras distintas.",
+                instructions=(
+                    "Implementa `vocabulario(textos)` que devuelva la lista **ordenada** de palabras distintas de todos los textos. Cada texto se tokeniza en minusculas, sin tildes y sin signos de puntuacion.\n"
+                    "\n"
+                    "Ejemplo: `vocabulario(['El envío es GRATIS.', 'el pago'])` → `['el', 'envio', 'es', 'gratis', 'pago']`"
+                ),
+                starter_code=(
+                    "import re\n"
+                    "import unicodedata\n"
+                    "\n"
+                    "\n"
+                    "def vocabulario(textos):\n"
+                    "    # TODO: tokeniza cada texto (minusculas, sin tildes, re.findall(r'\\w+', ...))\n"
+                    "    # TODO: devuelve las palabras distintas, ordenadas\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Para quitar tildes: unicodedata.normalize('NFD', t).encode('ascii', 'ignore').decode().",
+                    "Un set guarda cada palabra una sola vez; sorted() lo devuelve como lista ordenada.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "palabras distintas y ordenadas",
+                        "code": (
+                            "assert vocabulario(['b a c', 'a b']) == ['a', 'b', 'c']\n"
+                            "assert vocabulario([]) == []\n"
+                        ),
+                    },
+                    {
+                        "name": "minusculas, sin tildes y sin signos",
+                        "code": (
+                            "obtenido = vocabulario(['El envío es GRATIS.', '¿el pago?'])\n"
+                            "assert obtenido == ['el', 'envio', 'es', 'gratis', 'pago'], f'devolvio {obtenido}'\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Embedding de bolsa de palabras",
+                description="Convierte un texto en un vector de conteos.",
+                instructions=(
+                    "Implementa `embed_bow(texto, vocab)` que devuelva un `np.ndarray` de `float` con `len(vocab)` posiciones: en cada una, cuantas veces aparece esa palabra del vocabulario en el texto. Las palabras que no esten en `vocab` se ignoran. El texto se tokeniza con la `tokenizar` que ya trae el starter.\n"
+                    "\n"
+                    "Ejemplo: con `vocab = ['envio', 'gratis', 'pago']`, `embed_bow('Envío gratis, envío rápido', vocab)` → `array([2., 1., 0.])`"
+                ),
+                starter_code=(
+                    "import re\n"
+                    "import unicodedata\n"
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def tokenizar(texto):\n"
+                    "    sin_tildes = unicodedata.normalize('NFD', texto.lower()).encode('ascii', 'ignore').decode()\n"
+                    "    return re.findall(r'\\w+', sin_tildes)\n"
+                    "\n"
+                    "\n"
+                    "def embed_bow(texto, vocab):\n"
+                    "    # TODO: un vector de ceros de largo len(vocab)\n"
+                    "    # TODO: suma 1 en la columna de cada palabra del texto que este en vocab\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Un diccionario {palabra: posicion} evita buscar en la lista cada vez.",
+                    "np.zeros(len(vocab)) ya es un vector de float.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "cuenta cada palabra en su columna",
+                        "code": (
+                            "import numpy as np\n"
+                            "v = embed_bow('Envío gratis, envío rápido', ['envio', 'gratis', 'pago'])\n"
+                            "assert isinstance(v, np.ndarray) and v.dtype.kind == 'f', 'devuelve un array de float'\n"
+                            "assert v.tolist() == [2.0, 1.0, 0.0], f'devolvio {v}'\n"
+                        ),
+                    },
+                    {
+                        "name": "las palabras fuera del vocabulario no cuentan",
+                        "code": (
+                            "import numpy as np\n"
+                            "v = embed_bow('hola mundo', ['envio', 'pago'])\n"
+                            "assert isinstance(v, np.ndarray) and v.shape == (2,)\n"
+                            "assert v.tolist() == [0.0, 0.0]\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Construir el indice una vez",
+                description="Reune textos, vocabulario y matriz en un indice reutilizable.",
+                instructions=(
+                    "Implementa `construir_indice(textos)` que devuelva un diccionario con tres claves:\n"
+                    "\n"
+                    "- `'textos'`: la lista de textos, tal cual;\n"
+                    "- `'vocab'`: el vocabulario ordenado de todos los textos;\n"
+                    "- `'matriz'`: un `np.ndarray` de forma `(len(textos), len(vocab))` con el embedding de bolsa de palabras de cada texto en su fila.\n"
+                    "\n"
+                    "El starter trae `tokenizar` y `embed_bow` resueltos: usalos."
+                ),
+                starter_code=(
+                    "import re\n"
+                    "import unicodedata\n"
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def tokenizar(texto):\n"
+                    "    sin_tildes = unicodedata.normalize('NFD', texto.lower()).encode('ascii', 'ignore').decode()\n"
+                    "    return re.findall(r'\\w+', sin_tildes)\n"
+                    "\n"
+                    "\n"
+                    "def embed_bow(texto, vocab):\n"
+                    "    columna = {p: i for i, p in enumerate(vocab)}\n"
+                    "    vector = np.zeros(len(vocab))\n"
+                    "    for p in tokenizar(texto):\n"
+                    "        if p in columna:\n"
+                    "            vector[columna[p]] += 1\n"
+                    "    return vector\n"
+                    "\n"
+                    "\n"
+                    "def construir_indice(textos):\n"
+                    "    # TODO: vocabulario ordenado de todos los textos\n"
+                    "    # TODO: matriz con embed_bow(texto, vocab) de cada texto\n"
+                    "    # TODO: devuelve {'textos': ..., 'vocab': ..., 'matriz': ...}\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "El vocabulario sale de juntar tokenizar(t) de todos los textos en un set.",
+                    "np.array([embed_bow(t, vocab) for t in textos]) apila una fila por texto.",
+                    "Con una lista vacia de textos, la matriz no tiene filas: cuida ese caso.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "las tres claves con la forma correcta",
+                        "code": (
+                            "import numpy as np\n"
+                            "ind = construir_indice(['envio gratis', 'pago con tarjeta', 'envio rapido'])\n"
+                            "assert set(ind) == {'textos', 'vocab', 'matriz'}, f'claves {set(ind)}'\n"
+                            "assert ind['textos'] == ['envio gratis', 'pago con tarjeta', 'envio rapido']\n"
+                            "assert ind['matriz'].shape == (3, len(ind['vocab'])), ind['matriz'].shape\n"
+                        ),
+                    },
+                    {
+                        "name": "vocabulario ordenado y normalizado",
+                        "code": (
+                            "ind = construir_indice(['Envío GRATIS', 'pago'])\n"
+                            "assert ind['vocab'] == ['envio', 'gratis', 'pago'], ind['vocab']\n"
+                        ),
+                    },
+                    {
+                        "name": "cada fila es el embedding de su texto",
+                        "code": (
+                            "import numpy as np\n"
+                            "ind = construir_indice(['a b a', 'c'])\n"
+                            "assert ind['vocab'] == ['a', 'b', 'c']\n"
+                            "assert np.array_equal(ind['matriz'], np.array([[2.0, 1.0, 0.0], [0.0, 0.0, 1.0]])), ind['matriz']\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Recuperar solo lo relevante",
+                description="Top-k con umbral de similitud y sin divisiones por cero.",
+                instructions=(
+                    "Implementa `recuperar(consulta, matriz, k, umbral)`: `consulta` es un vector y `matriz` tiene un embedding por fila. Devuelve una lista de tuplas `(indice, similitud)` con los como mucho `k` indices de mayor similitud coseno, de mayor a menor, **quitando** los que queden por debajo de `umbral`.\n"
+                    "\n"
+                    "- `indice` es `int` y `similitud` es `float`.\n"
+                    "- Si la consulta o una fila son todo ceros, esa similitud vale `0.0` (sin `nan` ni avisos de division por cero)."
+                ),
+                starter_code=(
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def recuperar(consulta, matriz, k, umbral):\n"
+                    "    # TODO: similitud coseno de la consulta con cada fila, sin dividir por cero\n"
+                    "    # TODO: ordena de mayor a menor, quita las que no llegan al umbral y quedate con k\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "normas = np.linalg.norm(matriz, axis=1) * np.linalg.norm(consulta) es el denominador.",
+                    "np.divide(a, b, out=np.zeros(len(b)), where=b != 0) deja 0 donde b es 0.",
+                    "Filtra por umbral antes de cortar a k: si no, podrias devolver menos de los que pasan.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "top-k de mayor a menor",
+                        "code": (
+                            "import numpy as np\n"
+                            "m = np.array([[1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])\n"
+                            "res = recuperar(np.array([1.0, 0.0]), m, 2, 0.0)\n"
+                            "assert [i for i, _ in res] == [0, 1], res\n"
+                            "assert abs(res[0][1] - 1.0) < 1e-9 and abs(res[1][1] - 0.70710678) < 1e-6\n"
+                            "assert type(res[0][0]) is int and type(res[0][1]) is float\n"
+                        ),
+                    },
+                    {
+                        "name": "el umbral deja fuera lo poco relevante",
+                        "code": (
+                            "import numpy as np\n"
+                            "m = np.array([[1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])\n"
+                            "res = recuperar(np.array([1.0, 0.0]), m, 3, 0.8)\n"
+                            "assert [i for i, _ in res] == [0], res\n"
+                        ),
+                    },
+                    {
+                        "name": "consulta sin palabras conocidas: lista vacia y sin avisos",
+                        "code": (
+                            "import numpy as np, warnings\n"
+                            "m = np.array([[1.0, 0.0], [0.0, 0.0]])\n"
+                            "with warnings.catch_warnings():\n"
+                            "    warnings.simplefilter('error')\n"
+                            "    assert recuperar(np.array([0.0, 0.0]), m, 2, 0.1) == []\n"
+                            "    res = recuperar(np.array([1.0, 0.0]), m, 2, 0.0)\n"
+                            "assert res[0] == (0, 1.0) and res[1] == (1, 0.0), res\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Leer las citas de la respuesta",
+                description="Extrae y valida las fuentes que cita el LLM.",
+                instructions=(
+                    "Implementa `extraer_citas(respuesta, n_fuentes)` que devuelva la lista de numeros de fuente citados en la respuesta, en el orden en que aparecen por primera vez y sin repetir.\n"
+                    "\n"
+                    "- Una cita es un numero entre corchetes: `[2]`, y tambien `[1, 3]`.\n"
+                    "- Descarta los numeros fuera de `1..n_fuentes`: son citas inventadas.\n"
+                    "\n"
+                    "Ejemplo: `extraer_citas('Gratis desde 50 euros [2]. Pago seguro [1, 2] [7].', 2)` → `[2, 1]`"
+                ),
+                starter_code=(
+                    "import re\n"
+                    "\n"
+                    "\n"
+                    "def extraer_citas(respuesta, n_fuentes):\n"
+                    "    # TODO: busca los grupos entre corchetes con re.findall\n"
+                    "    # TODO: saca cada numero, valida el rango y no repitas\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "re.findall(r'\\[([\\d,\\s]+)\\]', texto) devuelve lo de dentro de cada corchete con numeros.",
+                    "re.findall(r'\\d+', grupo) separa '1, 3' en ['1', '3'].",
+                    "Una lista mas un 'if n not in citas' conserva el orden de aparicion.",
+                    "Un corchete con texto, como [nota], no es una cita.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "orden de aparicion y sin repetir",
+                        "code": (
+                            "obtenido = extraer_citas('Dato [2]. Otro [1]. Otra vez [2].', 3)\n"
+                            "assert obtenido == [2, 1], f'devolvio {obtenido}'\n"
+                        ),
+                    },
+                    {
+                        "name": "descarta citas fuera de rango",
+                        "code": (
+                            "assert extraer_citas('Seguro [0] y [4] y [1].', 3) == [1]\n"
+                        ),
+                    },
+                    {
+                        "name": "citas multiples en un mismo corchete",
+                        "code": (
+                            "assert extraer_citas('Ambos lo dicen [1, 3].', 3) == [1, 3]\n"
+                            "assert extraer_citas('Pegadas [2][1]', 2) == [2, 1]\n"
+                        ),
+                    },
+                    {
+                        "name": "sin citas o con corchetes que no son citas",
+                        "code": (
+                            "assert extraer_citas('No lo se.', 2) == []\n"
+                            "assert extraer_citas('Ver [nota] y [2].', 2) == [2]\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="RAG de punta a punta",
+                description="Recupera, genera y devuelve la respuesta con sus fuentes.",
+                instructions=(
+                    "Implementa `async def responder(pregunta, indice, llm_fn, k=3, umbral=0.2)`. El `indice` tiene las claves `'textos'`, `'vocab'` y `'matriz'`, y `llm_fn` es una funcion asincrona que recibe un prompt y devuelve texto. Devuelve un diccionario `{'respuesta': str, 'fuentes': list[str]}`:\n"
+                    "\n"
+                    "1. Embede la pregunta con `embed_bow` y recupera como mucho `k` textos cuya similitud coseno llegue a `umbral`, de mayor a menor.\n"
+                    "2. Si no queda ninguno, devuelve `NO_SE` como respuesta y `[]` como fuentes **sin llamar** a `llm_fn`.\n"
+                    "3. Si hay, construye el prompt con `prompt_con_fuentes` y haz `await llm_fn(prompt)`.\n"
+                    "4. Lee las citas de la respuesta (validadas contra el numero de fragmentos) y devuelve en `'fuentes'` los textos citados, en el orden de las citas.\n"
+                    "\n"
+                    "El starter trae `tokenizar`, `embed_bow`, `prompt_con_fuentes` y `NO_SE`."
+                ),
+                starter_code=(
+                    "import re\n"
+                    "import unicodedata\n"
+                    "import numpy as np\n"
+                    "\n"
+                    "NO_SE = 'No lo se: no encontre informacion sobre eso en los documentos.'\n"
+                    "\n"
+                    "\n"
+                    "def tokenizar(texto):\n"
+                    "    sin_tildes = unicodedata.normalize('NFD', texto.lower()).encode('ascii', 'ignore').decode()\n"
+                    "    return re.findall(r'\\w+', sin_tildes)\n"
+                    "\n"
+                    "\n"
+                    "def embed_bow(texto, vocab):\n"
+                    "    columna = {p: i for i, p in enumerate(vocab)}\n"
+                    "    vector = np.zeros(len(vocab))\n"
+                    "    for p in tokenizar(texto):\n"
+                    "        if p in columna:\n"
+                    "            vector[columna[p]] += 1\n"
+                    "    return vector\n"
+                    "\n"
+                    "\n"
+                    "def prompt_con_fuentes(pregunta, fragmentos):\n"
+                    "    fuentes = '\\n'.join(f'[{i}] {texto}' for i, texto in enumerate(fragmentos, start=1))\n"
+                    "    return (\n"
+                    "        'Responde usando solo las fuentes numeradas. '\n"
+                    "        'Cita cada dato con su numero entre corchetes, por ejemplo [1]. '\n"
+                    "        'Si las fuentes no bastan, di que no lo sabes.\\n\\n'\n"
+                    "        f'Fuentes:\\n{fuentes}\\n\\nPregunta: {pregunta}'\n"
+                    "    )\n"
+                    "\n"
+                    "\n"
+                    "async def responder(pregunta, indice, llm_fn, k=3, umbral=0.2):\n"
+                    "    # TODO: 1. embede la pregunta y recupera los textos relevantes (umbral y k)\n"
+                    "    # TODO: 2. sin textos relevantes: {'respuesta': NO_SE, 'fuentes': []} sin llamar al LLM\n"
+                    "    # TODO: 3. prompt_con_fuentes + await llm_fn(prompt)\n"
+                    "    # TODO: 4. citas validadas -> textos citados como fuentes\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Es recuperar() del ejercicio anterior aplicado a indice['matriz'].",
+                    "Comprueba si hay fragmentos ANTES de llamar a llm_fn: sin contexto no se gasta la llamada.",
+                    "Las citas son numeros 1..len(fragmentos); fragmentos[n - 1] es el texto de la cita n.",
+                    "Para probarlo en el editor: resultado = await responder(pregunta, indice, llm_falso).",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "llama al LLM con los fragmentos relevantes numerados",
+                        "code": (
+                            "import numpy as np\n"
+                            "llamadas = []\n"
+                            "async def llm_falso(prompt):\n"
+                            "    llamadas.append(prompt)\n"
+                            "    return 'Gratis desde 50 euros [1].'\n"
+                            "textos = ['el envio es gratis desde 50 euros', 'el pago se hace con tarjeta']\n"
+                            "vocab = sorted({p for t in textos for p in tokenizar(t)})\n"
+                            "indice = {'textos': textos, 'vocab': vocab, 'matriz': np.array([embed_bow(t, vocab) for t in textos])}\n"
+                            "resultado = await responder('cuanto cuesta el envio', indice, llm_falso, k=1)\n"
+                            "assert len(llamadas) == 1, 'tiene que llamar al LLM una vez'\n"
+                            "assert '[1] el envio es gratis desde 50 euros' in llamadas[0], llamadas[0]\n"
+                            "assert 'cuanto cuesta el envio' in llamadas[0]\n"
+                            "assert 'tarjeta' not in llamadas[0], 'con k=1 solo entra el fragmento mas relevante'\n"
+                            "assert resultado['respuesta'] == 'Gratis desde 50 euros [1].'\n"
+                        ),
+                    },
+                    {
+                        "name": "las fuentes son los textos citados",
+                        "code": (
+                            "import numpy as np\n"
+                            "async def llm_falso(prompt):\n"
+                            "    return 'Con tarjeta [2] y envio gratis [1] [9].'\n"
+                            "textos = ['envio gratis desde 50 euros', 'pago con tarjeta o envio contra reembolso']\n"
+                            "vocab = sorted({p for t in textos for p in tokenizar(t)})\n"
+                            "indice = {'textos': textos, 'vocab': vocab, 'matriz': np.array([embed_bow(t, vocab) for t in textos])}\n"
+                            "resultado = await responder('envio y pago', indice, llm_falso, k=2, umbral=0.1)\n"
+                            "# La numeracion sigue la relevancia, no el orden del corpus: el texto de pagos\n"
+                            "# es [1] (menciona envio y pago) y el de envio es [2]. Asi que [2] va primero.\n"
+                            "assert resultado['fuentes'] == ['envio gratis desde 50 euros', 'pago con tarjeta o envio contra reembolso'], resultado\n"
+                        ),
+                    },
+                    {
+                        "name": "sin contexto relevante: NO_SE y sin llamar al LLM",
+                        "code": (
+                            "import numpy as np\n"
+                            "llamadas = []\n"
+                            "async def llm_falso(prompt):\n"
+                            "    llamadas.append(prompt)\n"
+                            "    return 'inventado'\n"
+                            "textos = ['el envio es gratis', 'el pago con tarjeta']\n"
+                            "vocab = sorted({p for t in textos for p in tokenizar(t)})\n"
+                            "indice = {'textos': textos, 'vocab': vocab, 'matriz': np.array([embed_bow(t, vocab) for t in textos])}\n"
+                            "resultado = await responder('tienen tienda fisica', indice, llm_falso)\n"
+                            "assert resultado == {'respuesta': NO_SE, 'fuentes': []}, resultado\n"
+                            "assert llamadas == [], 'sin contexto no se llama al LLM'\n"
+                        ),
+                    },
+                    {
+                        "name": "el umbral filtra antes de generar",
+                        "code": (
+                            "import numpy as np\n"
+                            "llamadas = []\n"
+                            "async def llm_falso(prompt):\n"
+                            "    llamadas.append(prompt)\n"
+                            "    return 'ok [1]'\n"
+                            "textos = ['envio envio envio gratis', 'devoluciones en 30 dias con envio']\n"
+                            "vocab = sorted({p for t in textos for p in tokenizar(t)})\n"
+                            "indice = {'textos': textos, 'vocab': vocab, 'matriz': np.array([embed_bow(t, vocab) for t in textos])}\n"
+                            "resultado = await responder('envio', indice, llm_falso, k=3, umbral=0.5)\n"
+                            "assert len(llamadas) == 1\n"
+                            "assert 'devoluciones' not in llamadas[0], 'el texto poco relevante no deberia entrar al prompt'\n"
+                            "assert resultado['fuentes'] == ['envio envio envio gratis']\n"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
