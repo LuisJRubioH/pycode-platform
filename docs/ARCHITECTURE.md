@@ -1,6 +1,6 @@
 # Arquitectura técnica — PyCode Platform
 
-Documento técnico de referencia. Describe cómo está construida la plataforma, cómo fluyen los datos y qué patrones se replican al crecer. Para la guía operativa día a día ver [CLAUDE.md](../CLAUDE.md); para la visión de producto ver [PROJECT_OVERVIEW.md](../PROJECT_OVERVIEW.md).
+Documento técnico de referencia. Describe cómo está construida la plataforma, cómo fluyen los datos y qué patrones se replican al crecer. Para la visión de producto ver [PROJECT_OVERVIEW.md](../PROJECT_OVERVIEW.md) y para el estado y las convenciones, el [README](../README.md).
 
 Última revisión: 2026-07 (Tracks 1-5 cerrados). Para el esquema de datos detallado ver [DATABASE.md](DATABASE.md).
 

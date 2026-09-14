@@ -84,3 +84,5 @@ backend/test_pycode.db
 # que se recrea internamente. Inventario versionado en docs/staging/.
 PARA_INTEGRAR/
 Nuevo Documento de texto*.txt
+# Guia operativa local para Claude Code: fuera del repositorio a peticion del autor.
+CLAUDE.md

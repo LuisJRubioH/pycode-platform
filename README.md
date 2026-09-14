@@ -10,21 +10,29 @@ Plataforma de aprendizaje que lleva de **Fundamentos → Python → Data Science
 |---|---|---|
 | **Fase 0** — fundamentos + seguridad | ✅ Cerrada (tag `fase-0-complete`) | Postgres+Alembic+RLS, Pyodide, JWT+GDPR, seguridad transversal, deploy gratis |
 | **Fase 1** — pulido Track 1 + ELO | ✅ Cerrada | Tutor evaluador+Q&A, tests ocultos, ELO multidominio, calidad de código, certificados PDF |
-| **Track 0** — Fundamentos de programación | ⏳ En diseño | Pseudocódigo, trazas de ejecución, algoritmos, estructuras elementales, diagramas de flujo. Requiere tipos de ejercicio **no ejecutables** (ver abajo) |
+| **Track 0** — Fundamentos de programación | ✅ Cerrado | 10 lecciones de pseudocódigo, trazas, condicionales, bucles, diagramas de flujo, descomposición, arreglos, algoritmos clásicos y coste · capstone `Del pseudocódigo al Python`. Ejercicios **no ejecutables** (ver abajo) |
 | **Track 1** — Python | ✅ Cerrado | 10 lecciones · capstone `CLI de ventas` |
 | **Track 2** — Data Science | ✅ Cerrado | 11 lecciones (NumPy/Pandas/Viz/EDA/Stats) · capstone `EDA cafecito` |
 | **Track 3** — ML Clásico | ✅ Cerrado | 11 lecciones sklearn · capstone `Diagnóstico ML` |
 | **Track 4** — Deep Learning | ✅ Cerrado | 5 lecciones **numpy puro** (backprop→MLP→XOR) · capstone `Red desde cero`. PyTorch real diferido |
 | **Track 5** — AI Engineering | ✅ Cerrado | 6 lecciones (embeddings, RAG, LLM real vía proxy, agentes, evals) · capstone `Nebula RAG` |
-| **Track 6** — MLOps | 🚧 En curso | MLOps 1-2: reproducibilidad, seguimiento de experimentos y registro de modelos. Faltan servicio, monitoreo, CI/CD y capstone |
+| **Track 6** — MLOps | ✅ Cerrado | 5 lecciones (reproducibilidad, tracking/registro, servir un modelo, drift, CI/CD) · capstone `Pipeline de producción` |
 
-**En números**: ~40 lecciones · 100+ ejercicios (la mayoría con `hidden_tests`) · 100 puzzles ELO curados · 10 retos DS/ML · 5 capstones · 3 datasets · migraciones 0001-0014 · 160+ tests backend. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**. *(Cifras redondeadas a propósito; el conteo exacto vive en los tests, ej. `test_bank_has_100_puzzles`.)*
+**En números**: ~60 lecciones · ~260 ejercicios (los de código con `hidden_tests`; los de Track 0 con su clave en el servidor) · 265 puzzles ELO (100 curados) · 85 retos, todos con tests · 7 capstones · 3 datasets · migraciones 0001-0016 · 230+ tests backend y ~50 de frontend. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**. *(Cifras redondeadas a propósito; el conteo exacto vive en los tests, ej. `test_bank_has_100_puzzles`.)*
 
 ## Rampa de entrada
 
 Track 0 **no es un peaje obligatorio**. Un alumno que ya programa en otro lenguaje no debe recorrer once lecciones de pseudocódigo para llegar a Pandas. Un diagnóstico corto (trazas y bucles) recomienda punto de entrada — Track 0 o Track 1 — pero no bloquea ninguno de los dos.
 
-Track 0 rompe el supuesto central de validación del resto de la plataforma: sus ejercicios (trazas, ordenar pasos, hallar el error, completar un diagrama) **no se ejecutan en Pyodide**. Se validan de forma determinista en el cliente y emiten el **mismo** evento de completitud que un ejercicio de Python, para que XP, progreso, ELO y competencias sigan siendo un solo camino y no dos.
+Track 0 rompe el supuesto central de validación del resto de la plataforma: sus ejercicios (tablas de traza, predecir la salida, opción múltiple, emparejar diagramas y completarlos) **no se ejecutan en Pyodide**. Los corrige el **backend** en `POST /api/v1/exercises/{id}/check`, de forma determinista: sin Pyodide y sin LLM. La solución (`answer_key`) no viaja al cliente —mismo guard rail de no-leak que `hidden_tests`, con su test— y el feedback dice **dónde** falla, nunca cuál era el valor.
+
+Aprobar uno emite el **mismo** evento de completitud que un ejercicio de Python (una `CodeSubmission` con `result="success"`), así que XP, progreso, ELO y competencias siguen siendo un solo camino y no dos.
+
+El capstone del track es el puente: implementar en Python los algoritmos ya trazados a mano. Como Track 0 nunca enseña sintaxis, su enunciado lleva dentro la tabla de traducción pseudocódigo → Python.
+
+## Qué falta
+
+El contenido y la plataforma están construidos y desplegados; lo que falta es **recorrerlos**. A día de hoy nadie ha llegado a un capstone en producción, así que los ~260 ejercicios están verificados con solución de referencia y pruebas E2E, que no es lo mismo que haberlos atravesado aprendiendo. La deuda técnica abierta (cobertura de tests del frontend, código muerto, un componente de 900 líneas) está listada y priorizada en [docs/BARRIDO_PROBLEMAS.md](docs/BARRIDO_PROBLEMAS.md).
 
 ## Producción
 
@@ -39,6 +47,7 @@ Track 0 rompe el supuesto central de validación del resto de la plataforma: sus
 - **Pyodide en Web Worker**: el código del estudiante se ejecuta en el navegador con Comlink + timeout duro. El backend nunca lo ejecuta (`/api/v1/execute/run` retorna 410; `/validate` solo hace `ast.parse`). numpy/pandas/scipy/sklearn/matplotlib autocargan bajo demanda.
 - **Tutor IA Socrático** con dos roles separados: **evaluador de código** (REST atómico) y **Q&A** (WebSocket multi-turno). Provider abstraction: Groq (default) → OpenAI fallback → Stub determinístico si no hay API key.
 - **Proxy LLM para AI Engineering** (Track 5): `POST /api/v1/ai/complete` deja que el código del alumno (en Pyodide) llame a un LLM real vía backend — auth + rate limit + tope de tokens, sin exponer API keys. Helper `pycode.llm_complete()` en el editor.
+- **Ejercicios que no se ejecutan** (Track 0): tablas de traza, predecir la salida, opción múltiple y dos tipos de diagrama de flujo. Los corrige el backend, no el navegador. Los diagramas se dibujan en **SVG a partir de datos** (nodos en el `spec` del ejercicio), sin Mermaid ni imágenes: en el de completar huecos, el diagrama se redibuja con lo que el alumno elige.
 - **Tests ocultos por ejercicio**: `hidden_tests` que corren en Pyodide en namespace fresco, sin exponerse a la UI. Es el patrón base de validación replicado en todos los tracks de código.
 - **Sistema ELO multidominio**: rating separado por actividad y categoría temática (`puzzle:<category>`, `challenge:<dificultad>`), con lazy-init desde el ELO global. Banco de 100 puzzles curados + puzzle del día público.
 - **Progresión de calidad de código**: `static_score` con AST (sin ejecutar) + scores logic/general del evaluador LLM, persistidos y graficados en el tiempo.
@@ -125,11 +134,11 @@ backend/
 │   │                          logging_config, observability, tracks
 │   ├── models/              # user, learning, elo_models, refresh_token, challenge,
 │   │                          code_evaluation, capstone, certificate, code_quality, dataset
-│   ├── services/            # ai_tutor, llm_provider, lesson_content, lesson_seed,
+│   ├── services/            # ai_tutor, llm_provider, track0_service, lesson_seed,
 │   │                          elo_service, elo_rating_service, code_quality_service,
 │   │                          capstone_seed, certificate_pdf, dataset_seed, curated_retos, ...
 │   └── websockets/          # tutor_chat (/ws/tutor); /ws/code deprecado
-├── alembic/versions/        # 0001 → 0014
+├── alembic/versions/        # 0001 → 0016
 ├── scripts/check_no_sqli.py
 ├── tests/                   # suite de tests del backend
 └── Dockerfile               # alembic upgrade head + uvicorn
@@ -140,6 +149,8 @@ frontend/
 │   │                          InterviewProblems, Challenges, Competencies, CapstoneDetail,
 │   │                          CertificateVerify, TutorChat, Home, Login, Register
 │   ├── components/          # EloResultModal, EloTracks, CodeQualityPanel, PuzzleOfTheDay, ...
+│   │   └── track0/          # ExerciseRunner + un componente por tipo no ejecutable,
+│   │                          incluido el render SVG de diagramas de flujo
 │   ├── sandbox/             # pyodideWorker, PyodideSandbox (Comlink)
 │   ├── services/api.ts      # fetch + interceptor de refresh
 │   └── stores/authStore.ts
@@ -161,8 +172,8 @@ docs/
 
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — diseño técnico: capas, flujo de datos, modelos, el patrón multi-track, sandbox, ELO, seguridad.
 - **[docs/DATABASE.md](docs/DATABASE.md)** — esquema de base de datos: 22 tablas por dominio, columnas, relaciones, RLS y migraciones.
-- **[docs/TRACK_0.md](docs/TRACK_0.md)** — Track 0: temario, tipos de ejercicio no ejecutables y convención de pseudocódigo.
-- **[CLAUDE.md](CLAUDE.md)** — guía operativa para agentes/contribuidores.
+- **[docs/TRACK_0.md](docs/TRACK_0.md)** — Track 0: temario, tipos de ejercicio no ejecutables, convención de pseudocódigo y por qué los diagramas no usan Mermaid.
+- **[docs/BARRIDO_PROBLEMAS.md](docs/BARRIDO_PROBLEMAS.md)** — problemas detectados con evidencia y prioridad, y cuáles siguen abiertos.
 - **[docs/DEPLOY.md](docs/DEPLOY.md)** — despliegue Render + Vercel + Supabase.
 - `docs/historico/` — `PYCODE_SPEC.md` y `PLAN_COMPLETO.md`: diseño inicial **descartado** (ejecución en Docker server-side, Kubernetes, microservicios). Se conservan como registro; no son fuente de verdad.
 
@@ -173,7 +184,7 @@ docs/
 - **El backend nunca ejecuta código del alumno.** La ejecución vive en Pyodide, en el navegador. No reintroducir sandbox Docker ni endpoints de ejecución server-side.
 - Schema changes pasan por Alembic (no `create_all`); FKs hacia `users.id` con `ondelete="CASCADE"`; DDL Postgres-only con guard de dialecto.
 - Async SQLAlchemy: usar `selectinload`/`joinedload` para relaciones accedidas en endpoints.
-- Añadir lección/track de **código** = agregar `LessonTemplate(track=..., category=...)` + registrar la categoría en `Competencies.tsx`. Sin migración ni endpoints nuevos. Track 0 es la excepción: introduce tipos de ejercicio no ejecutables y sí toca modelo (ver `docs/TRACK_0.md`).
+- Añadir lección/track de **código** = agregar `LessonTemplate(track=..., category=...)` + registrar la categoría en `Competencies.tsx`. Sin migración ni endpoints nuevos. Track 0 es la excepción, ya construida: sus tipos no ejecutables viven en `exercise_type` + `spec` + `answer_key` (migración 0016) y añadir uno nuevo es un validador en `track0_service` y un componente en `components/track0/` (ver `docs/TRACK_0.md`).
 - Guard rail de no-leak: lo oculto a la UI (`hidden_tests`, `reference_solution`, y la solución de cualquier ejercicio no ejecutable) debe tener un test que verifique que no se expone.
 
 ## Licencia
