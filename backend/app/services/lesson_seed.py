@@ -14131,6 +14131,662 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="AI 5 · Agentes que usan herramientas",
+        description=(
+            "Un LLM que actua: describir herramientas, leer la accion en JSON, "
+            "validar y ejecutar con seguridad, detectar bucles y el ciclo ReAct "
+            "con tope de pasos, probado con un LLM falso que sigue un guion."
+        ),
+        content=(
+            "# AI 5: agentes que usan herramientas\n"
+            "\n"
+            'En AI 4 el asistente de Nebula respondia con lo que habia en los documentos. Pero la pregunta mas repetida en una tienda no esta en ningun documento: **"¿donde esta mi pedido 1042?"**. Esa respuesta vive en una base de datos y hay que **ir a buscarla**. Un **agente** es un LLM que, en vez de contestar directamente, puede pedir que se ejecute una funcion, leer el resultado y decidir el siguiente paso.\n'
+            "\n"
+            "## Por que un agente y no solo RAG\n"
+            "\n"
+            "RAG recupera texto que ya existe. Un agente **actua**: consulta el estado de un pedido, calcula un reembolso, busca en el catalogo. Eso abre tres riesgos que no existian en AI 4:\n"
+            "\n"
+            "1. **El modelo pide herramientas que no existen** o con argumentos que no tienen sentido, y el programa revienta.\n"
+            "2. **Una herramienta falla** (el pedido no existe) y el agente se cae en vez de explicarselo al usuario.\n"
+            "3. **El agente entra en bucle**: pide lo mismo una y otra vez, gastando llamadas sin avanzar.\n"
+            "\n"
+            "Al terminar tendras un agente que valida cada accion antes de ejecutarla, convierte los errores en informacion para el modelo, detecta repeticiones y se detiene con un tope de pasos.\n"
+            "\n"
+            "## Herramientas: funciones con nombre y descripcion\n"
+            "\n"
+            "Una herramienta es una funcion normal de Python mas lo que el modelo necesita saber para usarla: **como se llama**, **para que sirve** y **que parametros recibe**.\n"
+            "\n"
+            "```python\n"
+            "PEDIDOS = {1042: 'en camino', 1043: 'entregado'}                      # base de datos de juguete\n"
+            "\n"
+            "def consultar_pedido(id):                                             # la funcion real\n"
+            "    if id not in PEDIDOS:                                             # un caso que va a fallar\n"
+            "        raise KeyError(f'el pedido {id} no existe')\n"
+            "    return PEDIDOS[id]                                                # 'en camino'\n"
+            "\n"
+            "HERRAMIENTAS = {                                                      # nombre -> ficha de la herramienta\n"
+            "    'consultar_pedido': {\n"
+            "        'funcion': consultar_pedido,                                  # lo que se ejecuta\n"
+            "        'descripcion': 'Devuelve el estado de un pedido',             # lo que lee el modelo\n"
+            "        'parametros': ['id'],                                         # argumentos que acepta\n"
+            "    },\n"
+            "}\n"
+            "\n"
+            "def describir_herramientas(herramientas):                             # la parte que va al prompt\n"
+            "    lineas = []                                                       # una linea por herramienta\n"
+            "    for nombre in sorted(herramientas):                               # orden fijo: prompt estable\n"
+            "        ficha = herramientas[nombre]                                  # su descripcion y parametros\n"
+            "        lineas.append(f\"- {nombre}({', '.join(ficha['parametros'])}): {ficha['descripcion']}\")\n"
+            "    return '\\n'.join(lineas)                                          # texto listo para el prompt\n"
+            "\n"
+            "print(describir_herramientas(HERRAMIENTAS))   # - consultar_pedido(id): Devuelve el estado de un pedido\n"
+            "```\n"
+            "\n"
+            "El modelo **nunca ejecuta nada**: solo lee esa descripcion y pide. Quien ejecuta es tu codigo, y por eso es tu codigo el que decide que se permite.\n"
+            "\n"
+            "## El modelo pide una accion en JSON\n"
+            "\n"
+            "Se le pide al modelo que conteste siempre con un JSON de una de dos formas: pedir una herramienta o dar la respuesta final. Como en AI 3, la salida puede venir con cercas o texto alrededor, asi que se limpia y se normaliza.\n"
+            "\n"
+            "```python\n"
+            "import json                                                           # para leer la accion\n"
+            "\n"
+            "CERCA = '`' * 3                                                       # tres acentos graves, los de markdown\n"
+            "\n"
+            "def parsear_accion(texto):                                            # texto del LLM -> accion\n"
+            "    t = texto.strip()                                                 # quita espacios de los bordes\n"
+            "    if CERCA in t:                                                    # viene dentro de cercas\n"
+            "        t = t.split(CERCA)[1].removeprefix('json').strip()           # queda solo el JSON\n"
+            "    try:\n"
+            "        datos = json.loads(t)                                         # intenta leerlo\n"
+            "    except json.JSONDecodeError as error:                             # no es JSON valido\n"
+            "        return {'tipo': 'error', 'detalle': f'JSON invalido: {error}'}\n"
+            "    if isinstance(datos, dict) and 'herramienta' in datos:            # pide una herramienta\n"
+            "        return {'tipo': 'herramienta', 'nombre': datos['herramienta'],\n"
+            "                'argumentos': datos.get('argumentos', {})}           # sin argumentos = {}\n"
+            "    if isinstance(datos, dict) and 'respuesta' in datos:              # da la respuesta final\n"
+            "        return {'tipo': 'respuesta', 'texto': datos['respuesta']}\n"
+            "    return {'tipo': 'error', 'detalle': 'falta \"herramienta\" o \"respuesta\"'}   # JSON con otra forma\n"
+            "\n"
+            'con_cercas = CERCA + \'json\\n{"herramienta": "consultar_pedido", "argumentos": {"id": 1042}}\\n\' + CERCA   # como suele llegar\n'
+            "print(parsear_accion(con_cercas))\n"
+            "# {'tipo': 'herramienta', 'nombre': 'consultar_pedido', 'argumentos': {'id': 1042}}\n"
+            "print(parsear_accion('Claro, te ayudo'))      # {'tipo': 'error', 'detalle': 'JSON invalido: ...'}\n"
+            "```\n"
+            "\n"
+            "Un `error` no es un fallo del programa: es una accion mas, que se le devuelve al modelo para que lo intente otra vez con el formato correcto.\n"
+            "\n"
+            "## Ejecutar con seguridad: validar y convertir errores en observaciones\n"
+            "\n"
+            "Antes de ejecutar se comprueba que la herramienta existe y que los argumentos son exactamente los que acepta. Y si la funcion lanza una excepcion, el agente no se cae: el error se convierte en una **observacion** que el modelo lee en el siguiente paso.\n"
+            "\n"
+            "```python\n"
+            "def consultar_pedido(id):                                             # herramienta que puede fallar\n"
+            "    pedidos = {1042: 'en camino'}                                     # solo existe el 1042\n"
+            "    if id not in pedidos:\n"
+            "        raise KeyError(f'el pedido {id} no existe')                   # error de negocio\n"
+            "    return pedidos[id]\n"
+            "\n"
+            "HERRAMIENTAS = {'consultar_pedido': {'funcion': consultar_pedido, 'parametros': ['id']}}\n"
+            "\n"
+            "def validar_argumentos(parametros, argumentos):                       # antes de ejecutar nada\n"
+            "    faltan = sorted(set(parametros) - set(argumentos))                # los que no llegaron\n"
+            "    sobran = sorted(set(argumentos) - set(parametros))                # los que el modelo invento\n"
+            "    problemas = [f'falta el argumento {p}' for p in faltan]           # uno por argumento ausente\n"
+            "    problemas += [f'argumento no permitido: {p}' for p in sobran]     # y uno por cada extra\n"
+            "    return problemas                                                  # [] si todo esta bien\n"
+            "\n"
+            "def ejecutar_herramienta(accion, herramientas):                       # accion -> observacion (texto)\n"
+            "    ficha = herramientas.get(accion['nombre'])                        # None si no existe\n"
+            "    if ficha is None:\n"
+            "        return f\"Error: la herramienta {accion['nombre']} no existe\"  # nombre inventado\n"
+            "    problemas = validar_argumentos(ficha['parametros'], accion['argumentos'])\n"
+            "    if problemas:\n"
+            "        return 'Error: ' + '; '.join(problemas)                       # argumentos mal formados\n"
+            "    try:\n"
+            "        resultado = ficha['funcion'](**accion['argumentos'])          # **dict -> argumentos con nombre\n"
+            "    except Exception as error:                                        # la herramienta fallo\n"
+            "        return f'Error: {type(error).__name__}: {error}'              # se le cuenta al modelo\n"
+            "    return f'Resultado: {resultado}'                                  # todo bien\n"
+            "\n"
+            "print(ejecutar_herramienta({'nombre': 'consultar_pedido', 'argumentos': {'id': 1042}}, HERRAMIENTAS))\n"
+            "# Resultado: en camino\n"
+            "print(ejecutar_herramienta({'nombre': 'consultar_pedido', 'argumentos': {'id': 7}}, HERRAMIENTAS))\n"
+            "# Error: KeyError: 'el pedido 7 no existe'\n"
+            "print(ejecutar_herramienta({'nombre': 'borrar_pedido', 'argumentos': {'id': 7}}, HERRAMIENTAS))\n"
+            "# Error: la herramienta borrar_pedido no existe\n"
+            "```\n"
+            "\n"
+            "`ficha['funcion'](**accion['argumentos'])` desempaqueta el diccionario: `{'id': 1042}` se convierte en la llamada `consultar_pedido(id=1042)`. Por eso hay que validar antes: el diccionario lo escribio el modelo.\n"
+            "\n"
+            "## Detectar un bucle\n"
+            "\n"
+            "Un agente atascado repite la misma llamada con los mismos argumentos. Para compararlas hay que tratar `{'id': 1, 'x': 2}` y `{'x': 2, 'id': 1}` como la misma cosa: se pasan a un texto con las claves ordenadas.\n"
+            "\n"
+            "```python\n"
+            "import json                                                           # para la forma canonica\n"
+            "\n"
+            "def clave_accion(accion):                                             # accion -> texto comparable\n"
+            "    argumentos = json.dumps(accion['argumentos'], sort_keys=True)     # mismo orden de claves siempre\n"
+            "    return f\"{accion['nombre']}:{argumentos}\"                         # 'consultar_pedido:{\"id\": 1042}'\n"
+            "\n"
+            "def hay_repeticion(acciones, limite):                                 # True si alguna llamada se pasa del limite\n"
+            "    vistas = {}                                                       # clave -> veces\n"
+            "    for accion in acciones:\n"
+            "        clave = clave_accion(accion)                                  # la misma para el mismo pedido\n"
+            "        vistas[clave] = vistas.get(clave, 0) + 1                      # cuenta una mas\n"
+            "        if vistas[clave] > limite:                                    # se repitio demasiado\n"
+            "            return True\n"
+            "    return False                                                      # ninguna paso del limite\n"
+            "\n"
+            "pedir = {'nombre': 'consultar_pedido', 'argumentos': {'id': 1042}}    # la misma accion\n"
+            "print(hay_repeticion([pedir, pedir], limite=2))                       # False: 2 veces esta permitido\n"
+            "print(hay_repeticion([pedir, pedir, pedir], limite=2))                # True: la tercera ya es un bucle\n"
+            "```\n"
+            "\n"
+            "## El bucle del agente\n"
+            "\n"
+            "Todo junto es el patron **ReAct** (razonar y actuar): el modelo pide una accion, tu codigo la ejecuta, la observacion vuelve al prompt, y se repite hasta que haya respuesta final o se acaben los pasos. El **tope de pasos** no es opcional: sin el, un modelo confundido gasta llamadas sin fin.\n"
+            "\n"
+            "```python\n"
+            "import json                                                                  # acciones en JSON\n"
+            "\n"
+            "PEDIDOS = {1042: 'en camino'}                                                # base de datos de juguete\n"
+            "\n"
+            "def consultar_pedido(id):                                                    # la herramienta\n"
+            "    if id not in PEDIDOS:\n"
+            "        raise KeyError(f'el pedido {id} no existe')\n"
+            "    return PEDIDOS[id]\n"
+            "\n"
+            "HERRAMIENTAS = {'consultar_pedido': {'funcion': consultar_pedido,            # su ficha\n"
+            "                                     'descripcion': 'Estado de un pedido', 'parametros': ['id']}}\n"
+            "\n"
+            "def ejecutar(accion):                                                        # version corta de ejecutar_herramienta\n"
+            "    try:\n"
+            "        return f\"Resultado: {HERRAMIENTAS[accion['herramienta']]['funcion'](**accion['argumentos'])}\"\n"
+            "    except Exception as error:                                               # nombre, argumentos o fallo interno\n"
+            "        return f'Error: {type(error).__name__}: {error}'\n"
+            "\n"
+            "async def ejecutar_agente(pregunta, llm_fn, max_pasos=4):\n"
+            "    pasos = []                                                               # historial: accion + observacion\n"
+            "    for _ in range(max_pasos):                                               # nunca mas de max_pasos llamadas\n"
+            "        historial = '\\n'.join(f'Accion: {a}\\nObservacion: {o}' for a, o in pasos)   # lo que ya paso\n"
+            "        prompt = (f'Herramientas: consultar_pedido(id)\\nResponde solo con JSON: '\n"
+            '                  f\'{{"herramienta": ..., "argumentos": ...}} o {{"respuesta": ...}}\\n\'\n'
+            "                  f'Pregunta: {pregunta}\\n{historial}')                      # herramientas + pregunta + historial\n"
+            "        texto = await llm_fn(prompt)                                         # el modelo decide\n"
+            "        accion = json.loads(texto)                                           # (en el ejercicio, con parsear_accion)\n"
+            "        if 'respuesta' in accion:                                            # termino\n"
+            "            return {'respuesta': accion['respuesta'], 'pasos': len(pasos)}\n"
+            "        pasos.append((texto, ejecutar(accion)))                              # actua y guarda lo observado\n"
+            "    return {'respuesta': None, 'pasos': len(pasos)}                          # se acabaron los pasos\n"
+            "\n"
+            'guion = iter([\'{"herramienta": "consultar_pedido", "argumentos": {"id": 1042}}\',   # 1o pide la herramienta\n'
+            '              \'{"respuesta": "Tu pedido 1042 esta en camino."}\'])                  # 2o responde con lo observado\n'
+            "\n"
+            "async def llm_falso(prompt):                                                 # sigue el guion, sin gastar llamadas\n"
+            "    return next(guion)\n"
+            "\n"
+            "print(await ejecutar_agente('donde esta mi pedido 1042', llm_falso))\n"
+            "# {'respuesta': 'Tu pedido 1042 esta en camino.', 'pasos': 1}\n"
+            "```\n"
+            "\n"
+            "Con `pycode.llm_complete` en lugar de `llm_falso` tienes un agente real. Los modelos siguen el formato JSON la mayoria de las veces, pero no siempre: por eso el ejercicio final usa `parsear_accion` y trata el JSON invalido como una observacion mas.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            "- **Ejecutar lo que pide el modelo sin validarlo.** Los argumentos los escribe el LLM: puede inventar una herramienta o un parametro. Comprueba nombre y argumentos antes de llamar a la funcion.\n"
+            "- **Dejar que una excepcion tumbe el agente.** Si `consultar_pedido` lanza `KeyError`, el usuario se queda sin respuesta. Captura el error y devuelvelo como observacion: el modelo puede explicar que el pedido no existe.\n"
+            "- **Bucle sin tope.** Un modelo confundido pide lo mismo para siempre y cada vuelta cuesta dinero. Pon `max_pasos` y detecta llamadas repetidas.\n"
+            '- **Comparar acciones como texto sin normalizar.** `{"id": 1, "x": 2}` y `{"x": 2, "id": 1}` son la misma llamada con otro orden. Usa `json.dumps(..., sort_keys=True)` para compararlas.\n'
+            "- **No devolver la observacion al modelo.** Si el resultado de la herramienta no entra en el siguiente prompt, el modelo vuelve a pedirlo. El historial de acciones y observaciones es lo que le permite avanzar.\n"
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **Herramienta**: funcion + nombre + descripcion + parametros; el modelo solo lee la ficha.\n"
+            "- **Accion**: JSON con `herramienta` y `argumentos`, o con `respuesta`; lo invalido se trata como error y se reintenta.\n"
+            "- **Ejecucion segura**: validar nombre y argumentos, capturar excepciones y convertirlas en observaciones.\n"
+            "- **Repeticiones**: comparar acciones en forma canonica y cortar al pasar el limite.\n"
+            "- **ReAct**: pedir accion, ejecutar, observar y repetir, siempre con tope de pasos.\n"
+        ),
+        difficulty="intermediate",
+        category="ai-fundamentos",
+        order=42,
+        track="track-5",
+        estimated_duration=70,
+        prerequisites_titles=["AI 4 · RAG de punta a punta"],
+        exercises=[
+            ExerciseTemplate(
+                title="Describir las herramientas al modelo",
+                description="Convierte las fichas de herramientas en el texto del prompt.",
+                instructions=(
+                    "Implementa `describir_herramientas(herramientas)`. `herramientas` es un diccionario nombre → ficha, y cada ficha tiene `'descripcion'` (texto) y `'parametros'` (lista de nombres). Devuelve un texto con una linea por herramienta, **ordenadas por nombre**, con el formato `- nombre(param1, param2): descripcion`. Sin herramientas, texto vacio.\n"
+                    "\n"
+                    "Ejemplo:\n"
+                    "\n"
+                    "```\n"
+                    "describir_herramientas({\n"
+                    "    'consultar_pedido': {'descripcion': 'Estado de un pedido', 'parametros': ['id']},\n"
+                    "    'calcular_envio': {'descripcion': 'Coste del envio', 'parametros': ['peso', 'destino']},\n"
+                    "})\n"
+                    "```\n"
+                    "\n"
+                    "devuelve `'- calcular_envio(peso, destino): Coste del envio\\n- consultar_pedido(id): Estado de un pedido'`"
+                ),
+                starter_code=(
+                    "def describir_herramientas(herramientas):\n"
+                    "    # TODO: una linea por herramienta, ordenadas por nombre\n"
+                    "    # TODO: formato '- nombre(param1, param2): descripcion'\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "sorted(herramientas) recorre los nombres en orden alfabetico.",
+                    "', '.join(ficha['parametros']) arma 'peso, destino'.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "una linea por herramienta, en orden",
+                        "code": (
+                            "obtenido = describir_herramientas({\n"
+                            "    'consultar_pedido': {'descripcion': 'Estado de un pedido', 'parametros': ['id']},\n"
+                            "    'calcular_envio': {'descripcion': 'Coste del envio', 'parametros': ['peso', 'destino']},\n"
+                            "})\n"
+                            "assert obtenido == '- calcular_envio(peso, destino): Coste del envio\\n- consultar_pedido(id): Estado de un pedido', repr(obtenido)\n"
+                        ),
+                    },
+                    {
+                        "name": "sin parametros y sin herramientas",
+                        "code": (
+                            "assert describir_herramientas({'hora': {'descripcion': 'Hora actual', 'parametros': []}}) == '- hora(): Hora actual'\n"
+                            "assert describir_herramientas({}) == ''\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Validar los argumentos",
+                description="Detecta argumentos que faltan o que el modelo invento.",
+                instructions=(
+                    "Implementa `validar_argumentos(parametros, argumentos)`: `parametros` es la lista de nombres que acepta la herramienta y `argumentos` el diccionario que pidio el modelo. Devuelve una lista de problemas, vacia si todo esta bien:\n"
+                    "\n"
+                    "- primero `'falta el argumento X'` por cada parametro ausente, en orden alfabetico;\n"
+                    "- despues `'argumento no permitido: X'` por cada argumento que sobra, en orden alfabetico.\n"
+                    "\n"
+                    "Ejemplo: `validar_argumentos(['id'], {'pedido': 7, 'urgente': True})` → `['falta el argumento id', 'argumento no permitido: pedido', 'argumento no permitido: urgente']`"
+                ),
+                starter_code=(
+                    "def validar_argumentos(parametros, argumentos):\n"
+                    "    # TODO: parametros que no estan en argumentos -> 'falta el argumento X'\n"
+                    "    # TODO: argumentos que no estan en parametros -> 'argumento no permitido: X'\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "set(parametros) - set(argumentos) da los que faltan.",
+                    "Recorrer un diccionario da sus claves: set(argumentos) son los nombres pedidos.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "argumentos correctos: sin problemas",
+                        "code": (
+                            "resultado = validar_argumentos(['peso', 'destino'], {'destino': 'Lima', 'peso': 2})\n"
+                            "assert resultado == [], f'devolvio {resultado!r}'\n"
+                        ),
+                    },
+                    {
+                        "name": "faltan y sobran, en orden",
+                        "code": (
+                            "obtenido = validar_argumentos(['id'], {'pedido': 7, 'urgente': True})\n"
+                            "assert obtenido == ['falta el argumento id', 'argumento no permitido: pedido', 'argumento no permitido: urgente'], obtenido\n"
+                            "assert validar_argumentos(['b', 'a'], {}) == ['falta el argumento a', 'falta el argumento b']\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Leer la accion del modelo",
+                description="Normaliza el JSON del LLM en una accion que el programa entiende.",
+                instructions=(
+                    "Implementa `parsear_accion(texto)` que devuelva un diccionario con la clave `'tipo'`:\n"
+                    "\n"
+                    "- `{'tipo': 'herramienta', 'nombre': ..., 'argumentos': {...}}` si el JSON tiene `\"herramienta\"` (sin `\"argumentos\"`, usa `{}`);\n"
+                    "- `{'tipo': 'respuesta', 'texto': ...}` si tiene `\"respuesta\"`;\n"
+                    "- `{'tipo': 'error', 'detalle': ...}` si no es JSON valido o no tiene ninguna de las dos claves.\n"
+                    "\n"
+                    "El JSON puede venir dentro de cercas ```` ```json ```` o ```` ``` ````. Nunca lanza excepciones: un texto invalido es una accion de tipo `'error'`."
+                ),
+                starter_code=(
+                    "import json\n"
+                    "\n"
+                    "\n"
+                    "def parsear_accion(texto):\n"
+                    "    # TODO: quita las cercas si las hay\n"
+                    "    # TODO: json.loads dentro de try/except json.JSONDecodeError\n"
+                    "    # TODO: devuelve la accion normalizada segun las claves\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "t.split('```')[1] da lo de dentro de las cercas; .removeprefix('json') quita la etiqueta.",
+                    "json.JSONDecodeError es la excepcion de un JSON mal escrito.",
+                    "Comprueba que lo leido sea un dict: '[1, 2]' es JSON valido pero no es una accion.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "pedir una herramienta, con o sin cercas",
+                        "code": (
+                            'a = parsear_accion(\'{"herramienta": "consultar_pedido", "argumentos": {"id": 1042}}\')\n'
+                            "assert a == {'tipo': 'herramienta', 'nombre': 'consultar_pedido', 'argumentos': {'id': 1042}}, a\n"
+                            'b = parsear_accion(\'```json\\n{"herramienta": "hora"}\\n```\')\n'
+                            "assert b == {'tipo': 'herramienta', 'nombre': 'hora', 'argumentos': {}}, b\n"
+                        ),
+                    },
+                    {
+                        "name": "respuesta final",
+                        "code": (
+                            "assert parsear_accion('```\\n{\"respuesta\": \"Esta en camino\"}\\n```') == {'tipo': 'respuesta', 'texto': 'Esta en camino'}\n"
+                        ),
+                    },
+                    {
+                        "name": "texto invalido es un error, no una excepcion",
+                        "code": (
+                            "for malo in ('Claro, te ayudo', '{\"otra\": 1}', '[1, 2]'):\n"
+                            "    accion = parsear_accion(malo)\n"
+                            "    assert isinstance(accion, dict) and accion.get('tipo') == 'error', f'{malo!r} -> {accion!r}'\n"
+                            "    assert accion.get('detalle'), 'el error explica que paso'\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Ejecutar una herramienta con seguridad",
+                description="Valida la accion y convierte cualquier fallo en una observacion.",
+                instructions=(
+                    "Implementa `ejecutar_herramienta(accion, herramientas)`. `accion` tiene `'nombre'` y `'argumentos'`; cada ficha de `herramientas` tiene `'funcion'` y `'parametros'`. Devuelve **siempre un texto** (nunca lanza):\n"
+                    "\n"
+                    "- `'Error: la herramienta X no existe'` si el nombre no esta;\n"
+                    "- `'Error: '` + los problemas de `validar_argumentos` unidos con `'; '` si los hay;\n"
+                    "- `'Error: TipoDeError: mensaje'` si la funcion lanza una excepcion;\n"
+                    "- `'Resultado: ...'` con lo que devuelve la funcion si todo va bien.\n"
+                    "\n"
+                    "El starter trae `validar_argumentos` resuelto."
+                ),
+                starter_code=(
+                    "def validar_argumentos(parametros, argumentos):\n"
+                    "    faltan = sorted(set(parametros) - set(argumentos))\n"
+                    "    sobran = sorted(set(argumentos) - set(parametros))\n"
+                    "    return [f'falta el argumento {p}' for p in faltan] + [f'argumento no permitido: {p}' for p in sobran]\n"
+                    "\n"
+                    "\n"
+                    "def ejecutar_herramienta(accion, herramientas):\n"
+                    "    # TODO: herramienta inexistente -> 'Error: la herramienta X no existe'\n"
+                    "    # TODO: argumentos invalidos -> 'Error: ' + problemas unidos con '; '\n"
+                    "    # TODO: llama a la funcion con **argumentos dentro de try/except\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "herramientas.get(nombre) devuelve None si no existe.",
+                    "ficha['funcion'](**accion['argumentos']) pasa el diccionario como argumentos con nombre.",
+                    "type(error).__name__ da el nombre de la excepcion, por ejemplo 'KeyError'.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "ejecuta y devuelve el resultado",
+                        "code": (
+                            "herr = {'sumar': {'funcion': lambda a, b: a + b, 'parametros': ['a', 'b']}}\n"
+                            "assert ejecutar_herramienta({'nombre': 'sumar', 'argumentos': {'a': 2, 'b': 3}}, herr) == 'Resultado: 5'\n"
+                        ),
+                    },
+                    {
+                        "name": "herramienta inexistente o argumentos invalidos",
+                        "code": (
+                            "herr = {'sumar': {'funcion': lambda a, b: a + b, 'parametros': ['a', 'b']}}\n"
+                            "assert ejecutar_herramienta({'nombre': 'restar', 'argumentos': {}}, herr) == 'Error: la herramienta restar no existe'\n"
+                            "obtenido = ejecutar_herramienta({'nombre': 'sumar', 'argumentos': {'a': 1, 'c': 2}}, herr)\n"
+                            "assert obtenido == 'Error: falta el argumento b; argumento no permitido: c', obtenido\n"
+                        ),
+                    },
+                    {
+                        "name": "una excepcion de la herramienta se vuelve observacion",
+                        "code": (
+                            "def dividir(a, b):\n"
+                            "    return a / b\n"
+                            "herr = {'dividir': {'funcion': dividir, 'parametros': ['a', 'b']}}\n"
+                            "obtenido = ejecutar_herramienta({'nombre': 'dividir', 'argumentos': {'a': 1, 'b': 0}}, herr)\n"
+                            "assert obtenido.startswith('Error: ZeroDivisionError: '), obtenido\n"
+                            "llamadas = []\n"
+                            "herr2 = {'marca': {'funcion': lambda x: llamadas.append(x), 'parametros': ['x']}}\n"
+                            "ejecutar_herramienta({'nombre': 'marca', 'argumentos': {'x': 1, 'y': 2}}, herr2)\n"
+                            "assert llamadas == [], 'con argumentos invalidos la funcion no debe ejecutarse'\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Detectar un agente en bucle",
+                description="Encuentra llamadas repetidas aunque cambie el orden de los argumentos.",
+                instructions=(
+                    "Implementa `hay_repeticion(acciones, limite)`: `acciones` es la lista de acciones ejecutadas, cada una con `'nombre'` y `'argumentos'`. Devuelve `True` si alguna misma llamada (mismo nombre y mismos argumentos) aparece **mas de** `limite` veces.\n"
+                    "\n"
+                    "Dos llamadas son la misma aunque sus argumentos tengan las claves en otro orden: `{'id': 1, 'x': 2}` y `{'x': 2, 'id': 1}` cuentan juntas. No importa si las repeticiones son seguidas o estan intercaladas con otras acciones."
+                ),
+                starter_code=(
+                    "import json\n"
+                    "\n"
+                    "\n"
+                    "def hay_repeticion(acciones, limite):\n"
+                    "    # TODO: una clave comparable por accion (nombre + argumentos con claves ordenadas)\n"
+                    "    # TODO: cuenta las veces de cada clave y avisa en cuanto una pase del limite\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "json.dumps(argumentos, sort_keys=True) da el mismo texto sea cual sea el orden de las claves.",
+                    "Un diccionario clave -> veces lleva la cuenta.",
+                    "'Mas de limite' es >, no >=: con limite=2, dos veces esta permitido.",
+                    "Los argumentos anidados ({'filtro': {'a': 1, 'b': 2}}) tambien se ordenan con sort_keys.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "cuenta por encima del limite",
+                        "code": (
+                            "p = {'nombre': 'consultar_pedido', 'argumentos': {'id': 1042}}\n"
+                            "assert hay_repeticion([p, p], 2) is False\n"
+                            "assert hay_repeticion([p, p, p], 2) is True\n"
+                        ),
+                    },
+                    {
+                        "name": "mismo pedido con claves en otro orden",
+                        "code": (
+                            "a = {'nombre': 'buscar', 'argumentos': {'texto': 'envio', 'k': 3}}\n"
+                            "b = {'nombre': 'buscar', 'argumentos': {'k': 3, 'texto': 'envio'}}\n"
+                            "assert hay_repeticion([a, b], 1) is True, 'son la misma llamada'\n"
+                        ),
+                    },
+                    {
+                        "name": "distinto nombre o argumentos no suman",
+                        "code": (
+                            "acciones = [\n"
+                            "    {'nombre': 'consultar_pedido', 'argumentos': {'id': 1}},\n"
+                            "    {'nombre': 'consultar_pedido', 'argumentos': {'id': 2}},\n"
+                            "    {'nombre': 'rastrear', 'argumentos': {'id': 1}},\n"
+                            "]\n"
+                            "assert hay_repeticion(acciones, 1) is False\n"
+                            "assert hay_repeticion([], 0) is False\n"
+                        ),
+                    },
+                    {
+                        "name": "repeticiones intercaladas y argumentos anidados",
+                        "code": (
+                            "x = {'nombre': 'filtrar', 'argumentos': {'filtro': {'a': 1, 'b': 2}}}\n"
+                            "y = {'nombre': 'filtrar', 'argumentos': {'filtro': {'b': 2, 'a': 1}}}\n"
+                            "otra = {'nombre': 'hora', 'argumentos': {}}\n"
+                            "assert hay_repeticion([x, otra, y, otra], 1) is True\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="El bucle del agente",
+                description="ReAct con tope de pasos, errores recuperables y respuesta final.",
+                instructions=(
+                    "Implementa `async def ejecutar_agente(pregunta, herramientas, llm_fn, max_pasos=5)`. `llm_fn` es asincrona: recibe un prompt y devuelve el texto del modelo. Devuelve `{'respuesta': texto o None, 'pasos': lista, 'motivo': 'respuesta' o 'max_pasos'}`.\n"
+                    "\n"
+                    "En cada paso, como mucho `max_pasos` veces:\n"
+                    "\n"
+                    "1. `prompt = construir_prompt(pregunta, herramientas, pasos)` y `texto = await llm_fn(prompt)`.\n"
+                    "2. `accion = parsear_accion(texto)`.\n"
+                    "3. Si es una `'respuesta'`, termina con esa respuesta y motivo `'respuesta'`.\n"
+                    "4. Si es una `'herramienta'`, la observacion es `ejecutar_herramienta(accion, herramientas)`.\n"
+                    "5. Si es un `'error'`, la observacion es `'Error de formato: ' + accion['detalle']`: el modelo lo vera y podra corregirse.\n"
+                    "6. Anade a `pasos` un diccionario `{'llm': texto, 'observacion': observacion}`.\n"
+                    "\n"
+                    "Si se agotan los pasos, devuelve respuesta `None` y motivo `'max_pasos'`. El starter trae `describir_herramientas`, `parsear_accion`, `ejecutar_herramienta` y `construir_prompt`."
+                ),
+                starter_code=(
+                    "import json\n"
+                    "\n"
+                    "\n"
+                    "def describir_herramientas(herramientas):\n"
+                    "    return '\\n'.join(\n"
+                    "        f\"- {n}({', '.join(herramientas[n]['parametros'])}): {herramientas[n]['descripcion']}\"\n"
+                    "        for n in sorted(herramientas)\n"
+                    "    )\n"
+                    "\n"
+                    "\n"
+                    "def parsear_accion(texto):\n"
+                    "    t = texto.strip()\n"
+                    "    if '```' in t:\n"
+                    "        t = t.split('```')[1].removeprefix('json').strip()\n"
+                    "    try:\n"
+                    "        datos = json.loads(t)\n"
+                    "    except json.JSONDecodeError as error:\n"
+                    "        return {'tipo': 'error', 'detalle': f'JSON invalido: {error}'}\n"
+                    "    if isinstance(datos, dict) and 'herramienta' in datos:\n"
+                    "        return {'tipo': 'herramienta', 'nombre': datos['herramienta'], 'argumentos': datos.get('argumentos', {})}\n"
+                    "    if isinstance(datos, dict) and 'respuesta' in datos:\n"
+                    "        return {'tipo': 'respuesta', 'texto': datos['respuesta']}\n"
+                    "    return {'tipo': 'error', 'detalle': 'falta \"herramienta\" o \"respuesta\"'}\n"
+                    "\n"
+                    "\n"
+                    "def ejecutar_herramienta(accion, herramientas):\n"
+                    "    ficha = herramientas.get(accion['nombre'])\n"
+                    "    if ficha is None:\n"
+                    "        return f\"Error: la herramienta {accion['nombre']} no existe\"\n"
+                    "    faltan = sorted(set(ficha['parametros']) - set(accion['argumentos']))\n"
+                    "    sobran = sorted(set(accion['argumentos']) - set(ficha['parametros']))\n"
+                    "    if faltan or sobran:\n"
+                    "        return 'Error: ' + '; '.join([f'falta el argumento {p}' for p in faltan] + [f'argumento no permitido: {p}' for p in sobran])\n"
+                    "    try:\n"
+                    "        return f\"Resultado: {ficha['funcion'](**accion['argumentos'])}\"\n"
+                    "    except Exception as error:\n"
+                    "        return f'Error: {type(error).__name__}: {error}'\n"
+                    "\n"
+                    "\n"
+                    "def construir_prompt(pregunta, herramientas, pasos):\n"
+                    "    historial = '\\n'.join(f'Accion: {p[\"llm\"]}\\nObservacion: {p[\"observacion\"]}' for p in pasos)\n"
+                    "    return (\n"
+                    "        'Eres el asistente de Nebula. Herramientas disponibles:\\n'\n"
+                    "        f'{describir_herramientas(herramientas)}\\n\\n'\n"
+                    '        \'Responde SOLO con JSON: {"herramienta": nombre, "argumentos": {...}} \'\n'
+                    "        'o {\"respuesta\": texto}.\\n\\n'\n"
+                    "        f'Pregunta: {pregunta}\\n{historial}'\n"
+                    "    )\n"
+                    "\n"
+                    "\n"
+                    "async def ejecutar_agente(pregunta, herramientas, llm_fn, max_pasos=5):\n"
+                    "    pasos = []\n"
+                    "    # TODO: como mucho max_pasos vueltas:\n"
+                    "    #   prompt -> await llm_fn -> parsear_accion\n"
+                    "    #   respuesta: termina | herramienta: ejecutar | error: 'Error de formato: ...'\n"
+                    "    #   guarda {'llm': texto, 'observacion': ...} en pasos\n"
+                    "    # TODO: si se acaban los pasos: respuesta None y motivo 'max_pasos'\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "El historial que ve el modelo sale de pasos: por eso cada paso guarda lo que dijo y lo que observo.",
+                    "La respuesta final no se añade a pasos: pasos solo tiene las acciones ejecutadas.",
+                    "Un for _ in range(max_pasos) garantiza el tope; el return de la respuesta sale antes.",
+                    "Para probarlo: resultado = await ejecutar_agente('...', herramientas, llm_falso).",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "usa la herramienta y responde con lo observado",
+                        "code": (
+                            "prompts = []\n"
+                            'guion = iter([\'{"herramienta": "consultar_pedido", "argumentos": {"id": 1042}}\',\n'
+                            '              \'{"respuesta": "Tu pedido 1042 esta en camino."}\'])\n'
+                            "async def llm_falso(prompt):\n"
+                            "    prompts.append(prompt)\n"
+                            "    return next(guion)\n"
+                            "herr = {'consultar_pedido': {'funcion': lambda id: {1042: 'en camino'}[id],\n"
+                            "                             'descripcion': 'Estado de un pedido', 'parametros': ['id']}}\n"
+                            "r = await ejecutar_agente('donde esta mi pedido 1042', herr, llm_falso)\n"
+                            "assert r['respuesta'] == 'Tu pedido 1042 esta en camino.' and r['motivo'] == 'respuesta', r\n"
+                            "assert len(r['pasos']) == 1 and r['pasos'][0]['observacion'] == 'Resultado: en camino', r['pasos']\n"
+                            "assert len(prompts) == 2\n"
+                            "assert 'Resultado: en camino' in prompts[1], 'la observacion tiene que llegar al siguiente prompt'\n"
+                        ),
+                    },
+                    {
+                        "name": "se detiene al llegar a max_pasos",
+                        "code": (
+                            "llamadas = []\n"
+                            "async def llm_terco(prompt):\n"
+                            "    llamadas.append(prompt)\n"
+                            '    return \'{"herramienta": "hora", "argumentos": {}}\'\n'
+                            "herr = {'hora': {'funcion': lambda: '10:00', 'descripcion': 'Hora actual', 'parametros': []}}\n"
+                            "r = await ejecutar_agente('que hora es', herr, llm_terco, max_pasos=3)\n"
+                            "assert r['respuesta'] is None and r['motivo'] == 'max_pasos', r\n"
+                            "assert len(llamadas) == 3 and len(r['pasos']) == 3, 'nunca mas llamadas que max_pasos'\n"
+                        ),
+                    },
+                    {
+                        "name": "se recupera de un JSON mal formado",
+                        "code": (
+                            "guion = iter(['Claro, ahora lo miro', '{\"respuesta\": \"Son las 10:00\"}'])\n"
+                            "prompts = []\n"
+                            "async def llm_falso(prompt):\n"
+                            "    prompts.append(prompt)\n"
+                            "    return next(guion)\n"
+                            "herr = {'hora': {'funcion': lambda: '10:00', 'descripcion': 'Hora actual', 'parametros': []}}\n"
+                            "r = await ejecutar_agente('que hora es', herr, llm_falso)\n"
+                            "assert r['respuesta'] == 'Son las 10:00', r\n"
+                            "assert r['pasos'][0]['observacion'].startswith('Error de formato: '), r['pasos']\n"
+                            "assert 'Error de formato' in prompts[1], 'el modelo tiene que ver su error de formato'\n"
+                        ),
+                    },
+                    {
+                        "name": "un fallo de la herramienta no tumba al agente",
+                        "code": (
+                            "def consultar_pedido(id):\n"
+                            "    raise KeyError(f'el pedido {id} no existe')\n"
+                            'guion = iter([\'{"herramienta": "consultar_pedido", "argumentos": {"id": 7}}\',\n'
+                            '              \'{"herramienta": "borrar_todo", "argumentos": {}}\',\n'
+                            '              \'{"respuesta": "No encuentro el pedido 7."}\'])\n'
+                            "async def llm_falso(prompt):\n"
+                            "    return next(guion)\n"
+                            "herr = {'consultar_pedido': {'funcion': consultar_pedido, 'descripcion': 'Estado', 'parametros': ['id']}}\n"
+                            "r = await ejecutar_agente('donde esta el pedido 7', herr, llm_falso)\n"
+                            "assert r['respuesta'] == 'No encuentro el pedido 7.', r\n"
+                            "assert r['pasos'][0]['observacion'].startswith('Error: KeyError'), r['pasos']\n"
+                            "assert r['pasos'][1]['observacion'] == 'Error: la herramienta borrar_todo no existe'\n"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
