@@ -147,7 +147,8 @@ describe('CodeEditor — navegación por lección', () => {
     renderEditor('/editor?lesson=7&exercise=101')
 
     await screen.findByText('Ejercicio 1 de 3 — Series desde diccionario')
-    expect(screen.getByTestId('monaco')).toHaveValue('# starter uno\n')
+    // El starter se aplica en un efecto, un render despues de la cabecera.
+    await waitFor(() => expect(screen.getByTestId('monaco')).toHaveValue('# starter uno\n'))
 
     await user.click(screen.getByRole('button', { name: /Siguiente/ }))
 
@@ -198,7 +199,8 @@ describe('CodeEditor — navegación por lección', () => {
       </MemoryRouter>
     )
     await screen.findByText('Ejercicio 1 de 3 — Series desde diccionario')
-    expect(screen.getByTestId('monaco')).toHaveValue('# starter uno\n')
+    // El starter se aplica en un efecto, un render despues de la cabecera.
+    await waitFor(() => expect(screen.getByTestId('monaco')).toHaveValue('# starter uno\n'))
 
     await user.click(screen.getByRole('link', { name: 'Editor' }))
 
