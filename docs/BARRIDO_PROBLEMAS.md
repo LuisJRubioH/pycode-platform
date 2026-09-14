@@ -111,6 +111,8 @@ retos. Renderizados los 220 enunciados (150 de ejercicios, 70 de retos): 0 con
 marcas sueltas. Solo uno necesitó retoque (una frase pegada a una lista en
 Track 3). De paso se quitaron los backticks decorativos que el plugin de
 tipografía añadía al código inline, que también afectaban a las lecciones.
+La página de capstones se quedó fuera y se corrigió con el capstone de Track 5
+(enunciado y requisitos con el mismo `Markdown.tsx`, test en `CapstoneDetail.test.tsx`).
 
 ### 3. `react-router` con open redirect en producción
 

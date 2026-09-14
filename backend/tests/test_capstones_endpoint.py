@@ -355,3 +355,66 @@ def test_track4_capstone_structure_integrity():
         "accuracy",
     ):
         assert f"def {fn}(" in red["content"], fn
+
+
+# ---------- capstone Track 5 (AI Engineering, Nebula RAG) ----------
+
+
+@pytest.mark.asyncio
+async def test_track5_capstone_seeded_and_listed(client, auth_headers):
+    """El capstone Nebula RAG de Track 5 se seedea y aparece en la lista."""
+    await _ensure_real_seeded()
+    r = await client.get("/api/v1/capstones", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    slugs = [item["slug"] for item in r.json()["items"]]
+    assert "track-5-nebula-rag" in slugs
+
+
+@pytest.mark.asyncio
+async def test_track5_capstone_detail_no_hidden_tests(client, auth_headers):
+    """Detalle expone tests_total=10 pero nunca los hidden_tests."""
+    await _ensure_real_seeded()
+    r = await client.get("/api/v1/capstones/track-5-nebula-rag", headers=auth_headers)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["track"] == "track-5"
+    assert body["tests_total"] == 10
+    assert "hidden_tests" not in body
+    # Marcadores unicos de los hidden_tests (el LLM falso y sus guiones).
+    assert "llm_terco" not in r.text
+    assert "Tu pedido 1001 ya fue entregado" not in r.text
+
+
+def test_track5_capstone_structure_integrity():
+    """10 requisitos, 10 hidden_tests y cada modulo expone sus funciones."""
+    from app.services.capstone_seed import CAPSTONES
+
+    cap = next(c for c in CAPSTONES if c["slug"] == "track-5-nebula-rag")
+    assert cap["track"] == "track-5"
+    assert len(cap["requirements"]) == 10
+    assert len(cap["hidden_tests"]) == 10
+    archivos = {f["path"]: f["content"] for f in cap["starter_files"]}
+    esperado = {
+        "recuperacion.py": ["tokenizar", "embed_bow", "construir_indice", "recuperar"],
+        "asistente.py": ["prompt_con_fuentes", "extraer_citas", "async def responder"],
+        "herramientas.py": [
+            "crear_herramientas",
+            "parsear_accion",
+            "ejecutar_herramienta",
+            "async def ejecutar_agente",
+        ],
+        "nebula.py": ["async def atender"],
+        "evaluacion.py": [
+            "contiene_datos",
+            "puntuar_fuentes",
+            "parsear_veredicto",
+            "async def evaluar",
+        ],
+    }
+    for path, funciones in esperado.items():
+        for fn in funciones:
+            firma = fn if fn.startswith("async def") else f"def {fn}"
+            assert f"{firma}(" in archivos[path], (path, fn)
+    # Los tests se corrigen con un LLM falso: ninguno debe usar el real.
+    for test in cap["hidden_tests"]:
+        assert "llm_complete" not in test["code"], test["name"]

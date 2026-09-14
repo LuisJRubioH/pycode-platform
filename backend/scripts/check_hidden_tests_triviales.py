@@ -12,7 +12,10 @@ ejercicio por hecho (y suma sus puntos) con el codigo vacio. Paso a paso:
    `load_dataset`.
 3. En los retos, que guardan solucion de referencia, comprueba ademas que
    todos sus tests aprueban con ella.
-4. Si algo falla, lo lista y sale con codigo 1.
+4. Hace lo mismo con los capstones (`capstone_seed.py`), imitando a
+   `runCapstoneTests`: los archivos starter en el directorio del test, y el
+   test tal cual, sin envolver.
+5. Si algo falla, lo lista y sale con codigo 1.
 
 Es una **cota inferior**: CPython no es Pyodide (versiones de numpy/pandas
 distintas, sin paquetes que Pyodide carga solo), y un test que aqui falla por un
@@ -74,14 +77,23 @@ PLANTILLA = (
 )
 
 
-def _aprueba(starter: str, test: str) -> bool:
-    programa = PLANTILLA.format(starter=starter, test=test)
+def _aprueba(starter: str, test: str, archivos: dict[str, str] | None = None) -> bool:
+    """`archivos` (ruta -> contenido) activa el modo capstone: se escriben en el
+    directorio del test y el test se ejecuta sin la plantilla de ejercicio."""
+    if archivos is None:
+        programa = PLANTILLA.format(starter=starter, test=test)
+    else:
+        programa = test
     cwd_real = os.getcwd()
     stdout_real, stdin_real = sys.stdout, sys.stdin
     # Directorio nuevo por test: si no, un archivo que dejo un test anterior
     # puede hacer aprobar al siguiente sin que el codigo escriba nada.
     with tempfile.TemporaryDirectory(prefix="hidden_test_") as tmp:
         os.chdir(tmp)
+        for ruta, contenido in (archivos or {}).items():
+            # El worker aplana las rutas igual: `src/a.py` -> `src_a.py`.
+            nombre = ruta.replace("/", "_").replace("\\", "_")
+            Path(tmp, nombre).write_text(contenido, encoding="utf-8")
         # En Pyodide el directorio de trabajo esta en sys.path: un test puede
         # escribir `saludos.py` e importarlo. Aqui hay que ponerlo a mano.
         sys.path.insert(0, tmp)
@@ -187,6 +199,22 @@ def barrer() -> list[dict]:
                     "test": test["name"],
                     "aprueba_con_starter": _aprueba(starter, test["code"]),
                     "aprueba_con_solucion": _aprueba(solucion, test["code"]),
+                }
+            )
+    # Capstones: sin solucion de referencia guardada, solo la mitad negativa.
+    from app.services.capstone_seed import CAPSTONES
+
+    for capstone in CAPSTONES:
+        archivos = {f["path"]: f["content"] for f in capstone["starter_files"]}
+        for test in capstone["hidden_tests"]:
+            resultados.append(
+                {
+                    "track": capstone["track"],
+                    "leccion": f"capstone {capstone['slug']}",
+                    "ejercicio": "starter",
+                    "test": test["name"],
+                    "aprueba_con_starter": _aprueba("", test["code"], archivos),
+                    "aprueba_con_solucion": None,
                 }
             )
     return resultados

@@ -1,7 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
 import {
   ArrowLeft,
   CheckCircle2,
@@ -17,6 +15,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import Markdown from '../components/Markdown'
 import { api } from '../services/api'
 import { getSandbox } from '../sandbox/PyodideSandbox'
 import { isSandboxInterruption } from '../services/codeRunner'
@@ -314,10 +313,8 @@ const CapstoneDetail: React.FC = () => {
         {submissionBadge}
       </div>
 
-      <div className="card p-6 prose prose-slate max-w-none">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-          {capstone.description || ''}
-        </ReactMarkdown>
+      <div className="card p-6">
+        <Markdown className="prose prose-slate max-w-none">{capstone.description || ''}</Markdown>
       </div>
 
       <div className="card p-6 space-y-4">
@@ -333,7 +330,10 @@ const CapstoneDetail: React.FC = () => {
               <span className="shrink-0 inline-flex items-center justify-center min-w-[2.5rem] h-7 rounded-full bg-primary-100 text-primary-700 text-xs font-bold">
                 {req.id}
               </span>
-              <span className="text-sm text-slate-700">{req.text}</span>
+              {/* Los requisitos usan `codigo` y **negritas**: sin Markdown se veian los signos. */}
+              <Markdown className="prose prose-sm prose-slate max-w-none min-w-0 text-slate-700 prose-p:my-0">
+                {req.text}
+              </Markdown>
             </li>
           ))}
         </ul>

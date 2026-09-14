@@ -1461,6 +1461,677 @@ CAPSTONES: list[dict] = [
         "difficulty": "advanced",
         "order_index": 4,
     },
+    {
+        "slug": "track-5-nebula-rag",
+        "track": "track-5",
+        "title": "Nebula RAG: el asistente completo",
+        "short_description": (
+            "Construye el asistente de atencion al cliente de Nebula en cinco modulos: recuperacion con umbral y citas, un agente que consulta pedidos, un router que decide entre los dos y una evaluacion automatica. Se corrige con un LLM falso; el LLM real queda como paso opcional."
+        ),
+        "description": (
+            "## Contexto\n"
+            "\n"
+            'Nebula, la tienda online de las lecciones AI 4-6, quiere poner su asistente delante de clientes reales. Tiene dos tipos de preguntas: las que se responden con sus **documentos** ("¿cuanto tarda el envio?") y las que necesitan **datos vivos** ("¿donde esta mi pedido 1001?"). Y antes de publicarlo quiere una **evaluacion** que diga, con numeros, si funciona.\n'
+            "\n"
+            "Vas a construir el sistema entero, separado en modulos como se haria en un proyecto real.\n"
+            "\n"
+            "## Que integra este capstone\n"
+            "\n"
+            "- **AI 1-2**: embeddings de bolsa de palabras y similitud coseno para recuperar.\n"
+            '- **AI 3-4**: prompt con fuentes numeradas, umbral de relevancia ("no lo se" sin llamar al LLM) y citas verificables.\n'
+            "- **AI 5**: un agente con una herramienta, que valida los argumentos, captura los errores y no entra en bucle.\n"
+            "- **AI 6**: una evaluacion con metricas automaticas (cobertura de datos clave, recall de fuentes) y un LLM juez cuyo veredicto se valida.\n"
+            "\n"
+            "## Arquitectura\n"
+            "\n"
+            "```\n"
+            "pregunta ──> nebula.atender ──┬── ¿numero de pedido? ──> herramientas.ejecutar_agente ──> consultar_pedido\n"
+            "                              │\n"
+            "                              └── si no ──> asistente.responder ──> recuperacion.recuperar\n"
+            "                                                                └──> llm_fn (con fuentes numeradas)\n"
+            "\n"
+            "evaluacion.evaluar(casos, sistema_fn, juez_fn) ──> tasa de aprobados + casos sin veredicto\n"
+            "```\n"
+            "\n"
+            "Ninguna funcion llama al LLM por su cuenta: **todas reciben `llm_fn`**, una funcion `async` que toma un prompt y devuelve texto. Esa inyeccion es lo que permite corregir el proyecto con un LLM falso (determinista y gratis) y usar el real sin cambiar una linea.\n"
+            "\n"
+            "## Estructura\n"
+            "\n"
+            "```\n"
+            "recuperacion.py   tokenizar, embed_bow, construir_indice, recuperar      (R1-R2)\n"
+            "asistente.py      prompt_con_fuentes, extraer_citas, responder           (R3-R4)\n"
+            "herramientas.py   crear_herramientas, parsear_accion,\n"
+            "                  ejecutar_herramienta, ejecutar_agente                  (R5-R7)\n"
+            "nebula.py         atender: el router                                     (R8)\n"
+            "evaluacion.py     contiene_datos, puntuar_fuentes,\n"
+            "                  parsear_veredicto, evaluar                             (R9-R10)\n"
+            "datos.py          documentos, pedidos y casos de Nebula (ya escrito)\n"
+            "demo.py           paso opcional con el LLM real (no se evalua)\n"
+            "```\n"
+            "\n"
+            "Las funciones que ya vienen escritas (`describir_herramientas`, `construir_prompt`, `prompt_juez`) no hace falta tocarlas.\n"
+            "\n"
+            "## Como se evalua\n"
+            "\n"
+            'Al pulsar "Enviar capstone" corren **10 tests ocultos**, uno por requisito, en tu navegador. Cada test importa tus modulos desde cero y usa **sus propios datos** y un **LLM falso** que devuelve respuestas guionizadas y anota los prompts que recibe: asi comprueba, por ejemplo, que no se llama al LLM cuando nada supera el umbral, o que el agente le pasa la observacion del paso anterior. Para aprobar hay que pasar **los 10**.\n'
+            "\n"
+            "Los tests son `async`: tus funciones `responder`, `ejecutar_agente`, `atender` y `evaluar` deben ser `async def` y hacer `await` de `llm_fn`, `sistema_fn` y `juez_fn`.\n"
+            "\n"
+            "## Paso opcional: el LLM real\n"
+            "\n"
+            "No cuenta para aprobar. En el editor de PyCode existe `pycode.llm_complete(prompt)`, que llama al modelo real a traves del backend. `demo.py` muestra como envolverlo en un `llm_fn` y lanzar la evaluacion con los casos de `datos.py`. Como el editor trabaja con un solo archivo, pega alli tus cinco modulos seguidos del contenido de `demo.py` (quitando los `from ... import` entre modulos), o ejecutalo en local con tu propio `llm_fn`. Con un modelo real las respuestas cambian de una ejecucion a otra: por eso la nota se pone con el LLM falso y el real sirve para ver la tasa de aprobados de verdad.\n"
+            "\n"
+            'Fijate tambien en las fuentes que recupera: con bolsa de palabras, las palabras vacias pesan tanto como las importantes, y "¿tienen tienda fisica en Madrid?" puede recuperar un documento solo porque comparte "en". Filtrarlas, o cambiar a embeddings de verdad, es la primera mejora que la evaluacion te dejaria medir.\n'
+        ),
+        "requirements": [
+            {
+                "id": "R1",
+                "text": "`recuperacion.py`: `tokenizar(texto)` pasa a minusculas, quita las tildes (`unicodedata.normalize('NFD', ...)` + `encode('ascii', 'ignore')`) y devuelve `re.findall(r'\\w+', ...)`. `embed_bow(texto, vocab)` devuelve un vector numpy con cuantas veces aparece cada palabra del vocabulario (las que no estan no cuentan). `construir_indice(textos)` devuelve `{'textos', 'vocab', 'matriz'}`: el vocabulario ordenado sin repetidos y una matriz `(N, V)` con un embedding por fila.",
+            },
+            {
+                "id": "R2",
+                "text": "`recuperar(pregunta, indice, k=3, umbral=0.2)` devuelve una lista de tuplas `(indice_del_texto, similitud)` con la similitud coseno entre la pregunta y cada fila: solo las que llegan al umbral (`>=`), de mayor a menor (en empate, el indice menor primero), como mucho `k`. Un vector de ceros tiene similitud 0, sin dividir entre cero. Los indices son `int` y las similitudes `float`.",
+            },
+            {
+                "id": "R3",
+                "text": "`asistente.py`: `prompt_con_fuentes(pregunta, fragmentos)` incluye la pregunta y cada fragmento en su propia linea como `[1] texto`, `[2] texto`... en orden, e instruye al modelo a citar con esos numeros. `extraer_citas(respuesta, n_fuentes)` devuelve los numeros citados entre corchetes (`[2]`, `[1, 3]`) en orden de aparicion, sin repetidos y descartando los que no estan entre 1 y `n_fuentes`.",
+            },
+            {
+                "id": "R4",
+                "text": "`async responder(pregunta, indice, llm_fn, k=3, umbral=0.2)` recupera los fragmentos; si ninguno supera el umbral devuelve `{'respuesta': NO_SE, 'fuentes': []}` **sin llamar al LLM**. Si hay fragmentos, llama a `llm_fn` una vez con `prompt_con_fuentes` y devuelve `{'respuesta': texto_del_llm, 'fuentes': [...]}`, donde las fuentes son los textos de los fragmentos citados, en el orden de las citas.",
+            },
+            {
+                "id": "R5",
+                "text": "`herramientas.py`: `crear_herramientas(pedidos)` devuelve `{'consultar_pedido': {'descripcion', 'parametros', 'funcion'}}` con `parametros == ['numero']`. La funcion busca `str(numero)` en el diccionario **recibido** y devuelve `'Pedido 1001: en camino, entrega estimada 2026-09-20'`; si el pedido no existe lanza `KeyError`.",
+            },
+            {
+                "id": "R6",
+                "text": "`parsear_accion(texto)` acepta JSON suelto o dentro de una cerca de codigo y devuelve `{'tipo': 'herramienta', 'nombre', 'argumentos'}`, `{'tipo': 'respuesta', 'texto'}` o `{'tipo': 'error', 'detalle'}`. `ejecutar_herramienta(accion, herramientas)` nunca lanza: devuelve `'Resultado: <valor>'`, o `'Error: la herramienta X no existe'`, `'Error: falta el argumento a'` / `'Error: argumento no permitido: c'` (unidos con `'; '`, faltan primero, cada grupo en orden alfabetico), o `'Error: <Excepcion>: <mensaje>'` si la funcion falla.",
+            },
+            {
+                "id": "R7",
+                "text": "`async ejecutar_agente(pregunta, herramientas, llm_fn, max_pasos=4)` repite: prompt con `construir_prompt`, llamada al LLM, `parsear_accion`. Si es una respuesta, termina con `{'respuesta': texto, 'pasos': pasos, 'motivo': 'respuesta'}`. Si no, anade `{'llm': texto, 'observacion': ...}` a `pasos` (el resultado de la herramienta, o un texto que empieza por `'Error'` si el formato era invalido) y sigue. Tras `max_pasos` llamadas devuelve `{'respuesta': None, 'pasos': pasos, 'motivo': 'max_pasos'}`.",
+            },
+            {
+                "id": "R8",
+                "text": "`nebula.py`: `async atender(pregunta, indice, herramientas, llm_fn)` es el router. Si la pregunta contiene un numero de 4 o mas cifras, usa el agente y devuelve `{'modo': 'agente', 'respuesta': ..., 'fuentes': []}` (con `SIN_RESPUESTA` si el agente agoto los pasos). Si no, usa `responder` y devuelve `{'modo': 'rag', 'respuesta': ..., 'fuentes': ...}`.",
+            },
+            {
+                "id": "R9",
+                "text": "`evaluacion.py`: `contiene_datos(respuesta, datos_clave)` devuelve la fraccion de datos clave que aparecen en la respuesta, comparando ambos normalizados (minusculas, sin tildes, signos como espacios, espacios colapsados); sin datos clave vale `1.0`. `puntuar_fuentes(citadas, esperadas)` devuelve `{'precision', 'recall'}` como conjuntos: precision `0.0` sin citadas y recall `1.0` sin esperadas.",
+            },
+            {
+                "id": "R10",
+                "text": "`parsear_veredicto(texto)` lee `{\"puntuacion\": 1-5, \"motivo\": ...}` (suelto o en cerca de codigo) y devuelve `{'puntuacion', 'motivo'}` o `None` si no es un entero (ni `bool`) entre 1 y 5. `async evaluar(casos, sistema_fn, juez_fn, nota_minima=4)` ejecuta cada caso y devuelve `{'casos': [{'id', 'aprobado', 'cobertura', 'recall', 'puntuacion'}], 'tasa_aprobados', 'sin_veredicto'}`. Un caso aprueba con cobertura 1.0, recall 1.0 y nota del juez `>= nota_minima`; sin veredicto no aprueba y su id va a `sin_veredicto`.",
+            },
+        ],
+        "starter_files": [
+            {
+                "path": "recuperacion.py",
+                "editable": True,
+                "content": (
+                    '"""Recuperacion: tokenizar, indexar y buscar lo relevante (R1-R2)."""\n'
+                    "\n"
+                    "import re\n"
+                    "import unicodedata\n"
+                    "\n"
+                    "import numpy as np\n"
+                    "\n"
+                    "\n"
+                    "def tokenizar(texto):\n"
+                    "    \"\"\"'¿Cuanto tarda el ENVIO?' -> ['cuanto', 'tarda', 'el', 'envio'].\"\"\"\n"
+                    "    # TODO: minusculas, quitar tildes (NFD + encode('ascii', 'ignore')) y re.findall(r'\\w+', ...)\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def embed_bow(texto, vocab):\n"
+                    '    """Vector numpy de conteos: una posicion por palabra del vocabulario."""\n'
+                    "    # TODO: palabra -> columna; suma 1 por cada palabra del texto que este en vocab\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def construir_indice(textos):\n"
+                    "    \"\"\"{'textos': textos, 'vocab': vocabulario ordenado, 'matriz': (N, V)}.\"\"\"\n"
+                    "    # TODO: vocabulario = palabras de todos los textos, sin repetir y ordenadas\n"
+                    "    # TODO: matriz con embed_bow de cada texto (cuidado con la shape si V == 0)\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def recuperar(pregunta, indice, k=3, umbral=0.2):\n"
+                    '    """[(i, similitud), ...] con similitud >= umbral, de mayor a menor, como mucho k."""\n'
+                    "    # TODO: embedding de la pregunta con el vocabulario del indice\n"
+                    "    # TODO: similitud coseno contra cada fila (0 si alguna norma es 0)\n"
+                    "    # TODO: ordenar de forma estable (np.argsort(-sims, kind='stable')), filtrar y cortar en k\n"
+                    "    raise NotImplementedError\n"
+                ),
+            },
+            {
+                "path": "asistente.py",
+                "editable": True,
+                "content": (
+                    '"""Asistente RAG: prompt con fuentes, citas y respuesta (R3-R4)."""\n'
+                    "\n"
+                    "import re\n"
+                    "\n"
+                    "from recuperacion import recuperar\n"
+                    "\n"
+                    "NO_SE = 'No lo se: no encontre informacion sobre eso en los documentos.'\n"
+                    "\n"
+                    "\n"
+                    "def prompt_con_fuentes(pregunta, fragmentos):\n"
+                    '    """Instrucciones + fuentes numeradas \'[1] texto\' (una por linea) + pregunta."""\n'
+                    "    # TODO: numera desde 1 con enumerate(fragmentos, start=1)\n"
+                    "    # TODO: pide responder solo con las fuentes, citar con [n] y decir que no lo sabe si no bastan\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def extraer_citas(respuesta, n_fuentes):\n"
+                    '    """\'Tarda 3 dias [2]. Gratis [1, 2] y [7].\' con n_fuentes=2 -> [2, 1]."""\n'
+                    "    # TODO: re.findall(r'\\[([\\d,\\s]+)\\]', respuesta) da el interior de cada corchete\n"
+                    "    # TODO: sin repetidos, en orden de aparicion, solo 1..n_fuentes\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "async def responder(pregunta, indice, llm_fn, k=3, umbral=0.2):\n"
+                    '    """{\'respuesta\': texto, \'fuentes\': [textos citados]}; NO_SE sin llamar al LLM."""\n'
+                    "    # TODO: recuperar(pregunta, indice, k, umbral); si esta vacio -> NO_SE y fuentes []\n"
+                    "    # TODO: fragmentos = textos recuperados; texto = await llm_fn(prompt_con_fuentes(...))\n"
+                    "    # TODO: fuentes = fragmentos citados segun extraer_citas\n"
+                    "    raise NotImplementedError\n"
+                ),
+            },
+            {
+                "path": "herramientas.py",
+                "editable": True,
+                "content": (
+                    '"""Agente con herramientas: consulta de pedidos (R5-R7)."""\n'
+                    "\n"
+                    "import json\n"
+                    "\n"
+                    "CERCA = '`' * 3  # tres acentos graves: la cerca de un bloque de codigo\n"
+                    "\n"
+                    "\n"
+                    "def describir_herramientas(herramientas):\n"
+                    '    """Ya escrita: una linea por herramienta, en orden alfabetico."""\n'
+                    "    return '\\n'.join(\n"
+                    "        f\"- {nombre}({', '.join(herramientas[nombre]['parametros'])}): \"\n"
+                    "        f\"{herramientas[nombre]['descripcion']}\"\n"
+                    "        for nombre in sorted(herramientas)\n"
+                    "    )\n"
+                    "\n"
+                    "\n"
+                    "def construir_prompt(pregunta, herramientas, pasos):\n"
+                    '    """Ya escrita: herramientas + formato de salida + pregunta + historial."""\n'
+                    "    historial = '\\n'.join(\n"
+                    "        f\"Accion: {paso['llm']}\\nObservacion: {paso['observacion']}\" for paso in pasos\n"
+                    "    )\n"
+                    "    return (\n"
+                    "        'Eres el asistente de Nebula. Herramientas disponibles:\\n'\n"
+                    "        f'{describir_herramientas(herramientas)}\\n\\n'\n"
+                    '        \'Responde SOLO con JSON: {"herramienta": nombre, "argumentos": {...}} \'\n'
+                    "        'o {\"respuesta\": texto}.\\n\\n'\n"
+                    "        f'Pregunta: {pregunta}\\n{historial}'\n"
+                    "    )\n"
+                    "\n"
+                    "\n"
+                    "def crear_herramientas(pedidos):\n"
+                    "    \"\"\"{'consultar_pedido': {'descripcion', 'parametros': ['numero'], 'funcion'}}.\"\"\"\n"
+                    "\n"
+                    "    def consultar_pedido(numero):\n"
+                    "        # TODO: busca str(numero) en `pedidos` (el diccionario recibido)\n"
+                    "        # TODO: si no existe -> raise KeyError(f'el pedido {numero} no existe')\n"
+                    '        # TODO: return f"Pedido {numero}: {estado}, entrega estimada {entrega}"\n'
+                    "        raise NotImplementedError\n"
+                    "\n"
+                    "    # TODO: devuelve la ficha con descripcion, parametros y funcion\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def parsear_accion(texto):\n"
+                    "    \"\"\"Texto del LLM -> {'tipo': 'herramienta'|'respuesta'|'error', ...}.\"\"\"\n"
+                    "    # TODO: si hay CERCA, quedate con lo de dentro (y quita el 'json' inicial)\n"
+                    "    # TODO: json.loads con try/except json.JSONDecodeError -> tipo 'error'\n"
+                    "    # TODO: 'herramienta' en el dict -> tipo 'herramienta'; 'respuesta' -> tipo 'respuesta'\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def ejecutar_herramienta(accion, herramientas):\n"
+                    '    """Nunca lanza: \'Resultado: ...\' o \'Error: ...\'."""\n'
+                    "    # TODO: herramienta desconocida -> 'Error: la herramienta X no existe'\n"
+                    "    # TODO: faltan / sobran argumentos -> 'Error: falta el argumento a; argumento no permitido: c'\n"
+                    "    # TODO: llama a la funcion con **argumentos dentro de try/except Exception\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "async def ejecutar_agente(pregunta, herramientas, llm_fn, max_pasos=4):\n"
+                    "    \"\"\"Bucle del agente: {'respuesta', 'pasos', 'motivo'}.\"\"\"\n"
+                    "    pasos = []\n"
+                    "    # TODO: for _ in range(max_pasos): prompt -> await llm_fn -> parsear_accion\n"
+                    "    # TODO: respuesta -> return {'respuesta': ..., 'pasos': pasos, 'motivo': 'respuesta'}\n"
+                    "    # TODO: herramienta -> observacion = ejecutar_herramienta(...)\n"
+                    "    # TODO: error de formato -> observacion = 'Error de formato: ' + detalle\n"
+                    "    # TODO: pasos.append({'llm': texto, 'observacion': observacion})\n"
+                    "    raise NotImplementedError\n"
+                ),
+            },
+            {
+                "path": "nebula.py",
+                "editable": True,
+                "content": (
+                    '"""El asistente de Nebula: decide entre documentos y pedidos (R8)."""\n'
+                    "\n"
+                    "import re\n"
+                    "\n"
+                    "from asistente import responder\n"
+                    "from herramientas import ejecutar_agente\n"
+                    "\n"
+                    "SIN_RESPUESTA = 'No pude completar la consulta. Un companero de soporte te escribira pronto.'\n"
+                    "\n"
+                    "\n"
+                    "async def atender(pregunta, indice, herramientas, llm_fn):\n"
+                    "    \"\"\"{'modo': 'agente'|'rag', 'respuesta': ..., 'fuentes': [...]}.\"\"\"\n"
+                    "    # TODO: re.search(r'\\d{4,}', pregunta) -> hay numero de pedido -> agente\n"
+                    "    # TODO: agente: respuesta None (agoto los pasos) -> SIN_RESPUESTA; fuentes []\n"
+                    "    # TODO: si no: resultado = await responder(pregunta, indice, llm_fn)\n"
+                    "    raise NotImplementedError\n"
+                ),
+            },
+            {
+                "path": "evaluacion.py",
+                "editable": True,
+                "content": (
+                    '"""Evaluacion: metricas automaticas y LLM juez (R9-R10)."""\n'
+                    "\n"
+                    "import json\n"
+                    "import re\n"
+                    "import unicodedata\n"
+                    "\n"
+                    "CERCA = '`' * 3\n"
+                    "\n"
+                    "\n"
+                    "def prompt_juez(pregunta, respuesta):\n"
+                    '    """Ya escrita: pide al juez una nota de 1 a 5 en JSON."""\n'
+                    "    return (\n"
+                    "        'Evalua la respuesta de un asistente de atencion al cliente.\\n'\n"
+                    "        'Puntua de 1 a 5: 5 = correcta, completa y clara; 1 = incorrecta o no contesta.\\n'\n"
+                    '        \'Responde SOLO con JSON: {"puntuacion": entero, "motivo": texto breve}.\\n\\n\'\n'
+                    "        f'Pregunta: {pregunta}\\nRespuesta: {respuesta}'\n"
+                    "    )\n"
+                    "\n"
+                    "\n"
+                    "def normalizar(texto):\n"
+                    '    """\'¡Llega en 3 DIAS!\' -> \'llega en 3 dias\'."""\n'
+                    "    # TODO: minusculas, sin tildes, signos -> espacios (re.sub(r'[^\\w\\s]', ' ', ...)), espacios colapsados\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def contiene_datos(respuesta, datos_clave):\n"
+                    '    """Fraccion de datos clave presentes (normalizados). Sin datos clave: 1.0."""\n'
+                    "    # TODO\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def puntuar_fuentes(citadas, esperadas):\n"
+                    '    """{\'precision\', \'recall\'} como conjuntos."""\n'
+                    "    # TODO: precision 0.0 si no hay citadas; recall 1.0 si no hay esperadas\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "def parsear_veredicto(texto):\n"
+                    '    """{\'puntuacion\': 1-5, \'motivo\': str} o None si el veredicto no es valido."""\n'
+                    "    # TODO: como parsear_accion; puntuacion debe cumplir type(p) is int y 1 <= p <= 5\n"
+                    "    raise NotImplementedError\n"
+                    "\n"
+                    "\n"
+                    "async def evaluar(casos, sistema_fn, juez_fn, nota_minima=4):\n"
+                    "    \"\"\"{'casos': [...], 'tasa_aprobados': float, 'sin_veredicto': [ids]}.\"\"\"\n"
+                    "    # TODO: por caso: resultado = await sistema_fn(pregunta); cobertura; recall de fuentes\n"
+                    "    # TODO: veredicto = parsear_veredicto(await juez_fn(prompt_juez(pregunta, respuesta)))\n"
+                    "    # TODO: aprobado = cobertura == 1.0 and recall == 1.0 and nota >= nota_minima\n"
+                    "    raise NotImplementedError\n"
+                ),
+            },
+            {
+                "path": "datos.py",
+                "editable": False,
+                "content": (
+                    '"""Datos de Nebula (ya escrito: no hace falta tocarlo)."""\n'
+                    "\n"
+                    "DOCUMENTOS = [\n"
+                    "    'El envio estandar tarda de 3 a 5 dias habiles y es gratis desde 50 euros.',\n"
+                    "    'El envio express llega en 24 horas y cuesta 6 euros.',\n"
+                    "    'Puedes devolver cualquier producto durante 30 dias desde que lo recibes.',\n"
+                    "    'Las devoluciones son gratis si el producto llega danado.',\n"
+                    "    'Aceptamos pago con tarjeta, transferencia bancaria y PayPal.',\n"
+                    "    'El reembolso de una devolucion tarda hasta 10 dias en aparecer en tu cuenta.',\n"
+                    "    'La garantia de los productos electronicos es de 2 anos.',\n"
+                    "    'Para cambiar la direccion de un pedido escribe a soporte antes de que salga del almacen.',\n"
+                    "]\n"
+                    "\n"
+                    "PEDIDOS = {\n"
+                    "    '1001': {'estado': 'en camino', 'entrega': '2026-09-20'},\n"
+                    "    '1002': {'estado': 'entregado', 'entrega': '2026-09-02'},\n"
+                    "    '1003': {'estado': 'preparando', 'entrega': '2026-09-25'},\n"
+                    "}\n"
+                    "\n"
+                    "CASOS = [\n"
+                    "    {\n"
+                    "        'id': 'envio-estandar',\n"
+                    "        'pregunta': 'Cuanto tarda el envio estandar?',\n"
+                    "        'datos_clave': ['3 a 5 dias'],\n"
+                    "        'fuentes_esperadas': [DOCUMENTOS[0]],\n"
+                    "    },\n"
+                    "    {\n"
+                    "        'id': 'formas-de-pago',\n"
+                    "        'pregunta': 'Puedo pagar con PayPal?',\n"
+                    "        'datos_clave': ['PayPal'],\n"
+                    "        'fuentes_esperadas': [DOCUMENTOS[4]],\n"
+                    "    },\n"
+                    "    {\n"
+                    "        'id': 'plazo-devolucion',\n"
+                    "        'pregunta': 'Cuantos dias tengo para devolver un producto?',\n"
+                    "        'datos_clave': ['30 dias'],\n"
+                    "        'fuentes_esperadas': [DOCUMENTOS[2]],\n"
+                    "    },\n"
+                    "    {\n"
+                    "        'id': 'pedido-en-camino',\n"
+                    "        'pregunta': 'Donde esta mi pedido 1001?',\n"
+                    "        'datos_clave': ['en camino'],\n"
+                    "        'fuentes_esperadas': [],\n"
+                    "    },\n"
+                    "]\n"
+                ),
+            },
+            {
+                "path": "demo.py",
+                "editable": True,
+                "content": (
+                    '"""Paso opcional con el LLM real (no se evalua).\n'
+                    "\n"
+                    "En el editor de PyCode, `pycode.llm_complete` llama al modelo real. Pega tus\n"
+                    "modulos en un solo archivo seguidos de este codigo (sin los imports entre\n"
+                    "modulos) o ejecutalo en local con tu propio `llm_fn`.\n"
+                    '"""\n'
+                    "\n"
+                    "import pycode\n"
+                    "\n"
+                    "from datos import CASOS, DOCUMENTOS, PEDIDOS\n"
+                    "from evaluacion import evaluar\n"
+                    "from herramientas import crear_herramientas\n"
+                    "from nebula import atender\n"
+                    "from recuperacion import construir_indice\n"
+                    "\n"
+                    "\n"
+                    "async def llm_real(prompt):\n"
+                    "    return await pycode.llm_complete(prompt, max_tokens=300, temperature=0.2)\n"
+                    "\n"
+                    "\n"
+                    "indice = construir_indice(DOCUMENTOS)\n"
+                    "herramientas = crear_herramientas(PEDIDOS)\n"
+                    "\n"
+                    "respuesta = await atender('Cuanto tarda el envio express?', indice, herramientas, llm_real)\n"
+                    "print(respuesta)\n"
+                    "\n"
+                    "\n"
+                    "async def sistema(pregunta):\n"
+                    "    return await atender(pregunta, indice, herramientas, llm_real)\n"
+                    "\n"
+                    "\n"
+                    "informe = await evaluar(CASOS, sistema, llm_real)\n"
+                    "for caso in informe['casos']:\n"
+                    "    print(caso)\n"
+                    "print('tasa de aprobados:', informe['tasa_aprobados'])\n"
+                    "print('sin veredicto:', informe['sin_veredicto'])\n"
+                ),
+            },
+        ],
+        "hidden_tests": [
+            {
+                "name": "R1 · tokenizar, embed_bow y construir_indice",
+                "code": (
+                    "from recuperacion import tokenizar, embed_bow, construir_indice\n"
+                    "import numpy as np\n"
+                    "t = tokenizar('¿Cuánto tarda el ENVÍO?')\n"
+                    "assert t == ['cuanto', 'tarda', 'el', 'envio'], t\n"
+                    "textos = ['Envío gratis desde 50 euros', 'El envío tarda 3 días']\n"
+                    "indice = construir_indice(textos)\n"
+                    "assert list(indice['textos']) == textos\n"
+                    "assert list(indice['vocab']) == ['3', '50', 'desde', 'dias', 'el', 'envio', 'euros', 'gratis', 'tarda'], indice['vocab']\n"
+                    "m = np.asarray(indice['matriz'], float)\n"
+                    "assert m.shape == (2, 9), m.shape\n"
+                    "assert m[1].tolist() == [1, 0, 0, 1, 1, 1, 0, 0, 1], m[1]\n"
+                    "v = np.asarray(embed_bow('envio ENVÍO pingüino', indice['vocab']), float)\n"
+                    "assert v.tolist() == [0, 0, 0, 0, 0, 2, 0, 0, 0], v"
+                ),
+            },
+            {
+                "name": "R2 · recuperar con umbral, orden y k",
+                "code": (
+                    "from recuperacion import construir_indice, recuperar\n"
+                    "docs = ['el envio tarda 3 dias', 'devoluciones gratis en 30 dias', 'pago con tarjeta o transferencia']\n"
+                    "indice = construir_indice(docs)\n"
+                    "r = recuperar('envio gratis en dias', indice, k=3, umbral=0.2)\n"
+                    "assert [i for i, _ in r] == [1, 0], r\n"
+                    "assert all(type(i) is int for i, _ in r), r\n"
+                    "assert abs(r[0][1] - 3 / (5 ** 0.5 * 2)) < 1e-9, r[0]\n"
+                    "assert abs(r[1][1] - 2 / (5 ** 0.5 * 2)) < 1e-9, r[1]\n"
+                    "assert [i for i, _ in recuperar('envio gratis en dias', indice, k=1, umbral=0.2)] == [1]\n"
+                    "assert [i for i, _ in recuperar('envio gratis en dias', indice, k=3, umbral=0.5)] == [1]\n"
+                    "assert recuperar('horario de la tienda', indice) == []\n"
+                    "empate = construir_indice(['tarjeta roja', 'tarjeta azul'])\n"
+                    "assert [i for i, _ in recuperar('tarjeta', empate)] == [0, 1], 'en empate va primero el indice menor'"
+                ),
+            },
+            {
+                "name": "R3 · prompt con fuentes numeradas y extraer_citas",
+                "code": (
+                    "from asistente import prompt_con_fuentes, extraer_citas\n"
+                    "p = prompt_con_fuentes('¿Cuanto tarda?', ['El envio tarda 3 dias', 'Pago con tarjeta'])\n"
+                    "lineas = p.splitlines()\n"
+                    "assert '[1] El envio tarda 3 dias' in lineas, p\n"
+                    "assert '[2] Pago con tarjeta' in lineas, p\n"
+                    "assert lineas.index('[1] El envio tarda 3 dias') < lineas.index('[2] Pago con tarjeta')\n"
+                    "assert '¿Cuanto tarda?' in p\n"
+                    "c = extraer_citas('Tarda 3 dias [2]. Gratis [1, 2] y [7].', 2)\n"
+                    "assert c == [2, 1], c\n"
+                    "assert extraer_citas('Sin citas por aqui', 3) == []\n"
+                    "assert extraer_citas('[3][1,3] [0]', 3) == [3, 1]"
+                ),
+            },
+            {
+                "name": "R4 · responder: citas a fuentes y no llama al LLM sin contexto",
+                "code": (
+                    "from recuperacion import construir_indice\n"
+                    "from asistente import responder, NO_SE\n"
+                    "docs = ['el envio estandar tarda 3 dias habiles', 'las devoluciones son gratis durante 30 dias', 'aceptamos pago con tarjeta']\n"
+                    "indice = construir_indice(docs)\n"
+                    "prompts = []\n"
+                    "guion = []\n"
+                    "async def llm_falso(prompt):\n"
+                    "    prompts.append(prompt)\n"
+                    "    return guion.pop(0)\n"
+                    "guion.append('Aceptamos tarjeta [1].')\n"
+                    "r = await responder('¿puedo hacer el pago con tarjeta?', indice, llm_falso)\n"
+                    "assert len(prompts) == 1, prompts\n"
+                    "assert '[1] aceptamos pago con tarjeta' in prompts[0], prompts[0]\n"
+                    "assert 'el envio tarda' not in prompts[0], 'solo deben ir los fragmentos que superan el umbral'\n"
+                    "assert r == {'respuesta': 'Aceptamos tarjeta [1].', 'fuentes': ['aceptamos pago con tarjeta']}, r\n"
+                    "guion.append('Tienes 30 dias [2] y el envio [1].')\n"
+                    "r = await responder('devoluciones gratis 30 dias envio', indice, llm_falso)\n"
+                    "assert r['fuentes'] == ['el envio estandar tarda 3 dias habiles', 'las devoluciones son gratis durante 30 dias'], r\n"
+                    "r = await responder('horario de la tienda fisica', indice, llm_falso)\n"
+                    "assert len(prompts) == 2, 'no se debe llamar al LLM si nada supera el umbral'\n"
+                    "assert r == {'respuesta': NO_SE, 'fuentes': []}, r"
+                ),
+            },
+            {
+                "name": "R5 · crear_herramientas: consultar_pedido",
+                "code": (
+                    "from herramientas import crear_herramientas\n"
+                    "pedidos = {'2001': {'estado': 'en camino', 'entrega': '2026-10-02'}}\n"
+                    "h = crear_herramientas(pedidos)\n"
+                    "ficha = h['consultar_pedido']\n"
+                    "assert list(ficha['parametros']) == ['numero'], ficha['parametros']\n"
+                    "assert isinstance(ficha['descripcion'], str) and ficha['descripcion'].strip()\n"
+                    "esperado = 'Pedido 2001: en camino, entrega estimada 2026-10-02'\n"
+                    "assert ficha['funcion'](numero='2001') == esperado, ficha['funcion'](numero='2001')\n"
+                    "assert ficha['funcion'](numero=2001) == esperado, ficha['funcion'](numero=2001)\n"
+                    "try:\n"
+                    "    ficha['funcion'](numero='9999')\n"
+                    "except KeyError:\n"
+                    "    pass\n"
+                    "else:\n"
+                    "    raise AssertionError('un pedido inexistente debe lanzar KeyError')"
+                ),
+            },
+            {
+                "name": "R6 · parsear_accion y ejecutar_herramienta sin lanzar",
+                "code": (
+                    "from herramientas import parsear_accion, ejecutar_herramienta\n"
+                    "CERCA = '`' * 3\n"
+                    'a = parsear_accion(\'{"herramienta": "consultar_pedido", "argumentos": {"numero": "1"}}\')\n'
+                    "assert a == {'tipo': 'herramienta', 'nombre': 'consultar_pedido', 'argumentos': {'numero': '1'}}, a\n"
+                    'a = parsear_accion(CERCA + \'json\\n{"respuesta": "Hola"}\\n\' + CERCA)\n'
+                    "assert a == {'tipo': 'respuesta', 'texto': 'Hola'}, a\n"
+                    "assert parsear_accion('no es json')['tipo'] == 'error'\n"
+                    "assert parsear_accion('{\"otra\": 1}')['tipo'] == 'error'\n"
+                    "def dividir(a, b):\n"
+                    "    return a / b\n"
+                    "h = {'dividir': {'descripcion': 'divide a entre b', 'parametros': ['a', 'b'], 'funcion': dividir}}\n"
+                    "def accion(nombre, argumentos):\n"
+                    "    return {'tipo': 'herramienta', 'nombre': nombre, 'argumentos': argumentos}\n"
+                    "r = ejecutar_herramienta(accion('dividir', {'a': 6, 'b': 3}), h)\n"
+                    "assert r == 'Resultado: 2.0', r\n"
+                    "r = ejecutar_herramienta(accion('borrar', {}), h)\n"
+                    "assert r == 'Error: la herramienta borrar no existe', r\n"
+                    "r = ejecutar_herramienta(accion('dividir', {'a': 1}), h)\n"
+                    "assert r == 'Error: falta el argumento b', r\n"
+                    "r = ejecutar_herramienta(accion('dividir', {'c': 3}), h)\n"
+                    "assert r == 'Error: falta el argumento a; falta el argumento b; argumento no permitido: c', r\n"
+                    "r = ejecutar_herramienta(accion('dividir', {'a': 1, 'b': 0}), h)\n"
+                    "assert r.startswith('Error: ZeroDivisionError'), r"
+                ),
+            },
+            {
+                "name": "R7 · ejecutar_agente: observaciones y limite de pasos",
+                "code": (
+                    "from herramientas import ejecutar_agente, crear_herramientas\n"
+                    "h = crear_herramientas({'1001': {'estado': 'en camino', 'entrega': '2026-09-20'}})\n"
+                    "guion = [\n"
+                    '    \'{"herramienta": "consultar_pedido", "argumentos": {"numero": "1001"}}\',\n'
+                    "    'esto no es json',\n"
+                    '    \'{"respuesta": "Tu pedido llega el 20 de septiembre."}\',\n'
+                    "]\n"
+                    "prompts = []\n"
+                    "async def llm_falso(prompt):\n"
+                    "    prompts.append(prompt)\n"
+                    "    return guion[len(prompts) - 1]\n"
+                    "r = await ejecutar_agente('¿Donde esta mi pedido 1001?', h, llm_falso)\n"
+                    "assert r['motivo'] == 'respuesta', r\n"
+                    "assert r['respuesta'] == 'Tu pedido llega el 20 de septiembre.', r\n"
+                    "assert len(r['pasos']) == 2, r['pasos']\n"
+                    "assert r['pasos'][0]['observacion'] == 'Resultado: Pedido 1001: en camino, entrega estimada 2026-09-20', r['pasos'][0]\n"
+                    "assert r['pasos'][1]['observacion'].startswith('Error'), r['pasos'][1]\n"
+                    "assert 'Resultado: Pedido 1001' in prompts[1], 'el LLM debe ver la observacion del paso anterior'\n"
+                    "assert len(prompts) == 3\n"
+                    "llamadas = []\n"
+                    "async def llm_terco(prompt):\n"
+                    "    llamadas.append(prompt)\n"
+                    "    return guion[0]\n"
+                    "r = await ejecutar_agente('pedido 1001', h, llm_terco, max_pasos=3)\n"
+                    "assert r['motivo'] == 'max_pasos' and r['respuesta'] is None, r\n"
+                    "assert len(r['pasos']) == 3 and len(llamadas) == 3, (len(r['pasos']), len(llamadas))"
+                ),
+            },
+            {
+                "name": "R8 · atender: el router entre agente y RAG",
+                "code": (
+                    "from recuperacion import construir_indice\n"
+                    "from herramientas import crear_herramientas\n"
+                    "from nebula import atender, SIN_RESPUESTA\n"
+                    "indice = construir_indice(['el envio tarda 3 dias habiles', 'aceptamos pago con tarjeta'])\n"
+                    "h = crear_herramientas({'1001': {'estado': 'entregado', 'entrega': '2026-09-10'}})\n"
+                    "guion = []\n"
+                    "prompts = []\n"
+                    "async def llm_falso(prompt):\n"
+                    "    prompts.append(prompt)\n"
+                    "    return guion.pop(0)\n"
+                    'guion[:] = [\'{"herramienta": "consultar_pedido", "argumentos": {"numero": "1001"}}\', \'{"respuesta": "Tu pedido 1001 ya fue entregado."}\']\n'
+                    "r = await atender('¿Y mi pedido 1001?', indice, h, llm_falso)\n"
+                    "assert r == {'modo': 'agente', 'respuesta': 'Tu pedido 1001 ya fue entregado.', 'fuentes': []}, r\n"
+                    "assert 'Resultado: Pedido 1001: entregado' in prompts[-1], prompts[-1]\n"
+                    "guion[:] = ['Tarda 3 dias habiles [1].']\n"
+                    "r = await atender('¿cuanto tarda el envio?', indice, h, llm_falso)\n"
+                    "assert r == {'modo': 'rag', 'respuesta': 'Tarda 3 dias habiles [1].', 'fuentes': ['el envio tarda 3 dias habiles']}, r\n"
+                    'guion[:] = [\'{"herramienta": "consultar_pedido", "argumentos": {"numero": "1001"}}\'] * 20\n'
+                    "r = await atender('pedido 1001 otra vez', indice, h, llm_falso)\n"
+                    "assert r['modo'] == 'agente' and r['respuesta'] == SIN_RESPUESTA and r['fuentes'] == [], r"
+                ),
+            },
+            {
+                "name": "R9 · contiene_datos y puntuar_fuentes",
+                "code": (
+                    "from evaluacion import contiene_datos, puntuar_fuentes\n"
+                    "assert contiene_datos('Llega en 3 DÍAS hábiles, gratis.', ['3 dias habiles', 'gratis']) == 1.0\n"
+                    "assert contiene_datos('Llega pronto.', ['3 dias', 'gratis']) == 0.0\n"
+                    "assert contiene_datos('¡Es gratis!', ['3 días', 'Gratis']) == 0.5\n"
+                    "assert contiene_datos('Tarda 3-5  dias', ['3 5 dias']) == 1.0\n"
+                    "assert contiene_datos('lo que sea', []) == 1.0\n"
+                    "assert puntuar_fuentes(['a', 'b'], ['a']) == {'precision': 0.5, 'recall': 1.0}\n"
+                    "assert puntuar_fuentes(['a', 'a'], ['a', 'c']) == {'precision': 1.0, 'recall': 0.5}\n"
+                    "assert puntuar_fuentes([], ['a']) == {'precision': 0.0, 'recall': 0.0}\n"
+                    "assert puntuar_fuentes(['a'], []) == {'precision': 0.0, 'recall': 1.0}"
+                ),
+            },
+            {
+                "name": "R10 · parsear_veredicto y evaluar con juez falso",
+                "code": (
+                    "from evaluacion import parsear_veredicto, evaluar\n"
+                    "CERCA = '`' * 3\n"
+                    "assert parsear_veredicto('{\"puntuacion\": 5, \"motivo\": \"ok\"}') == {'puntuacion': 5, 'motivo': 'ok'}\n"
+                    "assert parsear_veredicto(CERCA + 'json\\n{\"puntuacion\": 2}\\n' + CERCA) == {'puntuacion': 2, 'motivo': ''}\n"
+                    "for malo in ['no se', '{\"puntuacion\": 9}', '{\"puntuacion\": \"5\"}', '[5]', '{\"puntuacion\": true}']:\n"
+                    "    assert parsear_veredicto(malo) is None, malo\n"
+                    "casos = [\n"
+                    "    {'id': 'envio', 'pregunta': 'cuanto tarda', 'datos_clave': ['3 dias'], 'fuentes_esperadas': ['doc envio']},\n"
+                    "    {'id': 'pago', 'pregunta': 'como pago', 'datos_clave': ['tarjeta'], 'fuentes_esperadas': ['doc pago']},\n"
+                    "    {'id': 'juez-roto', 'pregunta': 'devoluciones', 'datos_clave': ['30 dias'], 'fuentes_esperadas': ['doc dev']},\n"
+                    "    {'id': 'nota-baja', 'pregunta': 'garantia', 'datos_clave': [], 'fuentes_esperadas': []},\n"
+                    "]\n"
+                    "respuestas = {\n"
+                    "    'cuanto tarda': {'respuesta': 'Tarda 3 días [1].', 'fuentes': ['doc envio']},\n"
+                    "    'como pago': {'respuesta': 'Con tarjeta [1].', 'fuentes': ['doc envio']},\n"
+                    "    'devoluciones': {'respuesta': 'Tienes 30 dias [1].', 'fuentes': ['doc dev']},\n"
+                    "    'garantia': {'respuesta': 'Ni idea.', 'fuentes': []},\n"
+                    "}\n"
+                    "async def sistema(pregunta):\n"
+                    "    return respuestas[pregunta]\n"
+                    "juicios = []\n"
+                    "async def juez(prompt):\n"
+                    "    juicios.append(prompt)\n"
+                    "    if 'devoluciones' in prompt:\n"
+                    "        return 'no tengo opinion'\n"
+                    "    if 'garantia' in prompt:\n"
+                    '        return \'{"puntuacion": 3, "motivo": "vaga"}\'\n'
+                    '    return \'{"puntuacion": 5, "motivo": "bien"}\'\n'
+                    "r = await evaluar(casos, sistema, juez)\n"
+                    "assert len(juicios) == 4, len(juicios)\n"
+                    "assert [c['id'] for c in r['casos']] == ['envio', 'pago', 'juez-roto', 'nota-baja'], r['casos']\n"
+                    "assert [c['aprobado'] for c in r['casos']] == [True, False, False, False], r['casos']\n"
+                    "assert r['casos'][1]['recall'] == 0.0 and r['casos'][1]['cobertura'] == 1.0, r['casos'][1]\n"
+                    "assert r['casos'][2]['puntuacion'] is None, r['casos'][2]\n"
+                    "assert r['casos'][3]['puntuacion'] == 3, r['casos'][3]\n"
+                    "assert r['sin_veredicto'] == ['juez-roto'], r['sin_veredicto']\n"
+                    "assert abs(r['tasa_aprobados'] - 0.25) < 1e-9, r['tasa_aprobados']\n"
+                    "r = await evaluar(casos, sistema, juez, nota_minima=3)\n"
+                    "assert [c['aprobado'] for c in r['casos']] == [True, False, False, True], r['casos']"
+                ),
+            },
+        ],
+        "estimated_hours": 14,
+        "difficulty": "advanced",
+        "order_index": 5,
+    },
 ]
 
 

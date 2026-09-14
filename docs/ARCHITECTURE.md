@@ -2,7 +2,7 @@
 
 Documento técnico de referencia. Describe cómo está construida la plataforma, cómo fluyen los datos y qué patrones se replican al crecer. Para la guía operativa día a día ver [CLAUDE.md](../CLAUDE.md); para la visión de producto ver [PROJECT_OVERVIEW.md](../PROJECT_OVERVIEW.md).
 
-Última revisión: 2026-07 (Tracks 1-4 cerrados, Track 5 en curso). Para el esquema de datos detallado ver [DATABASE.md](DATABASE.md).
+Última revisión: 2026-07 (Tracks 1-5 cerrados). Para el esquema de datos detallado ver [DATABASE.md](DATABASE.md).
 
 ---
 
