@@ -16,7 +16,7 @@ Plataforma de aprendizaje que lleva de **Fundamentos → Python → Data Science
 | **Track 3** — ML Clásico | ✅ Cerrado | 11 lecciones sklearn · capstone `Diagnóstico ML` |
 | **Track 4** — Deep Learning | ✅ Cerrado | 5 lecciones **numpy puro** (backprop→MLP→XOR) · capstone `Red desde cero`. PyTorch real diferido |
 | **Track 5** — AI Engineering | ✅ Cerrado | 6 lecciones (embeddings, RAG, LLM real vía proxy, agentes, evals) · capstone `Nebula RAG` |
-| **Track 6** — MLOps | 🚧 En curso | MLOps 1: reproducibilidad (semillas, huellas, manifiestos). Faltan seguimiento, servicio, monitoreo, CI/CD y capstone |
+| **Track 6** — MLOps | 🚧 En curso | MLOps 1-2: reproducibilidad, seguimiento de experimentos y registro de modelos. Faltan servicio, monitoreo, CI/CD y capstone |
 
 **En números**: ~40 lecciones · 100+ ejercicios (la mayoría con `hidden_tests`) · 100 puzzles ELO curados · 10 retos DS/ML · 5 capstones · 3 datasets · migraciones 0001-0014 · 160+ tests backend. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**. *(Cifras redondeadas a propósito; el conteo exacto vive en los tests, ej. `test_bank_has_100_puzzles`.)*
 

@@ -16012,6 +16012,682 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="MLOps 2 · Seguimiento de experimentos y registro de modelos",
+        description=(
+            "Lo que hace MLflow, desde cero: runs con parametros y metricas en JSON "
+            "Lines, eleccion del mejor run, modelo guardado con checksum y un registro "
+            "de versiones con etapas y rollback."
+        ),
+        content=(
+            "# MLOps 2: seguimiento de experimentos y registro de modelos\n"
+            "\n"
+            "En MLOps 1 cada experimento dejaba un manifiesto. Pero nadie entrena una sola vez: se prueban decenas de configuraciones, unas fallan, otras empatan, y al final hay que decidir **cual se despliega** y poder decir **de donde salio**. Esta leccion construye, desde cero, lo que hacen herramientas como MLflow: un registro de runs, la eleccion del mejor, el modelo guardado con su checksum y un registro de versiones con etapas.\n"
+            "\n"
+            "## Por que registrar cada experimento\n"
+            "\n"
+            "Nebula probo la semana pasada treinta configuraciones de su modelo de devoluciones. Hoy toca desplegar y aparecen las preguntas:\n"
+            "\n"
+            "1. **¿Cual era la buena?** El AUC de 0.86 esta en un mensaje de chat, sin los parametros que lo produjeron.\n"
+            "2. **¿Donde esta ese modelo?** Hay tres archivos `modelo_final.pkl`, `modelo_final2.pkl` y `modelo_bueno.pkl`.\n"
+            "3. **¿Que hay en produccion ahora?** Y si el nuevo falla, ¿a cual se vuelve?\n"
+            "\n"
+            "Todo eso se resuelve anotando cada run en el momento en que ocurre, no reconstruyendolo despues. Al terminar tendras una funcion que entrena varios candidatos, registra cada run, elige el mejor, guarda su modelo con checksum y lo deja como version en el registro.\n"
+            "\n"
+            "## Un run: parametros y metricas\n"
+            "\n"
+            "Un **run** es una ejecucion de entrenamiento. Los **parametros** se fijan al empezar (la configuracion); las **metricas** se van anotando mientras entrena. Se guarda el historial completo, para ver la curva, y el ultimo valor, para comparar runs rapido.\n"
+            "\n"
+            "```python\n"
+            "def nuevo_run(run_id, params):\n"
+            "    return {'id': run_id, 'params': dict(params),                   # la configuracion, copiada\n"
+            "            'metricas': {}, 'historial': {}, 'estado': 'en_curso'}  # se rellenan durante el entrenamiento\n"
+            "\n"
+            "def registrar_metrica(run, nombre, valor, paso):\n"
+            "    run['historial'].setdefault(nombre, []).append([paso, valor])   # la curva completa, paso a paso\n"
+            "    run['metricas'][nombre] = valor                                 # y el ultimo valor, para comparar\n"
+            "\n"
+            "run = nuevo_run('run-1', {'max_depth': 4, 'lr': 0.1})               # parametros: al empezar\n"
+            "for paso, perdida in enumerate([0.9, 0.6, 0.45]):                   # tres epocas de entrenamiento\n"
+            "    registrar_metrica(run, 'perdida', perdida, paso)                # metricas: sobre la marcha\n"
+            "run['estado'] = 'terminado'                                         # sin esto, un run que fallo parece valido\n"
+            "print(run['metricas'])                                              # {'perdida': 0.45}\n"
+            "print(run['historial']['perdida'])                                  # [[0, 0.9], [1, 0.6], [2, 0.45]]\n"
+            "```\n"
+            "\n"
+            "`setdefault(nombre, [])` devuelve la lista de esa metrica y, si todavia no existia, la crea vacia. Los pares van como **listas** `[paso, valor]` y no como tuplas: al guardarlos en JSON las tuplas vuelven convertidas en listas, y un run leido del disco dejaria de ser igual al original.\n"
+            "\n"
+            "## Los runs en disco: JSON Lines\n"
+            "\n"
+            "Los runs se guardan en un archivo **JSON Lines**: un objeto JSON por linea. Anadir un run es escribir una linea al final, sin leer ni reescribir el resto, y si el proceso muere a mitad solo se pierde la ultima linea.\n"
+            "\n"
+            "```python\n"
+            "import json                                                         # un run por linea, en JSON\n"
+            "from pathlib import Path                                            # rutas y archivos\n"
+            "\n"
+            "ruta = Path('runs.jsonl')                                           # la extension habitual de JSON Lines\n"
+            "ruta.unlink(missing_ok=True)                                        # empezar limpio al repetir el ejemplo\n"
+            "\n"
+            "def guardar_run(run, ruta):\n"
+            "    with open(ruta, 'a', encoding='utf-8') as f:                    # 'a': anadir al final, nunca reescribir\n"
+            "        f.write(json.dumps(run) + '\\n')                             # una linea por run\n"
+            "\n"
+            "def leer_runs(ruta):\n"
+            "    if not Path(ruta).exists():                                     # todavia no hay experimentos\n"
+            "        return []\n"
+            "    lineas = Path(ruta).read_text(encoding='utf-8').splitlines()    # una linea, un run\n"
+            "    return [json.loads(linea) for linea in lineas if linea.strip()] # las lineas vacias no son runs\n"
+            "\n"
+            "guardar_run({'id': 'run-1', 'metricas': {'auc': 0.81}}, ruta)       # primer experimento\n"
+            "guardar_run({'id': 'run-2', 'metricas': {'auc': 0.86}}, ruta)       # segundo, en otra linea\n"
+            "print([r['id'] for r in leer_runs(ruta)])                           # ['run-1', 'run-2']\n"
+            "print(leer_runs('no_existe.jsonl'))                                 # []: sin archivo no hay runs, no un error\n"
+            "```\n"
+            "\n"
+            "## Elegir el mejor run\n"
+            "\n"
+            "Comparar runs parece un `max`, pero antes hay que decidir **cuales son comparables**: un run que fallo a mitad puede tener una metrica espectacular de una epoca a medias, y uno que no midio la metrica no se puede ordenar.\n"
+            "\n"
+            "```python\n"
+            "runs = [\n"
+            "    {'id': 'run-1', 'estado': 'terminado', 'metricas': {'auc': 0.81}},\n"
+            "    {'id': 'run-2', 'estado': 'fallido', 'metricas': {'auc': 0.95}},     # fallo a mitad: su auc no vale\n"
+            "    {'id': 'run-3', 'estado': 'terminado', 'metricas': {'auc': 0.86}},\n"
+            "    {'id': 'run-4', 'estado': 'terminado', 'metricas': {'perdida': 0.3}},  # no midio auc\n"
+            "]\n"
+            "validos = [r for r in runs if r['estado'] == 'terminado' and 'auc' in r['metricas']]  # solo los comparables\n"
+            "mejor = max(validos, key=lambda r: r['metricas']['auc'])           # el de mayor auc\n"
+            "print(mejor['id'])                                                  # run-3 (no run-2, que fallo)\n"
+            "peor = min(validos, key=lambda r: r['metricas']['auc'])             # para una perdida, gana el minimo\n"
+            "print(peor['id'])                                                   # run-1\n"
+            "print(max([], key=len, default=None))                               # None: sin candidatos, sin error\n"
+            "```\n"
+            "\n"
+            "`key=lambda r: ...` le dice a `max` que numero comparar de cada run. Si dos runs empatan, `max` y `min` devuelven **el primero** que aparece: con los runs en orden de ejecucion, gana el mas antiguo, que es un desempate estable.\n"
+            "\n"
+            "## Guardar el modelo con su checksum\n"
+            "\n"
+            "El modelo entrenado es un objeto de Python. `pickle` lo convierte en bytes para guardarlo, y un **checksum** SHA-256 de esos bytes permite comprobar, antes de cargarlo, que el archivo es exactamente el que se registro.\n"
+            "\n"
+            "```python\n"
+            "import hashlib                                                      # checksum del artefacto\n"
+            "import pickle                                                       # objetos de Python <-> bytes\n"
+            "from pathlib import Path                                            # para escribir y leer bytes\n"
+            "\n"
+            "modelo = {'tipo': 'umbral', 'columna': 'importe', 'umbral': 120.0}  # un \"modelo\" minimo\n"
+            "datos = pickle.dumps(modelo)                                        # objeto -> bytes\n"
+            "checksum = hashlib.sha256(datos).hexdigest()                        # huella de esos bytes exactos\n"
+            "ruta = Path('modelo-run-3.pkl')                                     # el artefacto del run-3\n"
+            "ruta.write_bytes(datos)                                             # se guarda en disco\n"
+            "\n"
+            "leidos = ruta.read_bytes()                                          # al desplegar se lee...\n"
+            "print(hashlib.sha256(leidos).hexdigest() == checksum)               # True: ...y se comprueba antes de usarlo\n"
+            "print(pickle.loads(leidos) == modelo)                               # True: el mismo modelo\n"
+            "\n"
+            "ruta.write_bytes(leidos[:-1] + b'!')                                # un byte alterado (disco, copia, alguien)\n"
+            "print(hashlib.sha256(ruta.read_bytes()).hexdigest() == checksum)    # False: este archivo no se carga\n"
+            "```\n"
+            "\n"
+            "La comprobacion va **antes** de `pickle.loads`, nunca despues: cargar un pickle ejecuta el codigo que el archivo indique. Un `.pkl` de origen desconocido o alterado no se abre.\n"
+            "\n"
+            "## El registro de modelos: versiones y etapas\n"
+            "\n"
+            "El **registro** asigna a cada modelo una lista de versiones numeradas. Cada version apunta al run que la produjo y a su checksum, y tiene una **etapa**: `staging` (en pruebas), `production` (sirviendo) o `archivado`. Solo una version puede estar en produccion a la vez.\n"
+            "\n"
+            "```python\n"
+            "registro = {}                                                       # nombre del modelo -> lista de versiones\n"
+            "\n"
+            "def registrar_version(registro, nombre, run_id, checksum):\n"
+            "    versiones = registro.setdefault(nombre, [])                     # la primera vez, lista vacia\n"
+            "    entrada = {'version': len(versiones) + 1, 'run_id': run_id,     # numeradas desde 1\n"
+            "               'checksum': checksum, 'etapa': 'ninguna'}            # nace sin etapa\n"
+            "    versiones.append(entrada)                                       # las versiones nunca se borran\n"
+            "    return entrada\n"
+            "\n"
+            "def promover(registro, nombre, version, etapa):\n"
+            "    if etapa == 'production':                                       # solo puede haber una\n"
+            "        for v in registro[nombre]:\n"
+            "            if v['etapa'] == 'production':\n"
+            "                v['etapa'] = 'archivado'                            # la anterior se archiva, no se borra\n"
+            "    registro[nombre][version - 1]['etapa'] = etapa                  # la version N esta en la posicion N-1\n"
+            "\n"
+            "registrar_version(registro, 'devoluciones', 'run-1', 'aa11')        # v1\n"
+            "registrar_version(registro, 'devoluciones', 'run-3', 'bb22')        # v2\n"
+            "promover(registro, 'devoluciones', 1, 'production')                 # v1 sirve\n"
+            "promover(registro, 'devoluciones', 2, 'production')                 # v2 la sustituye\n"
+            "print([(v['version'], v['etapa']) for v in registro['devoluciones']])  # [(1, 'archivado'), (2, 'production')]\n"
+            "promover(registro, 'devoluciones', 1, 'production')                 # rollback: la v2 falla en produccion\n"
+            "print([(v['version'], v['etapa']) for v in registro['devoluciones']])  # [(1, 'production'), (2, 'archivado')]\n"
+            "```\n"
+            "\n"
+            'Como nada se borra, volver atras (**rollback**) es promover otra vez una version anterior: el checksum y el run siguen ahi. Por eso el registro guarda referencias (run y checksum) y no solo "el modelo actual".\n'
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            "- **Anotar solo el mejor resultado.** Si solo se guarda el run ganador no se puede saber cuantas configuraciones se probaron ni si la mejora es real o suerte. Se registra cada run, tambien los que fallan, con su estado.\n"
+            "- **Comparar runs que no terminaron.** Un run que se corto en la epoca 3 puede tener una metrica que no significa nada, y `max` lo eligira encantado. Filtra por `estado == 'terminado'` y por que la metrica exista antes de comparar.\n"
+            "- **Guardar tuplas en lo que ira a JSON.** `json.dumps((0, 0.9))` escribe `[0, 0.9]` y al leerlo vuelve una lista: el run leido ya no es igual al original. Usa listas desde el principio.\n"
+            "- **Cargar un pickle sin comprobar el checksum.** `pickle.loads` ejecuta instrucciones del archivo; uno alterado puede hacer cualquier cosa. Compara el SHA-256 **antes** de cargar y lanza un error si no coincide.\n"
+            '- **Sobrescribir la version en produccion.** Si "desplegar" es reemplazar `modelo.pkl`, el anterior desaparece y no hay rollback. Registra versiones nuevas y cambia etapas.\n'
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **Run**: parametros al empezar, metricas con `registrar_metrica` (historial y ultimo valor) y un estado que dice si termino.\n"
+            "- **JSON Lines**: un run por linea, `open(ruta, 'a')` para anadir y `json.loads` por linea para leer; sin archivo, lista vacia.\n"
+            "- **Mejor run**: filtrar los comparables y `max`/`min` con `key=lambda`; en empate gana el primero.\n"
+            "- **Artefacto con checksum**: `pickle.dumps` + `hashlib.sha256`; comprobar el checksum antes de `pickle.loads`.\n"
+            "- **Registro de modelos**: versiones numeradas que apuntan a run y checksum, etapas `staging`/`production`/`archivado`, una sola en produccion y rollback promoviendo una anterior.\n"
+        ),
+        difficulty="intermediate",
+        category="mlops",
+        order=45,
+        track="track-6",
+        estimated_duration=65,
+        prerequisites_titles=[
+            "MLOps 1 · Reproducibilidad: semillas, huellas y manifiestos"
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Anotar una metrica",
+                description="Guardar el historial de una metrica y su ultimo valor.",
+                instructions=(
+                    "Un run es un diccionario con, entre otras, las claves `'metricas'` y `'historial'` (ambas diccionarios).\n"
+                    "\n"
+                    "Implementa `registrar_metrica(run, nombre, valor, paso)` que modifique el run:\n"
+                    "\n"
+                    "- anade `[paso, valor]` (una **lista**) al final de `run['historial'][nombre]`, creando la lista si no existia;\n"
+                    "- guarda `valor` como ultimo valor en `run['metricas'][nombre]`.\n"
+                    "\n"
+                    "No devuelve nada.\n"
+                    "\n"
+                    "Ejemplo: tras anotar `perdida` 0.9 en el paso 0 y 0.6 en el paso 1, `run['historial'] == {'perdida': [[0, 0.9], [1, 0.6]]}` y `run['metricas'] == {'perdida': 0.6}`."
+                ),
+                starter_code=(
+                    "def registrar_metrica(run, nombre, valor, paso):\n"
+                    "    # TODO: anadir [paso, valor] al historial de la metrica\n"
+                    "    # TODO: guardar el ultimo valor en run['metricas']\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "run['historial'].setdefault(nombre, []) devuelve la lista de la metrica, creandola si hace falta.",
+                    "Encadena .append([paso, valor]) y despues run['metricas'][nombre] = valor.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "historial y ultimo valor",
+                        "code": (
+                            "run = {'id': 'run-1', 'params': {}, 'metricas': {}, 'historial': {}, 'estado': 'en_curso'}\n"
+                            "for paso, v in enumerate([0.9, 0.6, 0.45]):\n"
+                            "    registrar_metrica(run, 'perdida', v, paso)\n"
+                            "assert run['historial'] == {'perdida': [[0, 0.9], [1, 0.6], [2, 0.45]]}, run['historial']\n"
+                            "assert run['metricas'] == {'perdida': 0.45}, run['metricas']\n"
+                        ),
+                    },
+                    {
+                        "name": "varias metricas y sobrevive a JSON",
+                        "code": (
+                            "import json\n"
+                            "run = {'id': 'run-1', 'params': {}, 'metricas': {}, 'historial': {}, 'estado': 'en_curso'}\n"
+                            "registrar_metrica(run, 'perdida', 0.7, 0)\n"
+                            "registrar_metrica(run, 'auc', 0.80, 0)\n"
+                            "registrar_metrica(run, 'perdida', 0.5, 1)\n"
+                            "assert run['historial'] == {'perdida': [[0, 0.7], [1, 0.5]], 'auc': [[0, 0.8]]}, run['historial']\n"
+                            "assert run['metricas'] == {'perdida': 0.5, 'auc': 0.8}\n"
+                            "assert json.loads(json.dumps(run)) == run, 'usa listas, no tuplas'\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Leer el registro de runs",
+                description="Un archivo JSON Lines de vuelta a una lista de runs.",
+                instructions=(
+                    "Implementa `leer_runs(ruta)` que lea un archivo **JSON Lines** (un objeto JSON por linea) y devuelva la lista de runs en el orden del archivo.\n"
+                    "\n"
+                    "- `ruta` puede ser un `str` o un `Path`.\n"
+                    "- Si el archivo no existe, devuelve `[]` (todavia no hay experimentos, no es un error).\n"
+                    "- Las lineas vacias o solo con espacios se ignoran.\n"
+                    "\n"
+                    "Ejemplo: un archivo con las lineas `{\"id\": \"run-1\"}` y `{\"id\": \"run-2\"}` → `[{'id': 'run-1'}, {'id': 'run-2'}]`"
+                ),
+                starter_code=(
+                    "import json\n"
+                    "from pathlib import Path\n"
+                    "\n"
+                    "\n"
+                    "def leer_runs(ruta):\n"
+                    "    # TODO: si no existe -> []\n"
+                    "    # TODO: json.loads de cada linea que no este vacia\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Path(ruta) acepta tanto un str como un Path; .exists() dice si el archivo esta.",
+                    "Path(ruta).read_text(encoding='utf-8').splitlines() da las lineas; linea.strip() es '' si esta vacia.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "lee los runs en orden e ignora lineas vacias",
+                        "code": (
+                            "import json\n"
+                            "from pathlib import Path\n"
+                            "ruta = Path('runs_test_leer.jsonl')\n"
+                            "ruta.unlink(missing_ok=True)\n"
+                            "ruta.write_text(json.dumps({'id': 'run-1', 'metricas': {'auc': 0.8}}) + '\\n\\n   \\n'\n"
+                            "                + json.dumps({'id': 'run-2', 'metricas': {}}) + '\\n', encoding='utf-8')\n"
+                            "r = leer_runs(ruta)\n"
+                            "assert r == [{'id': 'run-1', 'metricas': {'auc': 0.8}}, {'id': 'run-2', 'metricas': {}}], r\n"
+                            "assert leer_runs(str(ruta)) == r, 'tambien con la ruta como str'\n"
+                            "ruta.unlink()\n"
+                        ),
+                    },
+                    {
+                        "name": "sin archivo, lista vacia",
+                        "code": (
+                            "from pathlib import Path\n"
+                            "Path('runs_que_no_existen.jsonl').unlink(missing_ok=True)\n"
+                            "r = leer_runs('runs_que_no_existen.jsonl')\n"
+                            "assert r == [], r\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Elegir el mejor run",
+                description="Solo runs terminados que midieron la metrica; en empate, el primero.",
+                instructions=(
+                    "Implementa `mejor_run(runs, metrica, mayor_es_mejor=True)` que devuelva el run con el mejor valor de `metrica` en `run['metricas']`:\n"
+                    "\n"
+                    "- solo cuentan los runs con `estado == 'terminado'` **y** que tengan esa metrica;\n"
+                    "- con `mayor_es_mejor=True` gana el mayor; con `False`, el menor (para perdidas o errores);\n"
+                    "- si empatan, gana el que aparece **antes** en la lista;\n"
+                    "- si no hay ninguno valido, devuelve `None`.\n"
+                    "\n"
+                    "Devuelve el diccionario del run, no su id."
+                ),
+                starter_code=(
+                    "def mejor_run(runs, metrica, mayor_es_mejor=True):\n"
+                    "    # TODO: filtrar los comparables\n"
+                    "    # TODO: max o min con key=lambda; None si no hay ninguno\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "validos = [r for r in runs if r['estado'] == 'terminado' and metrica in r['metricas']]",
+                    "Si validos esta vacio, return None antes de llamar a max o min.",
+                    "elegir = max if mayor_es_mejor else min; return elegir(validos, key=lambda r: r['metricas'][metrica]) (en empate ambos devuelven el primero).",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "ignora runs fallidos y sin la metrica",
+                        "code": (
+                            "runs = [\n"
+                            "    {'id': 'a', 'estado': 'terminado', 'metricas': {'auc': 0.81}},\n"
+                            "    {'id': 'b', 'estado': 'fallido', 'metricas': {'auc': 0.99}},\n"
+                            "    {'id': 'c', 'estado': 'terminado', 'metricas': {'auc': 0.86}},\n"
+                            "    {'id': 'd', 'estado': 'terminado', 'metricas': {'perdida': 0.1}},\n"
+                            "    {'id': 'e', 'estado': 'en_curso', 'metricas': {'auc': 0.97}},\n"
+                            "]\n"
+                            "r = mejor_run(runs, 'auc')\n"
+                            "assert r is not None and r['id'] == 'c', r\n"
+                        ),
+                    },
+                    {
+                        "name": "menor es mejor y empates",
+                        "code": (
+                            "runs = [\n"
+                            "    {'id': 'a', 'estado': 'terminado', 'metricas': {'perdida': 0.5, 'auc': 0.9}},\n"
+                            "    {'id': 'b', 'estado': 'terminado', 'metricas': {'perdida': 0.3, 'auc': 0.9}},\n"
+                            "    {'id': 'c', 'estado': 'terminado', 'metricas': {'perdida': 0.3, 'auc': 0.7}},\n"
+                            "]\n"
+                            "r = mejor_run(runs, 'perdida', mayor_es_mejor=False)\n"
+                            "assert r is not None and r['id'] == 'b', r\n"
+                            "assert mejor_run(runs, 'auc')['id'] == 'a', 'en empate gana el primero'\n"
+                        ),
+                    },
+                    {
+                        "name": "sin candidatos devuelve None",
+                        "code": (
+                            "assert mejor_run([], 'auc') is None\n"
+                            "runs = [{'id': 'a', 'estado': 'fallido', 'metricas': {'auc': 0.9}},\n"
+                            "        {'id': 'b', 'estado': 'terminado', 'metricas': {'f1': 0.9}}]\n"
+                            "assert mejor_run(runs, 'auc') is None\n"
+                            "assert mejor_run(runs, 'f1')['id'] == 'b'\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Guardar el modelo con su checksum",
+                description="pickle + SHA-256, y no cargar nada que no coincida.",
+                instructions=(
+                    "Implementa dos funciones:\n"
+                    "\n"
+                    "- `guardar_modelo(modelo, ruta)`: serializa el modelo con `pickle.dumps`, escribe esos bytes en `ruta` y devuelve el SHA-256 **completo** (64 caracteres hex) de los bytes.\n"
+                    "- `cargar_modelo(ruta, checksum)`: lee los bytes de `ruta`; si su SHA-256 no es `checksum`, lanza `ValueError` **sin** llamar a `pickle.loads`; si coincide, devuelve el modelo.\n"
+                    "\n"
+                    "`ruta` puede ser `str` o `Path`."
+                ),
+                starter_code=(
+                    "import hashlib\n"
+                    "import pickle\n"
+                    "from pathlib import Path\n"
+                    "\n"
+                    "\n"
+                    "def guardar_modelo(modelo, ruta):\n"
+                    "    # TODO: bytes con pickle, escribirlos y devolver su sha256\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def cargar_modelo(ruta, checksum):\n"
+                    "    # TODO: leer bytes, comprobar el checksum ANTES de pickle.loads\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "datos = pickle.dumps(modelo); Path(ruta).write_bytes(datos)",
+                    "hashlib.sha256(datos).hexdigest() son los 64 caracteres que se devuelven.",
+                    "En cargar_modelo: if hashlib.sha256(datos).hexdigest() != checksum: raise ValueError('checksum no coincide'); si no, return pickle.loads(datos).",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "ida y vuelta con el checksum del archivo",
+                        "code": (
+                            "import hashlib\n"
+                            "from pathlib import Path\n"
+                            "ruta = Path('modelo_test_ok.pkl')\n"
+                            "ruta.unlink(missing_ok=True)\n"
+                            "modelo = {'tipo': 'umbral', 'umbral': 120.0, 'columnas': ['importe']}\n"
+                            "c = guardar_modelo(modelo, ruta)\n"
+                            "assert isinstance(c, str) and len(c) == 64, c\n"
+                            "assert c == hashlib.sha256(ruta.read_bytes()).hexdigest()\n"
+                            "assert cargar_modelo(str(ruta), c) == modelo\n"
+                            "ruta.unlink()\n"
+                        ),
+                    },
+                    {
+                        "name": "un archivo alterado no se carga",
+                        "code": (
+                            "from pathlib import Path\n"
+                            "ruta = Path('modelo_test_alterado.pkl')\n"
+                            "ruta.unlink(missing_ok=True)\n"
+                            "c = guardar_modelo({'umbral': 1.0}, ruta)\n"
+                            "assert isinstance(c, str) and len(c) == 64, c\n"
+                            "datos = ruta.read_bytes()\n"
+                            "ruta.write_bytes(datos[:-1] + b'!')\n"
+                            "try:\n"
+                            "    cargar_modelo(ruta, c)\n"
+                            "except ValueError:\n"
+                            "    pass\n"
+                            "else:\n"
+                            "    raise AssertionError('con otro checksum debe lanzar ValueError')\n"
+                            "ruta.unlink()\n"
+                        ),
+                    },
+                    {
+                        "name": "comprueba antes de deserializar",
+                        "code": (
+                            "import pickle\n"
+                            "from pathlib import Path\n"
+                            "ruta = Path('modelo_test_basura.pkl')\n"
+                            "ruta.write_bytes(b'esto no es un pickle')\n"
+                            "try:\n"
+                            "    cargar_modelo(ruta, '0' * 64)\n"
+                            "except ValueError:\n"
+                            "    pass\n"
+                            "except pickle.UnpicklingError:\n"
+                            "    raise AssertionError('se intento pickle.loads antes de comprobar el checksum')\n"
+                            "else:\n"
+                            "    raise AssertionError('debe lanzar ValueError')\n"
+                            "ruta.unlink()\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Registro de modelos con etapas",
+                description="Versiones numeradas, una sola en produccion y rollback.",
+                instructions=(
+                    "El registro es un diccionario `nombre -> lista de versiones`. Implementa:\n"
+                    "\n"
+                    "- `registrar_version(registro, nombre, run_id, checksum)`: anade y devuelve `{'version': N, 'run_id': run_id, 'checksum': checksum, 'etapa': 'ninguna'}`, con `N` = 1 para la primera version de ese nombre, 2 para la segunda...\n"
+                    "- `promover(registro, nombre, version, etapa)`: cambia la etapa de esa version y la devuelve.\n"
+                    "  - `etapa` tiene que ser `'staging'`, `'production'` o `'archivado'`; si no, `ValueError`.\n"
+                    "  - Si el nombre o la version no existen, `KeyError`.\n"
+                    "  - Al promover a `'production'`, la version que estuviera en produccion pasa a `'archivado'` (las de `staging` no se tocan).\n"
+                    "- `en_produccion(registro, nombre)`: la version en produccion, o `None` si no hay (o el nombre no existe)."
+                ),
+                starter_code=(
+                    "ETAPAS = ('staging', 'production', 'archivado')\n"
+                    "\n"
+                    "\n"
+                    "def registrar_version(registro, nombre, run_id, checksum):\n"
+                    "    # TODO: version = cuantas hay + 1, etapa 'ninguna'\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def promover(registro, nombre, version, etapa):\n"
+                    "    # TODO: validar etapa (ValueError), nombre y version (KeyError)\n"
+                    "    # TODO: si es production, archivar la anterior\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def en_produccion(registro, nombre):\n"
+                    "    # TODO\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "registro.setdefault(nombre, []) crea la lista la primera vez; la version es len(versiones) + 1.",
+                    "if etapa not in ETAPAS: raise ValueError(...). registro[nombre] ya lanza KeyError si el nombre no existe.",
+                    "Busca la version con un bucle; si no aparece, raise KeyError(version). Comprueba que existe antes de archivar la anterior.",
+                    "en_produccion: recorre registro.get(nombre, []) y devuelve la que tenga etapa 'production'; al final, return None.",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "versiones numeradas por modelo",
+                        "code": (
+                            "registro = {}\n"
+                            "v1 = registrar_version(registro, 'devoluciones', 'run-1', 'aa')\n"
+                            "v2 = registrar_version(registro, 'devoluciones', 'run-3', 'bb')\n"
+                            "otro = registrar_version(registro, 'fraude', 'run-9', 'cc')\n"
+                            "assert v1 == {'version': 1, 'run_id': 'run-1', 'checksum': 'aa', 'etapa': 'ninguna'}, v1\n"
+                            "assert v2['version'] == 2 and otro['version'] == 1, (v2, otro)\n"
+                            "assert registro['devoluciones'] == [v1, v2]\n"
+                        ),
+                    },
+                    {
+                        "name": "una sola version en produccion y rollback",
+                        "code": (
+                            "registro = {}\n"
+                            "for run in ('run-1', 'run-2', 'run-3'):\n"
+                            "    registrar_version(registro, 'm', run, run + '-sha')\n"
+                            "promover(registro, 'm', 1, 'production')\n"
+                            "promover(registro, 'm', 3, 'staging')\n"
+                            "p = promover(registro, 'm', 2, 'production')\n"
+                            "assert p['version'] == 2 and p['etapa'] == 'production', p\n"
+                            "assert [v['etapa'] for v in registro['m']] == ['archivado', 'production', 'staging'], registro['m']\n"
+                            "promover(registro, 'm', 1, 'production')\n"
+                            "assert [v['etapa'] for v in registro['m']] == ['production', 'archivado', 'staging'], registro['m']\n"
+                            "assert en_produccion(registro, 'm')['run_id'] == 'run-1'\n"
+                        ),
+                    },
+                    {
+                        "name": "errores de etapa, nombre y version",
+                        "code": (
+                            "registro = {}\n"
+                            "registrar_version(registro, 'm', 'run-1', 'aa')\n"
+                            "promover(registro, 'm', 1, 'production')\n"
+                            "for args, error in [(('m', 1, 'produccion'), ValueError), (('otro', 1, 'staging'), KeyError),\n"
+                            "                    (('m', 7, 'production'), KeyError)]:\n"
+                            "    try:\n"
+                            "        promover(registro, *args)\n"
+                            "    except error:\n"
+                            "        pass\n"
+                            "    else:\n"
+                            "        raise AssertionError(f'{args} deberia lanzar {error.__name__}')\n"
+                            "assert registro['m'][0]['etapa'] == 'production', 'un error no puede archivar la version en produccion'\n"
+                        ),
+                    },
+                    {
+                        "name": "en_produccion sin version en produccion",
+                        "code": (
+                            "registro = {}\n"
+                            "assert en_produccion(registro, 'm') is None\n"
+                            "registrar_version(registro, 'm', 'run-1', 'aa')\n"
+                            "promover(registro, 'm', 1, 'staging')\n"
+                            "assert en_produccion(registro, 'm') is None\n"
+                            "promover(registro, 'm', 1, 'production')\n"
+                            "assert en_produccion(registro, 'm') == {'version': 1, 'run_id': 'run-1', 'checksum': 'aa', 'etapa': 'production'}\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Del experimento al registro",
+                description="Entrenar candidatos, registrar runs, elegir, guardar y versionar.",
+                instructions=(
+                    "Implementa `experimentar(candidatos, entrenar_fn, metrica, minimo, registro, nombre, carpeta)`. `candidatos` es una lista de diccionarios de parametros y `entrenar_fn(params)` devuelve la tupla `(modelo, metricas)` (puede lanzar una excepcion si el entrenamiento falla). `nuevo_run`, `registrar_metrica`, `mejor_run`, `guardar_modelo` y `registrar_version` ya vienen escritas.\n"
+                    "\n"
+                    "1. Para cada candidato, en orden, crea `nuevo_run(f'run-{i}', params)` con `i` desde 1. Entrena:\n"
+                    "   - si `entrenar_fn` lanza una excepcion, el run queda con `estado = 'fallido'` y se sigue con el siguiente;\n"
+                    "   - si no, anota cada metrica con `registrar_metrica(run, nombre, valor, 0)` y pon `estado = 'terminado'`.\n"
+                    "2. Elige `mejor_run(runs, metrica)` (mayor es mejor).\n"
+                    "3. Si no hay mejor, o su metrica es menor que `minimo`, no se registra nada: devuelve `{'runs': runs, 'mejor': <id o None>, 'version': None}`.\n"
+                    "4. Si no, guarda su modelo en `Path(carpeta) / f'{run_id}.pkl'`, registra la version con ese checksum, ponla en etapa `'staging'` y devuelve `{'runs': runs, 'mejor': run_id, 'version': N}`.\n"
+                    "\n"
+                    "Nunca se promueve a produccion desde aqui: eso es otra decision (MLOps 5)."
+                ),
+                starter_code=(
+                    "import hashlib\n"
+                    "import pickle\n"
+                    "from pathlib import Path\n"
+                    "\n"
+                    "\n"
+                    "def nuevo_run(run_id, params):\n"
+                    "    return {'id': run_id, 'params': dict(params), 'metricas': {}, 'historial': {}, 'estado': 'en_curso'}\n"
+                    "\n"
+                    "\n"
+                    "def registrar_metrica(run, nombre, valor, paso):\n"
+                    "    run['historial'].setdefault(nombre, []).append([paso, valor])\n"
+                    "    run['metricas'][nombre] = valor\n"
+                    "\n"
+                    "\n"
+                    "def mejor_run(runs, metrica, mayor_es_mejor=True):\n"
+                    "    validos = [r for r in runs if r['estado'] == 'terminado' and metrica in r['metricas']]\n"
+                    "    if not validos:\n"
+                    "        return None\n"
+                    "    elegir = max if mayor_es_mejor else min\n"
+                    "    return elegir(validos, key=lambda r: r['metricas'][metrica])\n"
+                    "\n"
+                    "\n"
+                    "def guardar_modelo(modelo, ruta):\n"
+                    "    datos = pickle.dumps(modelo)\n"
+                    "    Path(ruta).write_bytes(datos)\n"
+                    "    return hashlib.sha256(datos).hexdigest()\n"
+                    "\n"
+                    "\n"
+                    "def registrar_version(registro, nombre, run_id, checksum):\n"
+                    "    versiones = registro.setdefault(nombre, [])\n"
+                    "    entrada = {'version': len(versiones) + 1, 'run_id': run_id, 'checksum': checksum, 'etapa': 'ninguna'}\n"
+                    "    versiones.append(entrada)\n"
+                    "    return entrada\n"
+                    "\n"
+                    "\n"
+                    "def experimentar(candidatos, entrenar_fn, metrica, minimo, registro, nombre, carpeta):\n"
+                    "    runs = []\n"
+                    "    modelos = {}\n"
+                    "    # TODO: un run por candidato; try/except alrededor de entrenar_fn\n"
+                    "    # TODO: mejor run y umbral minimo\n"
+                    "    # TODO: guardar modelo, registrar version y dejarla en staging\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "for i, params in enumerate(candidatos, start=1): run = nuevo_run(f'run-{i}', params); runs.append(run)",
+                    "try: modelo, metricas = entrenar_fn(params) / except Exception: run['estado'] = 'fallido'; continue",
+                    "Guarda modelos[run['id']] = modelo para recuperar despues el del mejor run.",
+                    "checksum = guardar_modelo(modelos[mejor['id']], Path(carpeta) / f\"{mejor['id']}.pkl\"); entrada = registrar_version(...); entrada['etapa'] = 'staging'",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "registra el mejor en staging con su artefacto",
+                        "code": (
+                            "import hashlib, pickle, tempfile\n"
+                            "from pathlib import Path\n"
+                            "carpeta = tempfile.mkdtemp()\n"
+                            "def entrenar_fn(params):\n"
+                            "    return {'umbral': params['umbral']}, {'auc': {100: 0.80, 120: 0.88, 150: 0.84}[params['umbral']]}\n"
+                            "registro = {}\n"
+                            "r = experimentar([{'umbral': 100}, {'umbral': 120}, {'umbral': 150}], entrenar_fn, 'auc', 0.85, registro, 'devoluciones', carpeta)\n"
+                            "assert r['mejor'] == 'run-2' and r['version'] == 1, r\n"
+                            "v = registro['devoluciones'][0]\n"
+                            "assert v['run_id'] == 'run-2' and v['etapa'] == 'staging', v\n"
+                            "ruta = Path(carpeta) / 'run-2.pkl'\n"
+                            "assert ruta.exists(), 'el modelo del mejor run debe guardarse como run-2.pkl'\n"
+                            "assert hashlib.sha256(ruta.read_bytes()).hexdigest() == v['checksum']\n"
+                            "assert pickle.loads(ruta.read_bytes()) == {'umbral': 120}\n"
+                            "assert [x['id'] for x in r['runs']] == ['run-1', 'run-2', 'run-3']\n"
+                            "assert r['runs'][0]['metricas'] == {'auc': 0.8} and r['runs'][0]['estado'] == 'terminado'\n"
+                        ),
+                    },
+                    {
+                        "name": "un entrenamiento que falla no para el experimento",
+                        "code": (
+                            "import tempfile\n"
+                            "carpeta = tempfile.mkdtemp()\n"
+                            "def entrenar_fn(params):\n"
+                            "    if params['lr'] > 1:\n"
+                            "        raise RuntimeError('diverge')\n"
+                            "    return {'lr': params['lr']}, {'auc': 0.9 - params['lr'] / 10}\n"
+                            "registro = {}\n"
+                            "r = experimentar([{'lr': 5}, {'lr': 0.5}, {'lr': 0.1}], entrenar_fn, 'auc', 0.5, registro, 'm', carpeta)\n"
+                            "assert [x['estado'] for x in r['runs']] == ['fallido', 'terminado', 'terminado'], r['runs']\n"
+                            "assert r['runs'][0]['metricas'] == {}\n"
+                            "assert r['mejor'] == 'run-3' and r['version'] == 1, r\n"
+                        ),
+                    },
+                    {
+                        "name": "por debajo del minimo no se registra nada",
+                        "code": (
+                            "import tempfile\n"
+                            "from pathlib import Path\n"
+                            "carpeta = tempfile.mkdtemp()\n"
+                            "registro = {}\n"
+                            "r = experimentar([{'a': 1}, {'a': 2}], lambda p: ({'a': p['a']}, {'auc': 0.6 + p['a'] / 100}), 'auc', 0.9, registro, 'm', carpeta)\n"
+                            "assert r['mejor'] == 'run-2' and r['version'] is None, r\n"
+                            "assert len(r['runs']) == 2 and all(x['estado'] == 'terminado' for x in r['runs'])\n"
+                            "assert registro == {} and list(Path(carpeta).iterdir()) == [], 'no se guarda ni registra nada'\n"
+                            "def falla(p):\n"
+                            "    raise ValueError('sin datos')\n"
+                            "r = experimentar([{'a': 1}], falla, 'auc', 0.0, registro, 'm', carpeta)\n"
+                            "assert r['mejor'] is None and r['version'] is None and r['runs'][0]['estado'] == 'fallido', r\n"
+                        ),
+                    },
+                    {
+                        "name": "un segundo experimento crea la version 2",
+                        "code": (
+                            "import tempfile\n"
+                            "carpeta = tempfile.mkdtemp()\n"
+                            "registro = {}\n"
+                            "entrenar = lambda p: ({'k': p['k']}, {'auc': p['k']})\n"
+                            "a = experimentar([{'k': 0.9}], entrenar, 'auc', 0.5, registro, 'm', carpeta)\n"
+                            "b = experimentar([{'k': 0.7}, {'k': 0.95}], entrenar, 'auc', 0.5, registro, 'm', carpeta)\n"
+                            "assert a['version'] == 1 and b['version'] == 2, (a, b)\n"
+                            "assert [(v['version'], v['run_id'], v['etapa']) for v in registro['m']] == [(1, 'run-1', 'staging'), (2, 'run-2', 'staging')], registro['m']\n"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
