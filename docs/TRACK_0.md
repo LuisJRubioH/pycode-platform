@@ -4,8 +4,9 @@ Tramo de entrada de PyCode, previo a Track 1 (Python). El alumno aprende a **raz
 algoritmos antes de escribir código**: pseudocódigo, trazas de ejecución, estructuras de
 datos elementales y diagramas de flujo.
 
-> Estado: **piloto en marcha** (2026-09-14). Infraestructura hecha y **9 de las 11 lecciones**
-> construidas (todas menos la 6, que necesita Mermaid, y el capstone). Este documento sigue siendo la
+> Estado: **piloto en marcha** (2026-09-14). Infraestructura hecha, las 10 lecciones de
+> algoritmos construidas menos la 6 (que necesita Mermaid), y el **capstone cerrado**: Track 0
+> ya se puede recorrer de principio a fin y emite certificado. Este documento sigue siendo la
 > fuente de verdad del track; el README enlaza aquí.
 
 ## Por qué existe
@@ -93,10 +94,20 @@ Fuera de alcance: editor gráfico de diagramas.
 | 8 | Arreglos y recorridos | Indexación, recorrido completo, búsqueda lineal | ✅ |
 | 9 | Algoritmos clásicos | Máximo, conteo, intercambio, ordenamiento por selección y burbuja | ✅ |
 | 10 | Cuánto cuesta un algoritmo | Contar operaciones, comparación intuitiva de eficiencia | ✅ |
-| 11 | Capstone: del pseudocódigo al Python | Implementar en Python tres algoritmos ya trazados a mano | |
+| 11 | Capstone: del pseudocódigo al Python | Implementar en Python tres algoritmos ya trazados a mano | ✅ |
 
-Mínimo **6 ejercicios por lección**, mezclando tipos. La lección 11 usa `hidden_tests`
-normales: es el puente hacia Track 1.
+Mínimo **6 ejercicios por lección**, mezclando tipos.
+
+La 11 no es una lección sino un **capstone** de verdad (`track-0-del-pseudocodigo-al-python`),
+igual que los de los otros seis tracks: `starter_files`, `hidden_tests` corridos en Pyodide con
+`runCapstoneTests` y certificado de Track 0 al aprobarlo. Se decidió así porque es exactamente
+lo que el resto de la plataforma llama capstone, y porque el certificado cierra el track.
+
+Tiene una particularidad que ninguna lección tiene: **Track 0 nunca enseña sintaxis de
+Python**, así que el enunciado lleva dentro una tabla de traducción pseudocódigo → Python
+(`<-` → `=`, `Si...Entonces` → `if:`, `Para i <- 0 Hasta n-1` → `for i in range(n)`,
+`Longitud(v)` → `len(v)`...). Sin esa tabla el puente no se puede cruzar, porque los
+algoritmos los trae el alumno pero el idioma no.
 
 ## Convención de pseudocódigo
 

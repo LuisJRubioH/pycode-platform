@@ -2910,6 +2910,422 @@ CAPSTONES: list[dict] = [
         "difficulty": "advanced",
         "order_index": 6,
     },
+    {
+        "slug": "track-0-del-pseudocodigo-al-python",
+        "track": "track-0",
+        "title": "Del pseudocodigo al Python",
+        "short_description": (
+            "El puente entre Track 0 y Track 1: implementa en Python los algoritmos que ya trazaste a mano. Traes los algoritmos aprendidos; lo unico nuevo es la sintaxis, y viene en una tabla de traduccion."
+        ),
+        "description": (
+            "## Contexto\n"
+            "\n"
+            "Llevas diez lecciones razonando algoritmos sin escribir una linea de codigo: trazas, condicionales, bucles, funciones, arreglos, ordenamientos y cuanto cuesta cada cosa. Este capstone cierra Track 0 traduciendo todo eso a Python.\n"
+            "\n"
+            "Y ese es justo el reparto: **los algoritmos ya los sabes**. Lo unico que no has visto todavia es la sintaxis, asi que la tienes entera en la tabla de aqui abajo. No hay ningun algoritmo nuevo: los ocho que se piden salen de las lecciones 5, 8, 9 y 10.\n"
+            "\n"
+            "## De pseudocodigo a Python\n"
+            "\n"
+            "| Pseudocodigo | Python | Nota |\n"
+            "|---|---|---|\n"
+            "| `x <- 5` | `x = 5` | la flecha es un `=` |\n"
+            "| `x = 5` (comparar) | `x == 5` | comparar son **dos** iguales |\n"
+            "| `x <> 5` | `x != 5` | distinto |\n"
+            "| `Escribir x` | `print(x)` | |\n"
+            "| `Si c Entonces ... FinSi` | `if c:` + sangria | los `Fin...` desaparecen: manda la sangria |\n"
+            "| `SiNo` | `else:` | |\n"
+            "| `Y` / `O` / `NO` | `and` / `or` / `not` | |\n"
+            "| `Verdadero` / `Falso` | `True` / `False` | con mayuscula |\n"
+            "| `Mientras c Hacer ... FinMientras` | `while c:` | |\n"
+            "| `Para i <- 0 Hasta n - 1 Hacer` | `for i in range(n):` | `range(n)` da 0, 1, ..., n-1 |\n"
+            "| `Para i <- a Hasta b Hacer` | `for i in range(a, b + 1):` | ojo: el `b` hay que incluirlo a mano |\n"
+            "| `Funcion f(x) ... Retornar v ... FinFuncion` | `def f(x):` + `return v` | |\n"
+            "| `v <- [7, 4, 9]` | `v = [7, 4, 9]` | en Python se llama lista |\n"
+            "| `v[0]`, `v[i]` | igual | tambien se cuenta desde 0 |\n"
+            "| `Longitud(v)` | `len(v)` | |\n"
+            "| `n MOD 2` | `n % 2` | |\n"
+            "| `temporal <- a; a <- b; b <- temporal` | igual, o `a, b = b, a` | Python sabe hacerlo en una linea |\n"
+            "\n"
+            "Dos reglas que en pseudocodigo no existian y en Python mandan:\n"
+            "\n"
+            "1. **La sangria es obligatoria** y sustituye a los `FinSi` / `FinMientras` / `FinPara`. Lo que esta dentro de un `if` o de un `for` va cuatro espacios a la derecha, y lo que vuelve al margen ya esta fuera.\n"
+            "2. **Los dos puntos** cierran la linea que abre un bloque: `if`, `else`, `while`, `for` y `def`.\n"
+            "\n"
+            "## Que hay que hacer\n"
+            "\n"
+            "En `algoritmos.py` tienes las ocho funciones con su nombre, sus parametros y un comentario con el pseudocodigo que ya trazaste. Solo hay que escribir el cuerpo.\n"
+            "\n"
+            "```\n"
+            "algoritmos.py    las ocho funciones (R1-R8)\n"
+            "datos.py         unas listas de ejemplo (ya escrito)\n"
+            "demo.py          un paso opcional para probarlas a mano\n"
+            "```\n"
+            "\n"
+            "Ningun ejercicio pide nada que no hayas trazado ya:\n"
+            "\n"
+            "- `sumar` y `media` salen de **Arreglos y recorridos**.\n"
+            "- `contar_si` e `intercambiar`, de **Algoritmos clasicos**.\n"
+            "- `maximo` y `buscar`, de **Arreglos y recorridos**.\n"
+            "- `ordenar_burbuja` y `ordenar_seleccion`, de **Algoritmos clasicos**.\n"
+            "- `comparaciones_burbuja`, de **Cuanto cuesta un algoritmo**.\n"
+            "\n"
+            "## Como se evalua\n"
+            "\n"
+            'Al pulsar "Enviar capstone" corren **8 tests ocultos** en tu navegador, uno por requisito. Cada uno usa **sus propios datos**, no los de `datos.py`, asi que las funciones tienen que valer para cualquier lista, no solo para el ejemplo. Para aprobar hay que pasar los ocho.\n'
+            "\n"
+            "Los casos raros cuentan: una lista vacia, un valor que no esta, una lista que ya venia ordenada. Son los que se olvidan, y en las lecciones los trazaste a proposito.\n"
+            "\n"
+            "## Un aviso sobre las listas\n"
+            "\n"
+            "Dos de las funciones (`ordenar_burbuja` y `ordenar_seleccion`) tienen que devolver una lista **nueva** y dejar la original como estaba. En Python, `copia = valores` no copia nada: deja dos nombres apuntando a la misma lista, y ordenar una ordena la otra. Para copiarla de verdad:\n"
+            "\n"
+            "```python\n"
+            "copia = list(valores)\n"
+            "```\n"
+            "\n"
+            "Es el mismo aviso de la leccion 2 —copiar no es enlazar—, que en Python tiene esta forma concreta.\n"
+        ),
+        "requirements": [
+            {
+                "id": "R1",
+                "text": "`sumar(valores)` devuelve la suma de todos los numeros de la lista, y `0` si la lista esta vacia. `media(valores)` devuelve la media, y `None` si la lista esta vacia (no se puede dividir entre cero). Son el recorrido con acumulador de la leccion 8.",
+            },
+            {
+                "id": "R2",
+                "text": "`contar_si(valores, minimo)` devuelve cuantos elementos son **mayores o iguales** que `minimo`. Recorre la lista entera, como el contador con condicion de la leccion 9; con la lista vacia devuelve `0`.",
+            },
+            {
+                "id": "R3",
+                "text": "`maximo(valores)` devuelve el mayor elemento de la lista, o `None` si esta vacia. Empieza con `valores[0]` como candidato, no con `0`: con numeros negativos, el `0` no esta en la lista.",
+            },
+            {
+                "id": "R4",
+                "text": "`buscar(valores, buscado)` devuelve la **posicion** de la primera aparicion de `buscado`, o `-1` si no esta. Si aparece varias veces, gana la primera.",
+            },
+            {
+                "id": "R5",
+                "text": "`intercambiar(valores, i, j)` intercambia los elementos de las posiciones `i` y `j` **en la propia lista** (la modifica) y no devuelve nada. Es el intercambio con variable temporal de la leccion 9.",
+            },
+            {
+                "id": "R6",
+                "text": "`ordenar_burbuja(valores)` devuelve una lista **nueva** ordenada de menor a mayor, sin modificar la original: compara vecinos e intercambia, `n - 1` pasadas. Con una lista vacia o de un elemento devuelve una copia.",
+            },
+            {
+                "id": "R7",
+                "text": "`ordenar_seleccion(valores)` hace lo mismo que `ordenar_burbuja` pero con el otro algoritmo: buscar el minimo de lo que queda e intercambiarlo con la primera posicion sin ordenar. Tambien devuelve una lista nueva.",
+            },
+            {
+                "id": "R8",
+                "text": "`comparaciones_burbuja(n)` devuelve cuantas comparaciones hace la burbuja de la leccion 9 con `n` elementos: `n - 1` pasadas por `n - 1` comparaciones cada una. Con `n` igual a 0 o 1 devuelve `0`.",
+            },
+        ],
+        "starter_files": [
+            {
+                "path": "algoritmos.py",
+                "editable": True,
+                "content": (
+                    '"""Los algoritmos de Track 0, ahora en Python."""\n'
+                    "\n"
+                    "\n"
+                    "def sumar(valores):\n"
+                    '    """R1. Suma de todos los elementos; 0 si la lista esta vacia.\n'
+                    "\n"
+                    "    Pseudocodigo (leccion 8):\n"
+                    "        suma <- 0\n"
+                    "        Para i <- 0 Hasta Longitud(valores) - 1 Hacer\n"
+                    "            suma <- suma + valores[i]\n"
+                    "        FinPara\n"
+                    "        Retornar suma\n"
+                    '    """\n'
+                    "    # TODO: acumulador antes del bucle y return al final\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def media(valores):\n"
+                    '    """R1. Media de los elementos; None si la lista esta vacia."""\n'
+                    "    # TODO: cuidado con la lista vacia: no se divide entre cero\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def contar_si(valores, minimo):\n"
+                    '    """R2. Cuantos elementos son mayores o iguales que `minimo`.\n'
+                    "\n"
+                    "    Pseudocodigo (leccion 9):\n"
+                    "        cuantos <- 0\n"
+                    "        Para i <- 0 Hasta Longitud(valores) - 1 Hacer\n"
+                    "            Si valores[i] >= minimo Entonces\n"
+                    "                cuantos <- cuantos + 1\n"
+                    "            FinSi\n"
+                    "        FinPara\n"
+                    "        Retornar cuantos\n"
+                    '    """\n'
+                    "    # TODO: contar recorre la lista entera, no para al encontrar uno\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def maximo(valores):\n"
+                    '    """R3. El mayor elemento, o None si la lista esta vacia.\n'
+                    "\n"
+                    "    Pseudocodigo (leccion 8):\n"
+                    "        maximo <- valores[0]\n"
+                    "        Para i <- 1 Hasta Longitud(valores) - 1 Hacer\n"
+                    "            Si valores[i] > maximo Entonces\n"
+                    "                maximo <- valores[i]\n"
+                    "            FinSi\n"
+                    "        FinPara\n"
+                    "        Retornar maximo\n"
+                    '    """\n'
+                    "    # TODO: el primer candidato es valores[0], no 0\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def buscar(valores, buscado):\n"
+                    '    """R4. Posicion de la primera aparicion de `buscado`, o -1 si no esta.\n'
+                    "\n"
+                    "    Pseudocodigo (leccion 8):\n"
+                    "        posicion <- -1\n"
+                    "        i <- 0\n"
+                    "        Mientras i <= Longitud(valores) - 1 Y posicion = -1 Hacer\n"
+                    "            Si valores[i] = buscado Entonces\n"
+                    "                posicion <- i\n"
+                    "            FinSi\n"
+                    "            i <- i + 1\n"
+                    "        FinMientras\n"
+                    "        Retornar posicion\n"
+                    '    """\n'
+                    "    # TODO: decide que devolver cuando no esta ANTES de buscar\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def intercambiar(valores, i, j):\n"
+                    '    """R5. Intercambia las posiciones i y j de la propia lista. No devuelve nada.\n'
+                    "\n"
+                    "    Pseudocodigo (leccion 9):\n"
+                    "        temporal <- valores[i]\n"
+                    "        valores[i] <- valores[j]\n"
+                    "        valores[j] <- temporal\n"
+                    '    """\n'
+                    "    # TODO: hace falta la tercera caja (o el intercambio en una linea de Python)\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def ordenar_burbuja(valores):\n"
+                    '    """R6. Lista NUEVA ordenada de menor a mayor; la original no se toca.\n'
+                    "\n"
+                    "    Pseudocodigo (leccion 9):\n"
+                    "        Para pasada <- 1 Hasta Longitud(v) - 1 Hacer\n"
+                    "            Para j <- 0 Hasta Longitud(v) - 2 Hacer\n"
+                    "                Si v[j] > v[j + 1] Entonces\n"
+                    "                    intercambiar(v, j, j + 1)\n"
+                    "                FinSi\n"
+                    "            FinPara\n"
+                    "        FinPara\n"
+                    '    """\n'
+                    "    # TODO: copia = list(valores) para no tocar la original\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def ordenar_seleccion(valores):\n"
+                    '    """R7. Lo mismo que ordenar_burbuja, con el otro algoritmo.\n'
+                    "\n"
+                    "    Pseudocodigo (leccion 9):\n"
+                    "        Para i <- 0 Hasta Longitud(v) - 2 Hacer\n"
+                    "            menor <- i\n"
+                    "            Para j <- i + 1 Hasta Longitud(v) - 1 Hacer\n"
+                    "                Si v[j] < v[menor] Entonces\n"
+                    "                    menor <- j\n"
+                    "                FinSi\n"
+                    "            FinPara\n"
+                    "            intercambiar(v, i, menor)\n"
+                    "        FinPara\n"
+                    '    """\n'
+                    "    # TODO: el bucle de dentro empieza en i + 1\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def comparaciones_burbuja(n):\n"
+                    '    """R8. Comparaciones que hace la burbuja con n elementos (leccion 10)."""\n'
+                    "    # TODO: (n - 1) pasadas por (n - 1) comparaciones; con n de 0 o 1, ninguna\n"
+                    "    pass\n"
+                ),
+            },
+            {
+                "path": "datos.py",
+                "editable": False,
+                "content": (
+                    '"""Listas de ejemplo (ya escrito: no hace falta tocarlo)."""\n'
+                    "\n"
+                    "NOTAS = [7, 4, 9, 6, 3]\n"
+                    "DESORDENADA = [5, 3, 8, 1]\n"
+                    "YA_ORDENADA = [1, 3, 5, 8]\n"
+                    "CON_NEGATIVOS = [-4, -9, -2]\n"
+                    "VACIA = []\n"
+                ),
+            },
+            {
+                "path": "demo.py",
+                "editable": True,
+                "content": (
+                    '"""Paso opcional: probar las funciones a mano (no se evalua).\n'
+                    "\n"
+                    "Pega en el editor `algoritmos.py` seguido de este archivo, quitando los\n"
+                    "`from ... import` de abajo, y ejecuta.\n"
+                    '"""\n'
+                    "from datos import CON_NEGATIVOS, DESORDENADA, NOTAS, VACIA, YA_ORDENADA\n"
+                    "from algoritmos import (buscar, comparaciones_burbuja, contar_si, intercambiar,\n"
+                    "                        maximo, media, ordenar_burbuja, ordenar_seleccion,\n"
+                    "                        sumar)\n"
+                    "\n"
+                    "print('notas', NOTAS)\n"
+                    "print('suma', sumar(NOTAS), '| media', media(NOTAS))\n"
+                    "print('aprobados', contar_si(NOTAS, 5), '| maximo', maximo(NOTAS))\n"
+                    "print('donde esta el 9:', buscar(NOTAS, 9), '| donde esta el 2:', buscar(NOTAS, 2))\n"
+                    "\n"
+                    "# Los casos raros, que son los que se olvidan.\n"
+                    "print('lista vacia -> suma', sumar(VACIA), '| media', media(VACIA), '| maximo', maximo(VACIA))\n"
+                    "print('negativos -> maximo', maximo(CON_NEGATIVOS))\n"
+                    "\n"
+                    "v = [10, 20, 30]\n"
+                    "intercambiar(v, 0, 2)\n"
+                    "print('intercambiada', v)\n"
+                    "\n"
+                    "print('burbuja', ordenar_burbuja(DESORDENADA), '| original intacta', DESORDENADA)\n"
+                    "print('seleccion', ordenar_seleccion(DESORDENADA))\n"
+                    "print('ya ordenada', ordenar_burbuja(YA_ORDENADA))\n"
+                    "\n"
+                    "# Lo que cuesta, de la leccion 10.\n"
+                    "for n in (4, 10, 100):\n"
+                    "    print(f'con {n} elementos, la burbuja hace {comparaciones_burbuja(n)} comparaciones')\n"
+                ),
+            },
+        ],
+        "hidden_tests": [
+            {
+                "name": "R1 · sumar y media",
+                "code": (
+                    "from algoritmos import sumar, media\n"
+                    "assert sumar([1, 2, 3]) == 6\n"
+                    "assert sumar([10]) == 10\n"
+                    "assert sumar([]) == 0, 'la lista vacia suma 0'\n"
+                    "assert sumar([-4, -9, -2]) == -15\n"
+                    "assert media([2, 4, 6]) == 4\n"
+                    "assert media([5]) == 5\n"
+                    "assert media([]) is None, 'la lista vacia no tiene media'\n"
+                    "v = [1, 2, 3]\n"
+                    "sumar(v)\n"
+                    "assert v == [1, 2, 3], 'sumar no cambia la lista'\n"
+                ),
+            },
+            {
+                "name": "R2 · contar_si",
+                "code": (
+                    "from algoritmos import contar_si\n"
+                    "assert contar_si([7, 4, 9, 6, 3], 5) == 3\n"
+                    "assert contar_si([7, 4, 9, 6, 3], 10) == 0\n"
+                    "assert contar_si([7, 4, 9, 6, 3], 3) == 5, 'mayores O IGUALES que el minimo'\n"
+                    "assert contar_si([], 5) == 0\n"
+                    "assert contar_si([5, 5, 5], 5) == 3, 'cuenta todos, no para en el primero'\n"
+                    "assert contar_si([-1, 0, 1], 0) == 2\n"
+                ),
+            },
+            {
+                "name": "R3 · maximo",
+                "code": (
+                    "from algoritmos import maximo\n"
+                    "assert maximo([7, 4, 9, 6]) == 9\n"
+                    "assert maximo([9, 4, 7]) == 9, 'tambien si el mayor es el primero'\n"
+                    "assert maximo([4, 7, 9]) == 9, 'y si es el ultimo'\n"
+                    "assert maximo([5]) == 5\n"
+                    "assert maximo([]) is None\n"
+                    "assert maximo([-4, -9, -2]) == -2, 'con negativos no vale empezar en 0'\n"
+                    "assert maximo([3, 3, 3]) == 3\n"
+                ),
+            },
+            {
+                "name": "R4 · buscar",
+                "code": (
+                    "from algoritmos import buscar\n"
+                    "assert buscar([7, 4, 9, 6], 7) == 0\n"
+                    "assert buscar([7, 4, 9, 6], 9) == 2\n"
+                    "assert buscar([7, 4, 9, 6], 6) == 3\n"
+                    "assert buscar([7, 4, 9, 6], 5) == -1, 'el caso que no esta tambien cuenta'\n"
+                    "assert buscar([], 5) == -1\n"
+                    "assert buscar([7, 4, 9, 4], 4) == 1, 'gana la primera aparicion'\n"
+                    "v = [7, 4]\n"
+                    "buscar(v, 4)\n"
+                    "assert v == [7, 4], 'buscar no cambia la lista'\n"
+                ),
+            },
+            {
+                "name": "R5 · intercambiar",
+                "code": (
+                    "from algoritmos import intercambiar\n"
+                    "v = [10, 20, 30]\n"
+                    "assert intercambiar(v, 0, 2) is None, 'modifica la lista, no devuelve otra'\n"
+                    "assert v == [30, 20, 10], v\n"
+                    "intercambiar(v, 0, 1)\n"
+                    "assert v == [20, 30, 10], v\n"
+                    "w = [1, 2, 3]\n"
+                    "intercambiar(w, 1, 1)\n"
+                    "assert w == [1, 2, 3], 'intercambiar una posicion consigo misma no la rompe'\n"
+                    "x = ['a', 'b']\n"
+                    "intercambiar(x, 0, 1)\n"
+                    "assert x == ['b', 'a'], 'vale para cualquier tipo de dato'\n"
+                ),
+            },
+            {
+                "name": "R6 · ordenar_burbuja",
+                "code": (
+                    "from algoritmos import ordenar_burbuja\n"
+                    "assert ordenar_burbuja([5, 3, 8, 1]) == [1, 3, 5, 8]\n"
+                    "assert ordenar_burbuja([1, 3, 5, 8]) == [1, 3, 5, 8], 'una ya ordenada sigue igual'\n"
+                    "assert ordenar_burbuja([8, 5, 3, 1]) == [1, 3, 5, 8], 'y una del reves tambien'\n"
+                    "assert ordenar_burbuja([]) == []\n"
+                    "assert ordenar_burbuja([7]) == [7]\n"
+                    "assert ordenar_burbuja([2, 2, 1]) == [1, 2, 2]\n"
+                    "assert ordenar_burbuja([-4, -9, -2]) == [-9, -4, -2]\n"
+                    "original = [5, 3, 8, 1]\n"
+                    "ordenada = ordenar_burbuja(original)\n"
+                    "assert original == [5, 3, 8, 1], 'la original no se toca'\n"
+                    "assert ordenada is not original, 'devuelve una lista nueva'\n"
+                ),
+            },
+            {
+                "name": "R7 · ordenar_seleccion",
+                "code": (
+                    "from algoritmos import ordenar_seleccion, ordenar_burbuja\n"
+                    "assert ordenar_seleccion([5, 3, 8, 1]) == [1, 3, 5, 8]\n"
+                    "assert ordenar_seleccion([1, 3, 5, 8]) == [1, 3, 5, 8]\n"
+                    "assert ordenar_seleccion([8, 5, 3, 1]) == [1, 3, 5, 8]\n"
+                    "assert ordenar_seleccion([]) == []\n"
+                    "assert ordenar_seleccion([7]) == [7]\n"
+                    "assert ordenar_seleccion([2, 2, 1]) == [1, 2, 2]\n"
+                    "original = [5, 3, 8, 1]\n"
+                    "ordenada = ordenar_seleccion(original)\n"
+                    "assert original == [5, 3, 8, 1], 'la original no se toca'\n"
+                    "assert ordenada is not original, 'devuelve una lista nueva'\n"
+                    "for caso in ([4, 1, 7, 7, 0], [-3, 9, -3, 2], [1], []):\n"
+                    "    assert ordenar_seleccion(caso) == ordenar_burbuja(caso), 'los dos ordenan igual'\n"
+                ),
+            },
+            {
+                "name": "R8 · comparaciones_burbuja",
+                "code": (
+                    "from algoritmos import comparaciones_burbuja\n"
+                    "assert comparaciones_burbuja(4) == 9, '3 pasadas x 3 comparaciones'\n"
+                    "assert comparaciones_burbuja(5) == 16\n"
+                    "assert comparaciones_burbuja(10) == 81\n"
+                    "assert comparaciones_burbuja(100) == 9801\n"
+                    "assert comparaciones_burbuja(1) == 0, 'con un elemento no hay nada que comparar'\n"
+                    "assert comparaciones_burbuja(0) == 0\n"
+                    "assert comparaciones_burbuja(2) == 1\n"
+                ),
+            },
+        ],
+        "estimated_hours": 6,
+        "difficulty": "beginner",
+        "order_index": 0,
+    },
 ]
 
 
