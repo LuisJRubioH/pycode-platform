@@ -124,13 +124,17 @@ semanales para pip, npm y actions.
 
 ## Estado tras aplicar (2026-09-13)
 
-`npm audit` queda en 4 avisos moderados y ninguno llega al alumno por una vía
-explotable hoy:
+Quedan **2 alertas abiertas**, las dos aceptadas, y ninguna llega al alumno por
+una vía explotable hoy:
 
 | Aviso | Paquete | Prioridad | Por qué se queda |
 |---|---|---|---|
 | #93, #94 | `react-router` | P4 | Solo se parchean en 7.18 (migración mayor) y no tienen alcance: ver arriba. |
-| GHSA-82fw-gwwq-j7x9 | `@vitest/mocker` | P3 | Path traversal en los mocks de Vitest mientras corren los tests. Solo se corrige en Vitest 5; no viaja a producción. |
+
+Tras el push aparecieron #112 y #113 (GHSA-82fw-gwwq-j7x9, path traversal en
+los mocks de Vitest, solo tests): se cerraron el mismo día subiendo `vitest` a
+**4.1.11**, que admite Vite 6. `npm audit` sugería Vitest 5, pero el parche ya
+está en la 4.1.11.
 
 Gotcha al subir Vite: la **primera** carga en frío del servidor de desarrollo
 optimiza dependencias y recarga la página; una prueba automática que empiece
