@@ -16688,6 +16688,882 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
             ),
         ],
     ),
+    LessonTemplate(
+        title="MLOps 3 · Servir un modelo: contrato de entrada y validacion",
+        description=(
+            "Poner el modelo a atender peticiones: el contrato de entrada como "
+            "esquema, validacion que acumula todos los errores, vector de "
+            "caracteristicas en el orden del entrenamiento y respuestas 200/422/500/503."
+        ),
+        content=(
+            "# MLOps 3: servir un modelo, contrato de entrada y validacion\n"
+            "\n"
+            "El modelo que en MLOps 2 quedo registrado como version 2 en `staging` todavia no sirve a nadie: vive en un `.pkl`. Servirlo es poner delante una funcion que recibe una peticion del mundo real —un diccionario que escribio otro equipo— y devuelve una respuesta. Esta leccion construye esa funcion: el **contrato** de entrada, la validacion que lo hace cumplir y la respuesta, incluida la que dice que algo fue mal.\n"
+            "\n"
+            "## Por que el contrato es la mitad del trabajo\n"
+            "\n"
+            'El modelo de devoluciones se entreno con importes en euros, paises en mayusculas y un booleano. La app movil de Nebula manda `{"importe": "120.50", "pais": "es", "urgente": "si"}`, porque en su formulario todo es texto. Tres cosas pueden pasar:\n'
+            "\n"
+            "1. **Revienta**: el servicio devuelve un error y el equipo movil no sabe que campo arreglar.\n"
+            "2. **Peor: no revienta.** `float(\"120.50\")` funciona, `'es'` no esta en el mapa de paises y alguien decidio que eso vale 0. El modelo predice sobre un pais que no existe y nadie se entera.\n"
+            "3. **Lo correcto**: el servicio contesta `pais: valor no permitido`, y el que llama lo arregla en cinco minutos.\n"
+            "\n"
+            "Un modelo servido sin contrato falla en silencio, que es la forma cara de fallar. Al terminar tendras un `servir(peticion, servicio, peticion_id)` que valida, predice, nunca revienta y deja registrada cada peticion.\n"
+            "\n"
+            "## El esquema: que campos y de que tipo\n"
+            "\n"
+            "El contrato se escribe como datos, no como una cadena de `if`. Cada campo declara su tipo y sus limites; los que tienen `por_defecto` son opcionales, el resto son obligatorios.\n"
+            "\n"
+            "```python\n"
+            "ESQUEMA = {                                                          # el contrato, como diccionario\n"
+            "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},           # obligatorio: no tiene por_defecto\n"
+            "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},       # obligatorio y de lista cerrada\n"
+            "    'urgente': {'tipo': 'booleano', 'por_defecto': False},           # opcional: si falta, vale False\n"
+            "}\n"
+            "\n"
+            "obligatorios = [n for n, r in ESQUEMA.items() if 'por_defecto' not in r]  # sin por_defecto = obligatorio\n"
+            "print(obligatorios)                                                  # ['importe', 'pais']\n"
+            "print(ESQUEMA['importe']['max'])                                     # 10000\n"
+            "print('opciones' in ESQUEMA['urgente'])                              # False: no todo campo tiene todo\n"
+            "```\n"
+            "\n"
+            "Escrito asi, el contrato se puede imprimir, versionar junto al modelo y mandar a quien llama. Con `if` repartidos por el codigo, el contrato solo existe en la cabeza de quien lo escribio.\n"
+            "\n"
+            "## Coaccionar: aceptar texto sin tragarse cualquier cosa\n"
+            "\n"
+            "Quien llama manda texto muchas veces. Convertirlo es razonable; adivinar, no. `coaccionar` convierte lo que tiene una lectura unica y lanza `ValueError` con el resto.\n"
+            "\n"
+            "```python\n"
+            "def coaccionar(valor, tipo):                                         # convierte lo que tiene una sola lectura\n"
+            "    if tipo == 'numero':                                             # una rama por cada tipo del esquema\n"
+            "        if isinstance(valor, bool):                                  # True es int en Python: isinstance(True, int) da True\n"
+            "            raise ValueError('booleano no es numero')                # sin esta linea, urgente=True entraria como 1.0\n"
+            "        if isinstance(valor, (int, float)):                          # ya es un numero de verdad\n"
+            "            return float(valor)                                      # int o float: a float y listo\n"
+            "        if isinstance(valor, str):                                   # texto: se intenta leer como numero\n"
+            "            return float(valor.strip())                              # '  120.5 ' -> 120.5; 'doce' lanza ValueError\n"
+            "        raise ValueError('no es numero')                             # None, una lista, un dict: no hay conversion posible\n"
+            "    raise ValueError('tipo desconocido')                             # un tipo que no existe es un error del esquema\n"
+            "\n"
+            "print(coaccionar('  120.5 ', 'numero'))                              # 120.5\n"
+            "print(isinstance(True, int))                                         # True: el motivo de la primera comprobacion\n"
+            "try:\n"
+            "    coaccionar('doce', 'numero')                                     # float('doce') lanza ValueError...\n"
+            "except ValueError as e:\n"
+            "    print('rechazado:', e)                                           # rechazado: could not convert string to float: 'doce'\n"
+            "```\n"
+            "\n"
+            "La regla es **convertir lo inequivoco y rechazar lo demas**: `'120'` es 120.0 sin discusion, pero `'si'` no es `True` mas que para nosotros, y `''` no es 0. Lo que el servicio adivina hoy es la fila rara que mañana nadie sabe explicar.\n"
+            "\n"
+            "## Validar: todos los errores, no el primero\n"
+            "\n"
+            "Un `return` al primer fallo obliga a quien llama a arreglar los campos de uno en uno, un viaje por campo. La validacion recorre el esquema entero y **acumula** los errores.\n"
+            "\n"
+            "```python\n"
+            "esquema = {'importe': {'tipo': 'numero', 'min': 0},                  # el contrato contra el que se revisa\n"
+            "           'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT']},\n"
+            "           'urgente': {'tipo': 'booleano', 'por_defecto': False}}\n"
+            "peticion = {'importe': -5, 'pais': 'DE', 'extra': 1}                 # tres problemas a la vez\n"
+            "errores = []                                                         # se acumulan, no se lanzan\n"
+            "datos = {}                                                           # solo lo que paso la revision\n"
+            "\n"
+            "for nombre, regla in esquema.items():                                # el orden del esquema manda\n"
+            "    if nombre not in peticion:                                       # el campo no llego\n"
+            "        if 'por_defecto' in regla:                                   # era opcional\n"
+            "            datos[nombre] = regla['por_defecto']                     # opcional ausente: se rellena\n"
+            "        else:\n"
+            "            errores.append(f'{nombre}: requerido')                   # obligatorio ausente: error\n"
+            "        continue\n"
+            "    valor = peticion[nombre]                                         # el campo llego: toca revisar su valor\n"
+            "    if 'min' in regla and valor < regla['min']:\n"
+            "        errores.append(f\"{nombre}: minimo {regla['min']}\")           # fuera de rango\n"
+            "    elif 'opciones' in regla and valor not in regla['opciones']:\n"
+            "        errores.append(f'{nombre}: valor no permitido')              # fuera de la lista cerrada\n"
+            "    else:\n"
+            "        datos[nombre] = valor                                        # sin peros: entra en los datos limpios\n"
+            "\n"
+            "for extra in sorted(set(peticion) - set(esquema)):                   # sorted: el mismo orden siempre\n"
+            "    errores.append(f'{extra}: campo desconocido')                    # lo que nadie declaro tambien es un error\n"
+            "\n"
+            "print(errores)      # ['importe: minimo 0', 'pais: valor no permitido', 'extra: campo desconocido']\n"
+            "print(datos)        # {'urgente': False}: ningun campo con error entra aqui\n"
+            "```\n"
+            "\n"
+            "Los **campos desconocidos son un error, no algo que se ignora**: casi siempre son un `pais` escrito `Pais`, y un campo ignorado en silencio es un modelo prediciendo sin el dato que el que llama creia estar mandando. `sorted(set(a) - set(b))` da la diferencia en orden alfabetico, asi que la lista de errores no depende del orden en que llegue el diccionario.\n"
+            "\n"
+            "## Del diccionario al vector: el orden lo fija el entrenamiento\n"
+            "\n"
+            "El modelo no recibe un diccionario, recibe una lista de numeros **en el orden en que se entreno**. Ese orden y los mapas de categorias se guardan junto al modelo, porque son parte de el.\n"
+            "\n"
+            "```python\n"
+            "ORDEN = ['importe', 'pais', 'urgente']                               # el orden del entrenamiento, congelado\n"
+            "MAPAS = {'pais': {'ES': 0, 'PT': 1, 'FR': 2}}                        # categoria -> numero, igual que al entrenar\n"
+            "\n"
+            "def vector(datos, orden, mapas):                                     # de datos validados a numeros\n"
+            "    fila = []                                                        # una posicion por caracteristica\n"
+            "    for nombre in orden:                                             # se recorre el orden, no el diccionario\n"
+            "        valor = datos[nombre]                                        # el valor ya viene validado y convertido\n"
+            "        if nombre in mapas:                                          # esta columna es categorica\n"
+            "            if valor not in mapas[nombre]:\n"
+            "                raise ValueError(f'{nombre}: categoria desconocida') # nunca un 0 por defecto\n"
+            "            fila.append(float(mapas[nombre][valor]))                 # la categoria entra como el numero que se entreno\n"
+            "        else:\n"
+            "            fila.append(float(valor))                                # float(True) es 1.0: el booleano entra solo\n"
+            "    return fila                                                      # tantos numeros como nombres tiene orden\n"
+            "\n"
+            "print(vector({'urgente': True, 'importe': 120.5, 'pais': 'PT'}, ORDEN, MAPAS))  # [120.5, 1.0, 1.0]\n"
+            "try:\n"
+            "    vector({'importe': 1.0, 'pais': 'DE', 'urgente': False}, ORDEN, MAPAS) # 'DE' no esta en MAPAS\n"
+            "except ValueError as e:\n"
+            "    print(e)                                                         # pais: categoria desconocida\n"
+            "```\n"
+            "\n"
+            "Recorrer `datos.items()` en vez de `orden` es el error clasico: el dia que la peticion llegue con las claves en otro orden, el modelo recibira el importe donde esperaba el pais y seguira contestando numeros con toda tranquilidad. A esa diferencia entre lo que vio al entrenar y lo que ve al servir se le llama **training/serving skew**, y es una de las causas mas comunes de modelos que rinden peor en produccion que en el cuaderno.\n"
+            "\n"
+            "## La respuesta: siempre la misma forma\n"
+            "\n"
+            "Quien llama tiene que poder leer la respuesta sin saber de antemano si fue bien. Por eso todas las respuestas —las buenas y las malas— tienen las mismas claves: un **codigo**, el id de la peticion, la version del modelo y un cuerpo.\n"
+            "\n"
+            "```python\n"
+            "def respuesta(codigo, cuerpo, version, peticion_id):                 # una sola forma para todas las respuestas\n"
+            "    return {'codigo': codigo, 'peticion_id': peticion_id,            # el id permite rastrear la peticion en el log\n"
+            "            'version': version, 'cuerpo': cuerpo}                    # version: que modelo contesto esto\n"
+            "\n"
+            "print(respuesta(200, {'prediccion': 0.82}, 3, 'p-1'))                # ok\n"
+            "print(respuesta(422, {'errores': ['importe: requerido']}, 3, 'p-2')) # la peticion no cumple el contrato\n"
+            "print(respuesta(503, {'error': 'modelo no cargado'}, None, 'p-3'))   # el servicio aun no puede atender\n"
+            "```\n"
+            "\n"
+            "Los codigos son los de HTTP porque es lo que hablan las herramientas: **200** todo bien, **422** la peticion no cumple el contrato (culpa de quien llama, y el cuerpo dice de que campo), **500** fallo del servicio (culpa nuestra), **503** el servicio no esta listo. Incluir la **version** en cada respuesta es lo que permite, tres semanas despues, saber que modelo produjo una prediccion rara.\n"
+            "\n"
+            "## Que nunca reviente y que quede registrado\n"
+            "\n"
+            "El modelo puede lanzar una excepcion con una entrada perfectamente valida: una division por cero, un `nan`, un archivo que ya no esta. Servir significa que eso se convierte en un 500, no en un servicio caido, y que el detalle va al log y no al que llama.\n"
+            "\n"
+            "```python\n"
+            "log = []                                                             # lo que se guarda de cada peticion\n"
+            "\n"
+            "def predecir(modelo_fn, fila, peticion_id, log):                     # la llamada al modelo, blindada\n"
+            "    try:\n"
+            "        valor = modelo_fn(fila)                                      # el modelo es codigo ajeno: puede fallar\n"
+            "    except Exception as e:                                           # se atrapa todo, no solo lo previsto\n"
+            "        log.append({'id': peticion_id, 'codigo': 500, 'detalle': str(e)})   # el detalle, aqui dentro\n"
+            "        return {'codigo': 500, 'cuerpo': {'error': 'error interno'}}        # y fuera un mensaje generico\n"
+            "    log.append({'id': peticion_id, 'codigo': 200,                    # entrada y salida: el material del monitoreo\n"
+            "                'entrada': fila, 'prediccion': valor})\n"
+            "    return {'codigo': 200, 'cuerpo': {'prediccion': valor}}          # y la prediccion, para el que llama\n"
+            "\n"
+            "def rompe(fila):                                                     # un modelo que falla con una entrada valida\n"
+            "    return 1 / 0                                                     # ZeroDivisionError\n"
+            "\n"
+            "print(predecir(lambda f: sum(f) / 100, [120.5, 1.0], 'p-1', log))    # {'codigo': 200, ...}\n"
+            "print(predecir(rompe, [1.0], 'p-2', log))                            # {'codigo': 500, 'cuerpo': {'error': 'error interno'}}\n"
+            "print([(r['id'], r['codigo']) for r in log])                         # [('p-1', 200), ('p-2', 500)]\n"
+            "print(log[1]['detalle'])                                             # division by zero: el detalle vive en el log\n"
+            "```\n"
+            "\n"
+            "Devolver `str(e)` al que llama filtra rutas, nombres de columnas y, con un pickle de por medio, cosas peores; el mensaje generico fuera y el detalle dentro es la forma estandar. Y ese `log` con la entrada y la prediccion de cada peticion no es solo para depurar: es exactamente el material con el que la proxima leccion detecta que los datos de produccion se han movido.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            "- **Adivinar en la coaccion.** Aceptar `'si'` como `True` o `''` como `0` mete filas inventadas en el modelo. Convierte solo lo inequivoco (`'120'` -> 120.0) y lanza `ValueError` con lo demas.\n"
+            "- **Olvidar que `True` es un `int`.** `isinstance(True, int)` da `True`, asi que un booleano pasa como numero si no se comprueba `bool` **antes**. Es el bug que mete un 1.0 donde iba un importe.\n"
+            "- **Devolver al primer error.** Quien llama arregla un campo, reintenta y descubre el siguiente. Acumula los errores en una lista y devuelvelos juntos.\n"
+            "- **Ignorar los campos desconocidos.** Un `Pais` con mayuscula se traga en silencio y el modelo predice sin ese dato. Los campos que no estan en el esquema son un error de contrato.\n"
+            "- **Construir el vector recorriendo el diccionario.** El orden de las claves de la peticion no es el del entrenamiento. Recorre siempre la lista `orden` guardada con el modelo.\n"
+            "- **Dejar salir la excepcion del modelo tal cual.** Filtra detalles internos y tumba el servicio. `try`/`except` alrededor de la llamada, 500 generico fuera, detalle en el log.\n"
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **Esquema**: el contrato como diccionario, con tipo, limites, `opciones` y `por_defecto` (que es lo que hace opcional a un campo).\n"
+            "- **Coaccion**: `float(texto)` para lo inequivoco, `ValueError` para lo demas, y `bool` comprobado antes que `int`.\n"
+            "- **Validacion**: recorrer el esquema, acumular **todos** los errores, rellenar los opcionales y tratar los campos desconocidos como error.\n"
+            "- **Vector**: recorrer el `orden` del entrenamiento, mapear categorias con el mapa guardado y fallar ante una categoria desconocida.\n"
+            "- **Respuesta**: misma forma siempre (`codigo`, `peticion_id`, `version`, `cuerpo`); 200 / 422 / 500 / 503.\n"
+            "- **Robustez**: `try`/`except` alrededor del modelo, mensaje generico fuera, detalle y entrada en el log que alimentara el monitoreo.\n"
+        ),
+        difficulty="intermediate",
+        category="mlops",
+        order=46,
+        track="track-6",
+        estimated_duration=65,
+        prerequisites_titles=[
+            "MLOps 2 · Seguimiento de experimentos y registro de modelos"
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Coaccionar un valor al tipo del contrato",
+                description="Convertir lo inequivoco y rechazar lo demas con ValueError.",
+                instructions=(
+                    "Implementa `coaccionar(valor, tipo)`, que devuelve el valor convertido o lanza `ValueError` si no encaja.\n"
+                    "\n"
+                    "- `'numero'`: un `int` o un `float` se devuelve como `float`; un `str` se convierte con `float(valor.strip())`. Un `bool` **no** es un numero valido (recuerda que `isinstance(True, int)` da `True`: comprueba `bool` primero).\n"
+                    "- `'texto'`: un `str` se devuelve con `.strip()` aplicado; cualquier otra cosa es error.\n"
+                    "- `'booleano'`: un `bool` se devuelve tal cual; los textos `'true'` y `'false'` (ignorando espacios y mayusculas) se convierten a `True` y `False`; nada mas, ni `1` ni `'si'`.\n"
+                    "- Cualquier otro `tipo` lanza `ValueError`.\n"
+                    "\n"
+                    "Ejemplos: `coaccionar('  120.5 ', 'numero')` es `120.5`, `coaccionar(' ES ', 'texto')` es `'ES'`, `coaccionar('TRUE', 'booleano')` es `True` y `coaccionar(1, 'booleano')` lanza `ValueError`."
+                ),
+                starter_code=(
+                    "def coaccionar(valor, tipo):\n"
+                    "    # TODO: 'numero' -> float (ojo con bool antes que int)\n"
+                    "    # TODO: 'texto' -> str con .strip()\n"
+                    "    # TODO: 'booleano' -> bool o 'true'/'false'\n"
+                    "    # TODO: cualquier otro tipo -> raise ValueError\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Empieza cada rama con if tipo == 'numero': ... y termina la funcion con raise ValueError('tipo desconocido').",
+                    "isinstance(valor, bool) tiene que ir ANTES de isinstance(valor, (int, float)), porque bool es subclase de int.",
+                    "float('doce') ya lanza ValueError por su cuenta: no hace falta comprobar el texto antes de convertirlo.",
+                    "Para el booleano: valor.strip().lower() in ('true', 'false') y luego == 'true' da el resultado.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "numeros y textos",
+                        "code": (
+                            "assert coaccionar('  120.5 ', 'numero') == 120.5\n"
+                            "assert coaccionar(3, 'numero') == 3.0 and isinstance(coaccionar(3, 'numero'), float)\n"
+                            "assert coaccionar(2.5, 'numero') == 2.5\n"
+                            "assert coaccionar('  ES ', 'texto') == 'ES'\n"
+                            "for valor, tipo in [('doce', 'numero'), (None, 'numero'), (7, 'texto'), (1.0, 'texto')]:\n"
+                            "    try:\n"
+                            "        coaccionar(valor, tipo)\n"
+                            "        raise AssertionError(f'{valor!r} como {tipo} deberia lanzar ValueError')\n"
+                            "    except ValueError:\n"
+                            "        pass\n"
+                        ),
+                    },
+                    {
+                        "name": "booleanos y tipos desconocidos",
+                        "code": (
+                            "assert coaccionar(True, 'booleano') is True and coaccionar(False, 'booleano') is False\n"
+                            "assert coaccionar(' TRUE ', 'booleano') is True and coaccionar('false', 'booleano') is False\n"
+                            "for valor, tipo in [(1, 'booleano'), ('si', 'booleano'), ('', 'booleano'), ('x', 'fecha')]:\n"
+                            "    try:\n"
+                            "        coaccionar(valor, tipo)\n"
+                            "        raise AssertionError(f'{valor!r} como {tipo} deberia lanzar ValueError')\n"
+                            "    except ValueError:\n"
+                            "        pass\n"
+                        ),
+                    },
+                    {
+                        "name": "un booleano no es un numero",
+                        "code": (
+                            "for valor in (True, False):\n"
+                            "    try:\n"
+                            "        coaccionar(valor, 'numero')\n"
+                            "        raise AssertionError('un bool no puede colarse como numero')\n"
+                            "    except ValueError:\n"
+                            "        pass\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Que falta y que sobra en la peticion",
+                description="Comparar la peticion con el esquema antes de mirar los valores.",
+                instructions=(
+                    "Implementa `revisar_campos(peticion, esquema)` que devuelva un diccionario con dos listas:\n"
+                    "\n"
+                    "- `'faltan'`: los campos **obligatorios** del esquema que no estan en la peticion, en el orden del esquema. Un campo es obligatorio cuando su regla **no** tiene la clave `'por_defecto'`.\n"
+                    "- `'sobran'`: los campos de la peticion que no estan en el esquema, **ordenados alfabeticamente**.\n"
+                    "\n"
+                    "Ejemplo con el esquema de `importe`/`pais`/`urgente`: `revisar_campos({'pais': 'ES', 'Pais': 'ES'}, esquema)` devuelve `{'faltan': ['importe'], 'sobran': ['Pais']}` (`urgente` no falta: es opcional)."
+                ),
+                starter_code=(
+                    "def revisar_campos(peticion, esquema):\n"
+                    "    # TODO: faltan = obligatorios ausentes, en el orden del esquema\n"
+                    "    # TODO: sobran = claves de la peticion que no estan en el esquema, ordenadas\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Recorre esquema.items(): un campo es obligatorio si 'por_defecto' not in regla.",
+                    "faltan = [n for n, r in esquema.items() if 'por_defecto' not in r and n not in peticion]",
+                    "sorted(set(peticion) - set(esquema)) da los que sobran en orden alfabetico y sin repetir.",
+                ],
+                difficulty="easy",
+                points=10,
+                hidden_tests=[
+                    {
+                        "name": "faltan los obligatorios, no los opcionales",
+                        "code": (
+                            "esquema = {\n"
+                            "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},\n"
+                            "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},\n"
+                            "    'urgente': {'tipo': 'booleano', 'por_defecto': False},\n"
+                            "}\n"
+                            "r = revisar_campos({'pais': 'ES'}, esquema)\n"
+                            "assert r == {'faltan': ['importe'], 'sobran': []}, r\n"
+                            "r = revisar_campos({}, esquema)\n"
+                            "assert r == {'faltan': ['importe', 'pais'], 'sobran': []}, r\n"
+                            "r = revisar_campos({'importe': 1, 'pais': 'ES', 'urgente': True}, esquema)\n"
+                            "assert r == {'faltan': [], 'sobran': []}, r\n"
+                        ),
+                    },
+                    {
+                        "name": "los desconocidos salen ordenados",
+                        "code": (
+                            "esquema = {\n"
+                            "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},\n"
+                            "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},\n"
+                            "    'urgente': {'tipo': 'booleano', 'por_defecto': False},\n"
+                            "}\n"
+                            "r = revisar_campos({'importe': 1, 'pais': 'ES', 'zona': 2, 'Pais': 'ES', 'alfa': 0}, esquema)\n"
+                            "assert r == {'faltan': [], 'sobran': ['Pais', 'alfa', 'zona']}, r\n"
+                        ),
+                    },
+                    {
+                        "name": "orden del esquema y no de la peticion",
+                        "code": (
+                            "esquema = {'b': {'tipo': 'numero'}, 'a': {'tipo': 'numero'}, 'c': {'tipo': 'numero', 'por_defecto': 0}}\n"
+                            "r = revisar_campos({'x': 1}, esquema)\n"
+                            "assert r == {'faltan': ['b', 'a'], 'sobran': ['x']}, r\n"
+                            "peticion = {'x': 1}\n"
+                            "revisar_campos(peticion, esquema)\n"
+                            "assert peticion == {'x': 1}, 'no se toca la peticion'\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Validar la peticion entera",
+                description="Recorrer el esquema y acumular todos los errores de una vez.",
+                instructions=(
+                    "Implementa `validar(peticion, esquema)` que devuelva la tupla `(datos, errores)`. `coaccionar` ya viene escrita.\n"
+                    "\n"
+                    "Recorre el esquema **en su orden** y, para cada campo:\n"
+                    "\n"
+                    "1. Si no esta en la peticion: si la regla tiene `'por_defecto'`, copia ese valor a `datos`; si no, anade `f'{nombre}: requerido'` a los errores.\n"
+                    "2. Si esta, conviertelo con `coaccionar(valor, regla['tipo'])`. Si lanza `ValueError`, anade `f\"{nombre}: se esperaba {regla['tipo']}\"` y pasa al siguiente campo.\n"
+                    "3. Con el valor ya convertido, comprueba **solo el primer limite que falle**, en este orden: `'min'` da `f\"{nombre}: minimo {regla['min']}\"`, `'max'` da `f\"{nombre}: maximo {regla['max']}\"`, `'opciones'` da `f'{nombre}: valor no permitido'`.\n"
+                    "4. Si no fallo ningun limite, guarda el valor convertido en `datos`.\n"
+                    "\n"
+                    "Al final, por cada campo de la peticion que no este en el esquema y **en orden alfabetico**, anade `f'{nombre}: campo desconocido'`.\n"
+                    "\n"
+                    "En `datos` solo entran los campos validos: si un campo da error, no aparece."
+                ),
+                starter_code=(
+                    "def coaccionar(valor, tipo):\n"
+                    "    if tipo == 'numero':\n"
+                    "        if isinstance(valor, bool):\n"
+                    "            raise ValueError('booleano no es numero')\n"
+                    "        if isinstance(valor, (int, float)):\n"
+                    "            return float(valor)\n"
+                    "        if isinstance(valor, str):\n"
+                    "            return float(valor.strip())\n"
+                    "        raise ValueError('no es numero')\n"
+                    "    if tipo == 'texto':\n"
+                    "        if isinstance(valor, str):\n"
+                    "            return valor.strip()\n"
+                    "        raise ValueError('no es texto')\n"
+                    "    if tipo == 'booleano':\n"
+                    "        if isinstance(valor, bool):\n"
+                    "            return valor\n"
+                    "        if isinstance(valor, str) and valor.strip().lower() in ('true', 'false'):\n"
+                    "            return valor.strip().lower() == 'true'\n"
+                    "        raise ValueError('no es booleano')\n"
+                    "    raise ValueError('tipo desconocido')\n"
+                    "\n"
+                    "\n"
+                    "def validar(peticion, esquema):\n"
+                    "    datos, errores = {}, []\n"
+                    "    # TODO: recorrer el esquema; ausentes, coaccion y limites\n"
+                    "    # TODO: campos desconocidos al final, ordenados\n"
+                    "    return datos, errores\n"
+                ),
+                hints=[
+                    "for nombre, regla in esquema.items(): y dentro un continue en cuanto un campo quede resuelto.",
+                    "Envuelve la coaccion: try: valor = coaccionar(peticion[nombre], regla['tipo']) / except ValueError: errores.append(...); continue",
+                    "Encadena if 'min' ... elif 'max' ... elif 'opciones' ... else: datos[nombre] = valor, para que solo se anote un limite por campo.",
+                    "Los desconocidos, al final: for extra in sorted(set(peticion) - set(esquema)): errores.append(f'{extra}: campo desconocido')",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "peticion valida, con coaccion y por defecto",
+                        "code": (
+                            "esquema = {\n"
+                            "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},\n"
+                            "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},\n"
+                            "    'urgente': {'tipo': 'booleano', 'por_defecto': False},\n"
+                            "}\n"
+                            "datos, errores = validar({'importe': '120.5', 'pais': ' ES '}, esquema)\n"
+                            "assert errores == [], errores\n"
+                            "assert datos == {'importe': 120.5, 'pais': 'ES', 'urgente': False}, datos\n"
+                            "datos, errores = validar({'importe': 0, 'pais': 'FR', 'urgente': 'true'}, esquema)\n"
+                            "assert errores == [] and datos == {'importe': 0.0, 'pais': 'FR', 'urgente': True}, (datos, errores)\n"
+                        ),
+                    },
+                    {
+                        "name": "acumula todos los errores",
+                        "code": (
+                            "esquema = {\n"
+                            "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},\n"
+                            "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},\n"
+                            "    'urgente': {'tipo': 'booleano', 'por_defecto': False},\n"
+                            "}\n"
+                            "datos, errores = validar({'pais': 'DE', 'urgente': 1, 'zona': 3, 'Pais': 'ES'}, esquema)\n"
+                            "assert errores == ['importe: requerido', 'pais: valor no permitido',\n"
+                            "                   'urgente: se esperaba booleano', 'Pais: campo desconocido',\n"
+                            "                   'zona: campo desconocido'], errores\n"
+                            "assert datos == {}, datos\n"
+                        ),
+                    },
+                    {
+                        "name": "limites y tipos",
+                        "code": (
+                            "esquema = {\n"
+                            "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},\n"
+                            "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},\n"
+                            "    'urgente': {'tipo': 'booleano', 'por_defecto': False},\n"
+                            "}\n"
+                            "datos, errores = validar({'importe': -1, 'pais': 'ES'}, esquema)\n"
+                            "assert errores == ['importe: minimo 0'] and datos == {'pais': 'ES', 'urgente': False}, (datos, errores)\n"
+                            "datos, errores = validar({'importe': 10001, 'pais': 'ES'}, esquema)\n"
+                            "assert errores == ['importe: maximo 10000'], errores\n"
+                            "datos, errores = validar({'importe': 'doce', 'pais': 'ES'}, esquema)\n"
+                            "assert errores == ['importe: se esperaba numero'], errores\n"
+                            "datos, errores = validar({'importe': True, 'pais': 'ES'}, esquema)\n"
+                            "assert errores == ['importe: se esperaba numero'], 'un bool no es un importe'\n"
+                        ),
+                    },
+                    {
+                        "name": "un campo con error no entra en datos",
+                        "code": (
+                            "esquema = {'a': {'tipo': 'numero', 'min': 0}, 'b': {'tipo': 'texto', 'por_defecto': 'x'}}\n"
+                            "datos, errores = validar({'a': -3, 'b': 'hola'}, esquema)\n"
+                            "assert datos == {'b': 'hola'} and errores == ['a: minimo 0'], (datos, errores)\n"
+                            "datos, errores = validar({'a': 5}, esquema)\n"
+                            "assert datos == {'a': 5.0, 'b': 'x'} and errores == [], (datos, errores)\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="El vector de caracteristicas",
+                description="Del diccionario validado a la lista de numeros del entrenamiento.",
+                instructions=(
+                    "Implementa `vector(datos, orden, mapas)` que devuelva la lista de `float` que espera el modelo.\n"
+                    "\n"
+                    "- Recorre `orden` (la lista de nombres tal como se entreno), **no** las claves de `datos`.\n"
+                    "- Si un nombre de `orden` no esta en `datos`, lanza `ValueError(f'{nombre}: ausente')`.\n"
+                    "- Si el nombre esta en `mapas`, el valor es una categoria: usa `mapas[nombre][valor]` convertido a `float`. Si esa categoria no esta en el mapa, lanza `ValueError(f'{nombre}: categoria desconocida')` (nunca un 0 por defecto: eso es inventarse un dato).\n"
+                    "- Si no, convierte el valor con `float` (`float(True)` es `1.0`, asi que los booleanos entran solos).\n"
+                    "\n"
+                    "Ejemplo: con `orden = ['importe', 'pais', 'urgente']` y `mapas = {'pais': {'ES': 0, 'PT': 1}}`, `vector({'urgente': True, 'importe': 120.5, 'pais': 'PT'}, orden, mapas)` es `[120.5, 1.0, 1.0]`."
+                ),
+                starter_code=(
+                    "def vector(datos, orden, mapas):\n"
+                    "    # TODO: recorrer orden, mapear categorias y convertir a float\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "fila = [] y for nombre in orden: ... fila.append(...) y al final return fila.",
+                    "if nombre not in datos: raise ValueError(f'{nombre}: ausente')",
+                    "if nombre in mapas: comprueba antes que el valor este en mapas[nombre].",
+                    "float(mapas[nombre][valor]) para la categoria y float(valor) para el resto.",
+                ],
+                difficulty="medium",
+                points=15,
+                hidden_tests=[
+                    {
+                        "name": "orden del entrenamiento y categorias",
+                        "code": (
+                            "orden = ['importe', 'pais', 'urgente']\n"
+                            "mapas = {'pais': {'ES': 0, 'PT': 1, 'FR': 2}}\n"
+                            "f = vector({'urgente': True, 'importe': 120.5, 'pais': 'PT'}, orden, mapas)\n"
+                            "assert f == [120.5, 1.0, 1.0], f\n"
+                            "assert all(isinstance(x, float) for x in f), f\n"
+                            "f = vector({'importe': 0, 'pais': 'FR', 'urgente': False}, orden, mapas)\n"
+                            "assert f == [0.0, 2.0, 0.0], f\n"
+                        ),
+                    },
+                    {
+                        "name": "categoria desconocida y campo ausente",
+                        "code": (
+                            "orden = ['importe', 'pais']\n"
+                            "mapas = {'pais': {'ES': 0}}\n"
+                            "try:\n"
+                            "    vector({'importe': 1, 'pais': 'DE'}, orden, mapas)\n"
+                            "    raise AssertionError('una categoria fuera del mapa no puede pasar')\n"
+                            "except ValueError as e:\n"
+                            "    assert str(e) == 'pais: categoria desconocida', str(e)\n"
+                            "try:\n"
+                            "    vector({'importe': 1}, orden, mapas)\n"
+                            "    raise AssertionError('un campo ausente no puede pasar')\n"
+                            "except ValueError as e:\n"
+                            "    assert str(e) == 'pais: ausente', str(e)\n"
+                        ),
+                    },
+                    {
+                        "name": "no depende del orden del diccionario",
+                        "code": (
+                            "orden = ['a', 'b', 'c']\n"
+                            "uno = vector({'a': 1, 'b': 2, 'c': 3}, orden, {})\n"
+                            "otro = vector({'c': 3, 'a': 1, 'b': 2}, orden, {})\n"
+                            "assert uno == otro == [1.0, 2.0, 3.0], (uno, otro)\n"
+                            "assert vector({'a': 1, 'b': 2, 'c': 3, 'extra': 9}, orden, {}) == [1.0, 2.0, 3.0], 'lo que no esta en orden no entra'\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Preparar la entrada del modelo",
+                description="Validacion y vector encadenados en un solo paso.",
+                instructions=(
+                    "Implementa `preparar(peticion, esquema, orden, mapas)` que devuelva la tupla `(fila, errores)`. `validar`, `coaccionar` y `vector` ya vienen escritas.\n"
+                    "\n"
+                    "1. Valida la peticion. Si hay errores, devuelve `(None, errores)` **sin** llamar a `vector`: con datos invalidos no se construye nada.\n"
+                    "2. Si no hay errores, construye el vector con los datos validados y devuelve `(fila, [])`.\n"
+                    "3. `vector` todavia puede lanzar `ValueError` (una categoria que el esquema permite pero el mapa no conoce). Atrapalo y devuelve `(None, [str(e)])`: es un error mas de la peticion, no una caida del servicio.\n"
+                    "\n"
+                    "Ejemplo: una peticion valida da `([120.5, 0.0, 0.0], [])`; una sin importe da `(None, ['importe: requerido'])`."
+                ),
+                starter_code=(
+                    "def coaccionar(valor, tipo):\n"
+                    "    if tipo == 'numero':\n"
+                    "        if isinstance(valor, bool):\n"
+                    "            raise ValueError('booleano no es numero')\n"
+                    "        if isinstance(valor, (int, float)):\n"
+                    "            return float(valor)\n"
+                    "        if isinstance(valor, str):\n"
+                    "            return float(valor.strip())\n"
+                    "        raise ValueError('no es numero')\n"
+                    "    if tipo == 'texto':\n"
+                    "        if isinstance(valor, str):\n"
+                    "            return valor.strip()\n"
+                    "        raise ValueError('no es texto')\n"
+                    "    if tipo == 'booleano':\n"
+                    "        if isinstance(valor, bool):\n"
+                    "            return valor\n"
+                    "        if isinstance(valor, str) and valor.strip().lower() in ('true', 'false'):\n"
+                    "            return valor.strip().lower() == 'true'\n"
+                    "        raise ValueError('no es booleano')\n"
+                    "    raise ValueError('tipo desconocido')\n"
+                    "\n"
+                    "\n"
+                    "def validar(peticion, esquema):\n"
+                    "    datos, errores = {}, []\n"
+                    "    for nombre, regla in esquema.items():\n"
+                    "        if nombre not in peticion:\n"
+                    "            if 'por_defecto' in regla:\n"
+                    "                datos[nombre] = regla['por_defecto']\n"
+                    "            else:\n"
+                    "                errores.append(f'{nombre}: requerido')\n"
+                    "            continue\n"
+                    "        try:\n"
+                    "            valor = coaccionar(peticion[nombre], regla['tipo'])\n"
+                    "        except ValueError:\n"
+                    "            errores.append(f\"{nombre}: se esperaba {regla['tipo']}\")\n"
+                    "            continue\n"
+                    "        if 'min' in regla and valor < regla['min']:\n"
+                    "            errores.append(f\"{nombre}: minimo {regla['min']}\")\n"
+                    "        elif 'max' in regla and valor > regla['max']:\n"
+                    "            errores.append(f\"{nombre}: maximo {regla['max']}\")\n"
+                    "        elif 'opciones' in regla and valor not in regla['opciones']:\n"
+                    "            errores.append(f'{nombre}: valor no permitido')\n"
+                    "        else:\n"
+                    "            datos[nombre] = valor\n"
+                    "    for extra in sorted(set(peticion) - set(esquema)):\n"
+                    "        errores.append(f'{extra}: campo desconocido')\n"
+                    "    return datos, errores\n"
+                    "\n"
+                    "\n"
+                    "def vector(datos, orden, mapas):\n"
+                    "    fila = []\n"
+                    "    for nombre in orden:\n"
+                    "        if nombre not in datos:\n"
+                    "            raise ValueError(f'{nombre}: ausente')\n"
+                    "        valor = datos[nombre]\n"
+                    "        if nombre in mapas:\n"
+                    "            if valor not in mapas[nombre]:\n"
+                    "                raise ValueError(f'{nombre}: categoria desconocida')\n"
+                    "            fila.append(float(mapas[nombre][valor]))\n"
+                    "        else:\n"
+                    "            fila.append(float(valor))\n"
+                    "    return fila\n"
+                    "\n"
+                    "\n"
+                    "def preparar(peticion, esquema, orden, mapas):\n"
+                    "    # TODO: validar; si hay errores, (None, errores)\n"
+                    "    # TODO: si no, vector dentro de try/except ValueError\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "datos, errores = validar(peticion, esquema) y despues if errores: return None, errores",
+                    "El try solo envuelve la llamada a vector, no la validacion.",
+                    "except ValueError as e: return None, [str(e)] — el mensaje ya viene formado desde vector.",
+                    "En el camino bueno se devuelve la tupla (vector(datos, orden, mapas), []).",
+                ],
+                difficulty="hard",
+                points=20,
+                hidden_tests=[
+                    {
+                        "name": "peticion valida",
+                        "code": (
+                            "esquema = {\n"
+                            "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},\n"
+                            "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},\n"
+                            "    'urgente': {'tipo': 'booleano', 'por_defecto': False},\n"
+                            "}\n"
+                            "orden = ['importe', 'pais', 'urgente']\n"
+                            "mapas = {'pais': {'ES': 0, 'PT': 1, 'FR': 2}}\n"
+                            "fila, errores = preparar({'importe': '120.5', 'pais': 'ES'}, esquema, orden, mapas)\n"
+                            "assert errores == [] and fila == [120.5, 0.0, 0.0], (fila, errores)\n"
+                            "fila, errores = preparar({'importe': 9, 'pais': 'PT', 'urgente': 'true'}, esquema, orden, mapas)\n"
+                            "assert errores == [] and fila == [9.0, 1.0, 1.0], (fila, errores)\n"
+                        ),
+                    },
+                    {
+                        "name": "con errores no se construye vector",
+                        "code": (
+                            "esquema = {\n"
+                            "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},\n"
+                            "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},\n"
+                            "    'urgente': {'tipo': 'booleano', 'por_defecto': False},\n"
+                            "}\n"
+                            "orden = ['importe', 'pais', 'urgente']\n"
+                            "mapas = {'pais': {'ES': 0, 'PT': 1, 'FR': 2}}\n"
+                            "fila, errores = preparar({'pais': 'ES', 'zona': 1}, esquema, orden, mapas)\n"
+                            "assert fila is None, fila\n"
+                            "assert errores == ['importe: requerido', 'zona: campo desconocido'], errores\n"
+                        ),
+                    },
+                    {
+                        "name": "categoria valida para el esquema pero fuera del mapa",
+                        "code": (
+                            "esquema = {\n"
+                            "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},\n"
+                            "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},\n"
+                            "    'urgente': {'tipo': 'booleano', 'por_defecto': False},\n"
+                            "}\n"
+                            "orden = ['importe', 'pais', 'urgente']\n"
+                            "mapas = {'pais': {'ES': 0, 'PT': 1}}\n"
+                            "fila, errores = preparar({'importe': 5, 'pais': 'FR'}, esquema, orden, mapas)\n"
+                            "assert fila is None and errores == ['pais: categoria desconocida'], (fila, errores)\n"
+                        ),
+                    },
+                    {
+                        "name": "una caracteristica que el esquema no da",
+                        "code": (
+                            "esquema = {'a': {'tipo': 'numero'}}\n"
+                            "fila, errores = preparar({'a': 1}, esquema, ['a', 'b'], {})\n"
+                            "assert fila is None and errores == ['b: ausente'], (fila, errores)\n"
+                        ),
+                    },
+                ],
+            ),
+            ExerciseTemplate(
+                title="Servir el modelo",
+                description="El pipeline entero: contrato, prediccion, codigos de respuesta y log.",
+                instructions=(
+                    "Implementa `servir(peticion, servicio, peticion_id)`, la funcion que atiende una peticion. `preparar`, `validar`, `coaccionar` y `vector` ya vienen escritas.\n"
+                    "\n"
+                    "`servicio` es un diccionario con `'esquema'`, `'orden'`, `'mapas'`, `'version'`, `'log'` (una lista) y `'modelo_fn'`, que puede ser `None` si el modelo aun no esta cargado.\n"
+                    "\n"
+                    "Devuelve **siempre** un diccionario con las mismas cuatro claves: `{'codigo': ..., 'peticion_id': peticion_id, 'version': ..., 'cuerpo': ...}`, asi:\n"
+                    "\n"
+                    "- **503** si `servicio['modelo_fn']` es `None`: cuerpo `{'error': 'modelo no cargado'}` y `version` `None`.\n"
+                    "- **422** si `preparar` devuelve errores: cuerpo `{'errores': errores}`.\n"
+                    "- **500** si `modelo_fn(fila)` lanza cualquier excepcion: cuerpo `{'error': 'error interno'}`. El mensaje de la excepcion **no** sale en la respuesta.\n"
+                    "- **200** si todo va bien: cuerpo `{'prediccion': valor}` con lo que devolvio el modelo.\n"
+                    "\n"
+                    "Salvo en el 503, `version` es `servicio['version']`.\n"
+                    "\n"
+                    "Ademas, en los tres casos que no son 503, anade al final de `servicio['log']` un diccionario con `'id'` y `'codigo'` mas, **segun el caso**: `'errores'` con la lista (422), `'detalle'` con `str(e)` (500), o `'entrada'` con la fila y `'prediccion'` con el valor (200). El 503 no se registra: el servicio no llego a atender."
+                ),
+                starter_code=(
+                    "def coaccionar(valor, tipo):\n"
+                    "    if tipo == 'numero':\n"
+                    "        if isinstance(valor, bool):\n"
+                    "            raise ValueError('booleano no es numero')\n"
+                    "        if isinstance(valor, (int, float)):\n"
+                    "            return float(valor)\n"
+                    "        if isinstance(valor, str):\n"
+                    "            return float(valor.strip())\n"
+                    "        raise ValueError('no es numero')\n"
+                    "    if tipo == 'texto':\n"
+                    "        if isinstance(valor, str):\n"
+                    "            return valor.strip()\n"
+                    "        raise ValueError('no es texto')\n"
+                    "    if tipo == 'booleano':\n"
+                    "        if isinstance(valor, bool):\n"
+                    "            return valor\n"
+                    "        if isinstance(valor, str) and valor.strip().lower() in ('true', 'false'):\n"
+                    "            return valor.strip().lower() == 'true'\n"
+                    "        raise ValueError('no es booleano')\n"
+                    "    raise ValueError('tipo desconocido')\n"
+                    "\n"
+                    "\n"
+                    "def validar(peticion, esquema):\n"
+                    "    datos, errores = {}, []\n"
+                    "    for nombre, regla in esquema.items():\n"
+                    "        if nombre not in peticion:\n"
+                    "            if 'por_defecto' in regla:\n"
+                    "                datos[nombre] = regla['por_defecto']\n"
+                    "            else:\n"
+                    "                errores.append(f'{nombre}: requerido')\n"
+                    "            continue\n"
+                    "        try:\n"
+                    "            valor = coaccionar(peticion[nombre], regla['tipo'])\n"
+                    "        except ValueError:\n"
+                    "            errores.append(f\"{nombre}: se esperaba {regla['tipo']}\")\n"
+                    "            continue\n"
+                    "        if 'min' in regla and valor < regla['min']:\n"
+                    "            errores.append(f\"{nombre}: minimo {regla['min']}\")\n"
+                    "        elif 'max' in regla and valor > regla['max']:\n"
+                    "            errores.append(f\"{nombre}: maximo {regla['max']}\")\n"
+                    "        elif 'opciones' in regla and valor not in regla['opciones']:\n"
+                    "            errores.append(f'{nombre}: valor no permitido')\n"
+                    "        else:\n"
+                    "            datos[nombre] = valor\n"
+                    "    for extra in sorted(set(peticion) - set(esquema)):\n"
+                    "        errores.append(f'{extra}: campo desconocido')\n"
+                    "    return datos, errores\n"
+                    "\n"
+                    "\n"
+                    "def vector(datos, orden, mapas):\n"
+                    "    fila = []\n"
+                    "    for nombre in orden:\n"
+                    "        if nombre not in datos:\n"
+                    "            raise ValueError(f'{nombre}: ausente')\n"
+                    "        valor = datos[nombre]\n"
+                    "        if nombre in mapas:\n"
+                    "            if valor not in mapas[nombre]:\n"
+                    "                raise ValueError(f'{nombre}: categoria desconocida')\n"
+                    "            fila.append(float(mapas[nombre][valor]))\n"
+                    "        else:\n"
+                    "            fila.append(float(valor))\n"
+                    "    return fila\n"
+                    "\n"
+                    "\n"
+                    "def preparar(peticion, esquema, orden, mapas):\n"
+                    "    datos, errores = validar(peticion, esquema)\n"
+                    "    if errores:\n"
+                    "        return None, errores\n"
+                    "    try:\n"
+                    "        return vector(datos, orden, mapas), []\n"
+                    "    except ValueError as e:\n"
+                    "        return None, [str(e)]\n"
+                    "\n"
+                    "\n"
+                    "def servir(peticion, servicio, peticion_id):\n"
+                    "    # TODO: 503 si no hay modelo cargado\n"
+                    "    # TODO: preparar -> 422 con los errores\n"
+                    "    # TODO: modelo_fn dentro de try/except -> 500 generico, detalle al log\n"
+                    "    # TODO: 200 con la prediccion, y la entrada al log\n"
+                    "    pass\n"
+                ),
+                hints=[
+                    "Escribe primero un ayudante dentro: def respuesta(codigo, cuerpo, version): return {'codigo': codigo, 'peticion_id': peticion_id, 'version': version, 'cuerpo': cuerpo}",
+                    "El 503 va antes que nada y es el unico que no toca el log ni usa servicio['version'].",
+                    "fila, errores = preparar(peticion, servicio['esquema'], servicio['orden'], servicio['mapas'])",
+                    "try: valor = servicio['modelo_fn'](fila) / except Exception as e: servicio['log'].append({'id': peticion_id, 'codigo': 500, 'detalle': str(e)}) y devuelve el 500 generico.",
+                ],
+                difficulty="hard",
+                points=25,
+                hidden_tests=[
+                    {
+                        "name": "peticion buena: 200 con prediccion y log",
+                        "code": (
+                            "esquema = {\n"
+                            "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},\n"
+                            "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},\n"
+                            "    'urgente': {'tipo': 'booleano', 'por_defecto': False},\n"
+                            "}\n"
+                            "servicio = {'esquema': esquema, 'orden': ['importe', 'pais', 'urgente'],\n"
+                            "            'mapas': {'pais': {'ES': 0, 'PT': 1, 'FR': 2}}, 'version': 3,\n"
+                            "            'log': [], 'modelo_fn': lambda f: round(sum(f) / 1000, 4)}\n"
+                            "r = servir({'importe': '120.5', 'pais': 'ES'}, servicio, 'p-1')\n"
+                            "assert r == {'codigo': 200, 'peticion_id': 'p-1', 'version': 3,\n"
+                            "             'cuerpo': {'prediccion': 0.1205}}, r\n"
+                            "assert servicio['log'] == [{'id': 'p-1', 'codigo': 200,\n"
+                            "                            'entrada': [120.5, 0.0, 0.0], 'prediccion': 0.1205}], servicio['log']\n"
+                        ),
+                    },
+                    {
+                        "name": "peticion invalida: 422 con los errores",
+                        "code": (
+                            "esquema = {\n"
+                            "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},\n"
+                            "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},\n"
+                            "    'urgente': {'tipo': 'booleano', 'por_defecto': False},\n"
+                            "}\n"
+                            "servicio = {'esquema': esquema, 'orden': ['importe', 'pais', 'urgente'],\n"
+                            "            'mapas': {'pais': {'ES': 0, 'PT': 1, 'FR': 2}}, 'version': 3,\n"
+                            "            'log': [], 'modelo_fn': lambda f: 1 / 0}\n"
+                            "r = servir({'pais': 'DE', 'zona': 1}, servicio, 'p-2')\n"
+                            "assert r['codigo'] == 422 and r['version'] == 3 and r['peticion_id'] == 'p-2', r\n"
+                            "assert r['cuerpo'] == {'errores': ['importe: requerido', 'pais: valor no permitido',\n"
+                            "                                   'zona: campo desconocido']}, r['cuerpo']\n"
+                            "assert servicio['log'] == [{'id': 'p-2', 'codigo': 422,\n"
+                            "                            'errores': r['cuerpo']['errores']}], servicio['log']\n"
+                        ),
+                    },
+                    {
+                        "name": "el modelo revienta: 500 sin filtrar el detalle",
+                        "code": (
+                            "esquema = {\n"
+                            "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},\n"
+                            "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},\n"
+                            "    'urgente': {'tipo': 'booleano', 'por_defecto': False},\n"
+                            "}\n"
+                            "def rompe(fila):\n"
+                            "    raise RuntimeError('ruta /srv/modelos/v3.pkl corrupta')\n"
+                            "servicio = {'esquema': esquema, 'orden': ['importe', 'pais', 'urgente'],\n"
+                            "            'mapas': {'pais': {'ES': 0}}, 'version': 3, 'log': [], 'modelo_fn': rompe}\n"
+                            "r = servir({'importe': 10, 'pais': 'ES'}, servicio, 'p-3')\n"
+                            "assert r == {'codigo': 500, 'peticion_id': 'p-3', 'version': 3,\n"
+                            "             'cuerpo': {'error': 'error interno'}}, r\n"
+                            "assert 'v3.pkl' not in str(r), 'el detalle no puede salir en la respuesta'\n"
+                            "assert servicio['log'] == [{'id': 'p-3', 'codigo': 500,\n"
+                            "                            'detalle': 'ruta /srv/modelos/v3.pkl corrupta'}], servicio['log']\n"
+                        ),
+                    },
+                    {
+                        "name": "sin modelo cargado: 503 y sin log",
+                        "code": (
+                            "esquema = {\n"
+                            "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},\n"
+                            "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},\n"
+                            "    'urgente': {'tipo': 'booleano', 'por_defecto': False},\n"
+                            "}\n"
+                            "servicio = {'esquema': esquema, 'orden': ['importe'], 'mapas': {}, 'version': 3,\n"
+                            "            'log': [], 'modelo_fn': None}\n"
+                            "r = servir({'importe': 10, 'pais': 'ES'}, servicio, 'p-4')\n"
+                            "assert r == {'codigo': 503, 'peticion_id': 'p-4', 'version': None,\n"
+                            "             'cuerpo': {'error': 'modelo no cargado'}}, r\n"
+                            "assert servicio['log'] == [], 'el 503 no se registra'\n"
+                        ),
+                    },
+                    {
+                        "name": "varias peticiones seguidas se acumulan en el log",
+                        "code": (
+                            "esquema = {\n"
+                            "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},\n"
+                            "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},\n"
+                            "    'urgente': {'tipo': 'booleano', 'por_defecto': False},\n"
+                            "}\n"
+                            "servicio = {'esquema': esquema, 'orden': ['importe', 'pais', 'urgente'],\n"
+                            "            'mapas': {'pais': {'ES': 0, 'PT': 1, 'FR': 2}}, 'version': 7,\n"
+                            "            'log': [], 'modelo_fn': lambda f: f[0]}\n"
+                            "a = servir({'importe': 1, 'pais': 'ES'}, servicio, 'p-1')\n"
+                            "b = servir({'importe': 'x', 'pais': 'ES'}, servicio, 'p-2')\n"
+                            "c = servir({'importe': 2, 'pais': 'PT', 'urgente': True}, servicio, 'p-3')\n"
+                            "assert [x['codigo'] for x in (a, b, c)] == [200, 422, 200], (a, b, c)\n"
+                            "assert [x['id'] for x in servicio['log']] == ['p-1', 'p-2', 'p-3'], servicio['log']\n"
+                            "assert servicio['log'][2]['entrada'] == [2.0, 1.0, 1.0], servicio['log'][2]\n"
+                            "assert all(x['version'] == 7 for x in (a, b, c))\n"
+                        ),
+                    },
+                ],
+            ),
+        ],
+    ),
 ]
 
 
