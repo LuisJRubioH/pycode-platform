@@ -1,4 +1,5 @@
 import React from 'react'
+import Flowchart from './Flowchart'
 import type { PropsTipo, SpecTraceTable } from './tipos'
 
 /**
@@ -42,6 +43,10 @@ const TraceTable: React.FC<PropsTipo<SpecTraceTable>> = ({
         <pre className="text-xs bg-slate-900 text-slate-100 rounded-lg p-3 overflow-x-auto">
           <code>{spec.pseudocodigo}</code>
         </pre>
+      )}
+      {spec.nodos && (
+        /* Traza de un diagrama (leccion 6): se dibuja encima de la tabla. */
+        <Flowchart nodos={spec.nodos} descripcion="Diagrama que hay que trazar" />
       )}
       {spec.ayuda && <p className="text-xs text-slate-500 mt-2">{spec.ayuda}</p>}
 

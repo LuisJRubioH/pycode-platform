@@ -144,10 +144,55 @@ def _validar_mcq(clave: dict, respuesta: dict) -> Veredicto:
     return Veredicto(True, clave.get("motivo") or "Correcto.")
 
 
+def _validar_por_posiciones(clave, respuesta, campo, etiquetas, singular):
+    """Comun a los dos tipos de diagrama: una eleccion por hueco o fragmento.
+
+    La respuesta es una lista de indices (que opcion se eligio para cada
+    posicion), asi que corregir es compararla posicion a posicion. El feedback
+    nombra el primero que falla usando su etiqueta, sin decir cual era.
+    """
+    esperadas = clave.get(campo)
+    if not esperadas:
+        raise EjercicioInvalido(f"la answer_key no trae {campo}")
+    dadas = respuesta.get(campo)
+    if not isinstance(dadas, list) or len(dadas) != len(esperadas):
+        return Veredicto(False, f"Contesta {singular} antes de comprobar.")
+    nombres = clave.get(etiquetas) or []
+    for i, (ok, dada) in enumerate(zip(esperadas, dadas)):
+        if dada is None:
+            nombre = nombres[i] if i < len(nombres) else f"el numero {i + 1}"
+            return Veredicto(False, f"Te falta «{nombre}».", {"posicion": i})
+        if not isinstance(dada, int) or isinstance(dada, bool) or dada != ok:
+            nombre = nombres[i] if i < len(nombres) else f"el numero {i + 1}"
+            return Veredicto(
+                False,
+                f"Repasa «{nombre}»: compara el diagrama con el pseudocodigo "
+                "linea a linea.",
+                {"posicion": i},
+            )
+    return Veredicto(True, "Correcto: el diagrama y el pseudocodigo dicen lo mismo.")
+
+
+def _validar_flowchart_match(clave: dict, respuesta: dict) -> Veredicto:
+    """Emparejar cada fragmento de pseudocodigo con su diagrama."""
+    return _validar_por_posiciones(
+        clave, respuesta, "asignaciones", "etiquetas_fragmentos", "todos los fragmentos"
+    )
+
+
+def _validar_flowchart_fill(clave: dict, respuesta: dict) -> Veredicto:
+    """Rellenar los nodos vacios de un diagrama desde un banco de opciones."""
+    return _validar_por_posiciones(
+        clave, respuesta, "huecos", "etiquetas_huecos", "todos los huecos"
+    )
+
+
 VALIDADORES: dict[str, Callable[[dict, dict], Veredicto]] = {
     "trace_table": _validar_trace_table,
     "predict_output": _validar_predict_output,
     "mcq": _validar_mcq,
+    "flowchart_match": _validar_flowchart_match,
+    "flowchart_fill": _validar_flowchart_fill,
 }
 
 # Tipos que corrige el backend. "code" no está: ese sigue yendo por Pyodide y

@@ -1531,6 +1531,471 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
         ],
     ),
     LessonTemplate(
+        title="Fundamentos 6 · Diagramas de flujo",
+        description=(
+            "El mismo algoritmo, dibujado: los cuatro simbolos, el camino que se parte en un condicional y la flecha que vuelve en un bucle."
+        ),
+        content=(
+            "# Diagramas de flujo\n"
+            "\n"
+            "Un diagrama de flujo es el mismo algoritmo que ya sabes escribir, dibujado. No aporta ninguna idea nueva: aporta **verlo**. Y hay dos cosas que se ven mucho mejor en un dibujo que en una lista de lineas: por donde se bifurca el camino y por donde vuelve un bucle.\n"
+            "\n"
+            "## Por que dibujarlo\n"
+            "\n"
+            "En pseudocodigo, un `Mientras` es una palabra y su `FinMientras` esta doce lineas mas abajo. Que el flujo **vuelve atras** hay que imaginarlo. En un diagrama esa vuelta es una flecha que sube: se ve, y ya no se olvida.\n"
+            "\n"
+            "Por eso esta leccion no enseña a programar nada nuevo. Enseña a **traducir en los dos sentidos**, y esa equivalencia es todo el contenido: el mismo algoritmo, dos notaciones.\n"
+            "\n"
+            "## Los simbolos\n"
+            "\n"
+            "Cuatro formas y una flecha. No hay mas.\n"
+            "\n"
+            "```\n"
+            "   ╭───────────╮      ovalo: Inicio y Fin. Uno de cada, y solo uno\n"
+            "   │  Inicio   │\n"
+            "   ╰───────────╯\n"
+            "\n"
+            "   ┌───────────┐      paralelogramo (aqui, rectangulo azul):\n"
+            "   │ Leer base │      entrada y salida de datos (Leer / Escribir)\n"
+            "   └───────────┘\n"
+            "\n"
+            "   ┌───────────┐      rectangulo: un proceso, un calculo\n"
+            "   │ a <- b*h  │      (una asignacion)\n"
+            "   └───────────┘\n"
+            "\n"
+            "       ◇           rombo: una decision. Es el UNICO simbolo\n"
+            "   ◇ a > 10 ◇      del que salen DOS flechas: si y no\n"
+            "       ◇\n"
+            "\n"
+            "       │           flecha: por donde sigue el flujo\n"
+            "       ↓\n"
+            "```\n"
+            "\n"
+            "La regla que mas se incumple: **de un rombo salen exactamente dos flechas y de todo lo demas sale una**. Si de un rectangulo te salen dos, lo que tienes ahi es una decision mal dibujada.\n"
+            "\n"
+            "## Un algoritmo lineal\n"
+            "\n"
+            "Sin decisiones ni bucles, el diagrama es una columna:\n"
+            "\n"
+            "```\n"
+            "Algoritmo Area               ╭──────────────╮\n"
+            "    Leer base                │    Inicio    │\n"
+            "    Leer altura              ╰───────┬──────╯\n"
+            "    area <- base * altura            ↓\n"
+            "    Escribir area            ┌──────────────┐\n"
+            "FinAlgoritmo                 │  Leer base   │\n"
+            "                             └───────┬──────┘\n"
+            "                                     ↓\n"
+            "                             ┌──────────────┐\n"
+            "                             │ Leer altura  │\n"
+            "                             └───────┬──────┘\n"
+            "                                     ↓\n"
+            "                             ┌──────────────────┐\n"
+            "                             │ area <- base*alt │\n"
+            "                             └───────┬──────────┘\n"
+            "                                     ↓\n"
+            "                             ┌──────────────┐\n"
+            "                             │Escribir area │\n"
+            "                             └───────┬──────╯\n"
+            "                                     ↓\n"
+            "                             ╭──────────────╮\n"
+            "                             │     Fin      │\n"
+            "                             ╰──────────────╯\n"
+            "```\n"
+            "\n"
+            "Una linea de pseudocodigo, una caja. En el mismo orden. Aqui el dibujo no aporta gran cosa, y por eso casi nadie dibuja algoritmos lineales.\n"
+            "\n"
+            "## Un condicional: donde el camino se parte\n"
+            "\n"
+            "```\n"
+            "Algoritmo Acceso                      ╭────────────╮\n"
+            "    Leer edad                         │   Inicio   │\n"
+            "    Si edad >= 18 Entonces            ╰──────┬─────╯\n"
+            '        Escribir "Pasa"                      ↓\n'
+            "    SiNo                              ┌────────────┐\n"
+            '        Escribir "No pasa"            │ Leer edad  │\n'
+            "    FinSi                             └──────┬─────┘\n"
+            "FinAlgoritmo                                 ↓\n"
+            "                                        ◇─────────◇\n"
+            "                                   si ◇ edad >= 18 ◇ no\n"
+            "                                  ┌────◇─────────◇────┐\n"
+            "                                  ↓                   ↓\n"
+            "                          ┌──────────────┐   ┌────────────────┐\n"
+            '                          │Escribir "Pasa"│   │Escribir "No pasa"│\n'
+            "                          └───────┬───────┘   └────────┬────────┘\n"
+            "                                  └─────────┬──────────┘\n"
+            "                                            ↓\n"
+            "                                     ╭────────────╮\n"
+            "                                     │    Fin     │\n"
+            "                                     ╰────────────╯\n"
+            "```\n"
+            "\n"
+            "Dos cosas que enseña el dibujo y el pseudocodigo esconde:\n"
+            "\n"
+            "- **Las dos flechas se vuelven a juntar.** Pase lo que pase se sigue por el mismo sitio. Eso es lo que significaba el `FinSi`.\n"
+            "- **Solo se recorre uno de los dos caminos.** No hay forma de dibujar que se pasa por los dos.\n"
+            "\n"
+            'Un `Si` sin `SiNo` es lo mismo con la rama del "no" vacia: baja directa hasta donde se juntan.\n'
+            "\n"
+            "## Un bucle: la flecha que sube\n"
+            "\n"
+            "Aqui es donde el diagrama se gana el sueldo.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Sumar                       ╭────────────╮\n"
+            "    suma <- 0                         │   Inicio   │\n"
+            "    i <- 1                            ╰──────┬─────╯\n"
+            "    Mientras i <= 3 Hacer                    ↓\n"
+            "        suma <- suma + i              ┌────────────┐\n"
+            "        i <- i + 1                    │  suma <- 0 │\n"
+            "    FinMientras                       └──────┬─────┘\n"
+            "    Escribir suma                            ↓\n"
+            "FinAlgoritmo                          ┌────────────┐\n"
+            "                                      │   i <- 1   │\n"
+            "                                      └──────┬─────┘\n"
+            "                                             ↓\n"
+            "                                 ┌──→   ◇─────────◇\n"
+            "                                 │    ◇  i <= 3   ◇ ── no ──→ Escribir suma\n"
+            "                                 │      ◇─────────◇\n"
+            "                                 │           │ si\n"
+            "                                 │           ↓\n"
+            "                                 │   ┌────────────────┐\n"
+            "                                 │   │suma <- suma + i│\n"
+            "                                 │   └───────┬────────┘\n"
+            "                                 │           ↓\n"
+            "                                 │   ┌────────────────┐\n"
+            "                                 └───│  i <- i + 1    │\n"
+            "                                     └────────────────┘\n"
+            "```\n"
+            "\n"
+            "La flecha que sube desde `i <- i + 1` hasta el rombo **es** el bucle. Y el dibujo deja ver de un vistazo las dos cosas que mas cuesta ver en el codigo:\n"
+            "\n"
+            "1. La condicion se comprueba **antes** de cada vuelta, incluida la primera: por eso el rombo esta arriba.\n"
+            '2. Solo se sale por la flecha del "no". Si nada de lo que hay dentro del bucle acerca la condicion a ser falsa, esa flecha no se toma nunca y el diagrama da vueltas para siempre. **Un bucle infinito se ve dibujado.**\n'
+            "\n"
+            "## Cuando ayuda y cuando estorba\n"
+            "\n"
+            "El diagrama es una herramienta para **pensar y explicar**, no para escribir programas. Con veinte cajas deja de caber en la pantalla y se vuelve peor que el codigo.\n"
+            "\n"
+            "- **Ayuda** con una decision enredada, con un bucle que no entiendes por que no termina, y para explicarle a alguien como funciona algo sin que sepa leer codigo.\n"
+            "- **Estorba** con un algoritmo largo, con muchas funciones, o cuando ya tienes el codigo escrito y funcionando.\n"
+            "\n"
+            "Un buen uso es dibujar **solo el trozo dificil**: el bucle raro, la cadena de condiciones. No hace falta dibujar el programa entero.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            "- **Sacar dos flechas de un rectangulo.** Solo el rombo se bifurca. Si un proceso lleva a dos sitios, ahi faltaba una decision.\n"
+            "- **Dejar un camino sin salida.** Todas las ramas acaban juntandose o llegando al Fin. Una flecha que muere a medias es un algoritmo que no termina.\n"
+            "- **Olvidar la flecha que vuelve.** Sin ella no hay bucle: es un algoritmo lineal que se ejecuta una vez.\n"
+            "- **Poner la condicion del bucle abajo.** En un `Mientras` se comprueba **antes** de entrar, asi que el rombo va arriba. Abajo significa otra cosa: que el cuerpo se ejecuta al menos una vez.\n"
+            '- **Escribir frases en las cajas.** En la caja va lo mismo que iria en el pseudocodigo (`suma <- suma + i`), no "sumar el numero a la suma".\n'
+            "- **Dibujarlo todo.** Un diagrama de treinta cajas no lo lee nadie. Dibuja el trozo que cuesta.\n"
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **Cuatro simbolos**: ovalo (Inicio/Fin), entrada/salida (Leer/Escribir), rectangulo (proceso) y rombo (decision).\n"
+            "- **Del rombo salen dos flechas**, si y no; de todo lo demas, una.\n"
+            "- **Lineal**: una linea de pseudocodigo, una caja, en el mismo orden.\n"
+            "- **Condicional**: dos caminos que **se vuelven a juntar**, y solo se recorre uno.\n"
+            "- **Bucle**: el rombo arriba (se comprueba antes de cada vuelta) y una **flecha que sube**; sin ella no hay bucle.\n"
+            "- Sirve para pensar y explicar el trozo dificil, no para escribir el programa entero.\n"
+        ),
+        difficulty="beginner",
+        category="algoritmos",
+        order=-5,
+        track="track-0",
+        estimated_duration=35,
+        prerequisites_titles=[
+            "Fundamentos 5 · Bucles",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="El simbolo de la decision",
+                description="Cual de las cuatro formas se bifurca.",
+                instructions=(
+                    "De todos los simbolos de un diagrama de flujo, solo uno tiene **dos** flechas de salida. ¿Cual es?"
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="mcq",
+                spec={
+                    "pregunta": "¿Que simbolo representa una decision?",
+                    "opciones": ["El rectangulo", "El rombo", "El ovalo", "La flecha"],
+                },
+                answer_key={
+                    "correcta": 1,
+                    "motivo": "Correcto: el rombo es el unico del que salen dos caminos, si y no.",
+                    "pista": "¿Cual de las formas necesita dos salidas para tener sentido?",
+                },
+            ),
+            ExerciseTemplate(
+                title="Completar un diagrama lineal",
+                description="Poner el calculo y la salida en su caja.",
+                instructions=(
+                    "Este diagrama calcula el area de un rectangulo. Faltan dos cajas: elige del banco la que va en cada una.\n"
+                    "\n"
+                    "Recuerda que en las cajas va lo mismo que iria en el pseudocodigo."
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="flowchart_fill",
+                spec={
+                    "pseudocodigo": "Algoritmo Area\n    Leer base\n    Leer altura\n    ...\n    ...\nFinAlgoritmo",
+                    "nodos": [
+                        {"forma": "inicio", "texto": "Inicio"},
+                        {"forma": "entrada", "texto": "Leer base"},
+                        {"forma": "entrada", "texto": "Leer altura"},
+                        {"forma": "proceso", "texto": None},
+                        {"forma": "salida", "texto": None},
+                        {"forma": "fin", "texto": "Fin"},
+                    ],
+                    "huecos": [{"etiqueta": "el calculo"}, {"etiqueta": "la salida"}],
+                    "banco": [
+                        "area <- base * altura",
+                        "Escribir area",
+                        "base <- area * altura",
+                        "Leer area",
+                    ],
+                    "ayuda": "El diagrama se redibuja con lo que elijas.",
+                },
+                answer_key={
+                    "huecos": [0, 1],
+                    "etiquetas_huecos": ["el calculo", "la salida"],
+                },
+            ),
+            ExerciseTemplate(
+                title="Cada trozo con su diagrama",
+                description="Emparejar pseudocodigo y dibujo.",
+                instructions=(
+                    "Tienes tres diagramas y tres trozos de pseudocodigo. Empareja cada trozo con el diagrama que dice lo mismo.\n"
+                    "\n"
+                    "Fijate en lo que solo se ve en el dibujo: si hay un rombo, y si hay una flecha que vuelve hacia arriba."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="flowchart_match",
+                spec={
+                    "fragmentos": [
+                        {
+                            "etiqueta": "El trozo 1",
+                            "codigo": "Leer n\ndoble <- n * 2\nEscribir doble",
+                        },
+                        {
+                            "etiqueta": "El trozo 2",
+                            "codigo": "Leer n\nMientras n > 0 Hacer\n    n <- n - 1\nFinMientras",
+                        },
+                        {
+                            "etiqueta": "El trozo 3",
+                            "codigo": 'Leer n\nSi n > 0 Entonces\n    Escribir "positivo"\nFinSi',
+                        },
+                    ],
+                    "diagramas": [
+                        {
+                            "descripcion": "Un rombo con una rama y sin vuelta atras",
+                            "nodos": [
+                                {"forma": "inicio", "texto": "Inicio"},
+                                {"forma": "entrada", "texto": "Leer n"},
+                                {
+                                    "forma": "decision",
+                                    "texto": "n > 0",
+                                    "etiqueta": "no",
+                                    "etiquetaRama": "si",
+                                    "rama": "Escribir positivo",
+                                },
+                                {"forma": "fin", "texto": "Fin"},
+                            ],
+                        },
+                        {
+                            "descripcion": "Tres cajas seguidas, sin rombos",
+                            "nodos": [
+                                {"forma": "inicio", "texto": "Inicio"},
+                                {"forma": "entrada", "texto": "Leer n"},
+                                {"forma": "proceso", "texto": "doble <- n * 2"},
+                                {"forma": "salida", "texto": "Escribir doble"},
+                                {"forma": "fin", "texto": "Fin"},
+                            ],
+                        },
+                        {
+                            "descripcion": "Un rombo con una flecha que vuelve hacia arriba",
+                            "nodos": [
+                                {"forma": "inicio", "texto": "Inicio"},
+                                {"forma": "entrada", "texto": "Leer n"},
+                                {
+                                    "forma": "decision",
+                                    "texto": "n > 0",
+                                    "etiqueta": "si",
+                                    "etiquetaRama": "no",
+                                    "rama": "Fin",
+                                    "id": "rombo",
+                                },
+                                {
+                                    "forma": "proceso",
+                                    "texto": "n <- n - 1",
+                                    "volver": "rombo",
+                                },
+                            ],
+                        },
+                    ],
+                    "ayuda": "Los tres empiezan igual: lo que los distingue esta en el medio.",
+                },
+                answer_key={
+                    "asignaciones": [1, 2, 0],
+                    "etiquetas_fragmentos": ["El trozo 1", "El trozo 2", "El trozo 3"],
+                },
+            ),
+            ExerciseTemplate(
+                title="Un Si sin SiNo",
+                description="Completar el rombo y su rama.",
+                instructions=(
+                    "Este diagrama escribe un aviso solo cuando el saldo es negativo, y en los dos casos acaba en el Fin.\n"
+                    "\n"
+                    "Elige la condicion del rombo y lo que va en la rama del «si»."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="flowchart_fill",
+                spec={
+                    "pseudocodigo": "Algoritmo Aviso\n    Leer saldo\n    Si ... Entonces\n        ...\n    FinSi\nFinAlgoritmo",
+                    "nodos": [
+                        {"forma": "inicio", "texto": "Inicio"},
+                        {"forma": "entrada", "texto": "Leer saldo"},
+                        {
+                            "forma": "decision",
+                            "texto": None,
+                            "etiqueta": "si",
+                            "etiquetaRama": "no",
+                            "rama": "(al Fin)",
+                        },
+                        {"forma": "salida", "texto": None},
+                        {"forma": "fin", "texto": "Fin"},
+                    ],
+                    "huecos": [
+                        {"etiqueta": "la condicion (rombo)"},
+                        {"etiqueta": "lo que se escribe"},
+                    ],
+                    "banco": [
+                        "saldo < 0",
+                        'Escribir "en numeros rojos"',
+                        "saldo <- 0",
+                        "Leer saldo",
+                    ],
+                    "ayuda": "La rama del «no» esta vacia: se va directa al Fin por la derecha.",
+                },
+                answer_key={
+                    "huecos": [0, 1],
+                    "etiquetas_huecos": ["la condicion (rombo)", "lo que se escribe"],
+                },
+            ),
+            ExerciseTemplate(
+                title="La condicion del bucle",
+                description="Que va en el rombo y que hace que el bucle termine.",
+                instructions=(
+                    "Este diagrama suma 1 + 2 + 3. Faltan dos cajas: la **condicion** del rombo y la linea que hace avanzar el bucle.\n"
+                    "\n"
+                    "Si eliges mal la de abajo, la flecha que vuelve dara vueltas para siempre: comprueba que lo que pones acerca la condicion a ser falsa."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=20,
+                exercise_type="flowchart_fill",
+                spec={
+                    "pseudocodigo": "Algoritmo Sumar\n    suma <- 0\n    i <- 1\n    Mientras ... Hacer\n        suma <- suma + i\n        ...\n    FinMientras\n    Escribir suma\nFinAlgoritmo",
+                    "nodos": [
+                        {"forma": "inicio", "texto": "Inicio"},
+                        {"forma": "proceso", "texto": "suma <- 0"},
+                        {"forma": "proceso", "texto": "i <- 1", "id": "cabeza"},
+                        {
+                            "forma": "decision",
+                            "texto": None,
+                            "etiqueta": "si",
+                            "etiquetaRama": "no",
+                            "rama": "Escribir suma",
+                            "id": "rombo",
+                        },
+                        {"forma": "proceso", "texto": "suma <- suma + i"},
+                        {"forma": "proceso", "texto": None, "volver": "rombo"},
+                    ],
+                    "huecos": [
+                        {"etiqueta": "la condicion (rombo)"},
+                        {"etiqueta": "lo que avanza el bucle"},
+                    ],
+                    "banco": [
+                        "i <= 3",
+                        "i <- i + 1",
+                        "i > 3",
+                        "suma <- suma + i",
+                        "i <- 1",
+                    ],
+                    "ayuda": "La flecha discontinua es la que vuelve al rombo.",
+                },
+                answer_key={
+                    "huecos": [0, 1],
+                    "etiquetas_huecos": [
+                        "la condicion (rombo)",
+                        "lo que avanza el bucle",
+                    ],
+                },
+            ),
+            ExerciseTemplate(
+                title="Trazar un diagrama",
+                description="Del dibujo a la tabla, sin pasar por el pseudocodigo.",
+                instructions=(
+                    "Traza el diagrama directamente: completa el estado **al terminar** cada vuelta del bucle.\n"
+                    "\n"
+                    "La ultima columna es si la condicion del rombo sigue siendo cierta con esos valores. Escribe `Verdadero` o `Falso`."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=25,
+                exercise_type="trace_table",
+                spec={
+                    "nodos": [
+                        {"forma": "inicio", "texto": "Inicio"},
+                        {"forma": "proceso", "texto": "total <- 0"},
+                        {"forma": "proceso", "texto": "n <- 1"},
+                        {
+                            "forma": "decision",
+                            "texto": "n <= 4",
+                            "etiqueta": "si",
+                            "etiquetaRama": "no",
+                            "rama": "Escribir total",
+                            "id": "rombo",
+                        },
+                        {"forma": "proceso", "texto": "total <- total + n"},
+                        {"forma": "proceso", "texto": "n <- n + 2", "volver": "rombo"},
+                    ],
+                    "columnas": ["n", "total", "n <= 4"],
+                    "filas": [
+                        {
+                            "etiqueta": "Antes del bucle",
+                            "fijas": ["1", "0", "Verdadero"],
+                        },
+                        {"etiqueta": "Fin de la vuelta 1"},
+                        {"etiqueta": "Fin de la vuelta 2"},
+                    ],
+                    "ayuda": "Ojo: n avanza de dos en dos, no de uno en uno.",
+                },
+                answer_key={
+                    "columnas": ["n", "total", "n <= 4"],
+                    "etiquetas_filas": [
+                        "Antes del bucle",
+                        "Fin de la vuelta 1",
+                        "Fin de la vuelta 2",
+                    ],
+                    "celdas": [
+                        ["1", "0", "Verdadero"],
+                        ["3", "1", "Verdadero"],
+                        ["5", "4", "Falso"],
+                    ],
+                },
+            ),
+        ],
+    ),
+    LessonTemplate(
         title="Fundamentos 7 · Descomposicion",
         description=(
             "Partir un algoritmo en funciones con nombre: parametros por posicion, Retornar, y por que lo de dentro no existe fuera."

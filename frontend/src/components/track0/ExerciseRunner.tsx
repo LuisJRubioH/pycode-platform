@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import { CheckCircle2, XCircle } from 'lucide-react'
 import { api } from '../../services/api'
+import FlowchartFill from './FlowchartFill'
+import FlowchartMatch from './FlowchartMatch'
 import Mcq from './Mcq'
 import PredictOutput from './PredictOutput'
 import TraceTable from './TraceTable'
@@ -23,6 +25,8 @@ const TIPOS: Record<string, React.FC<PropsTipo<any>>> = {
   trace_table: TraceTable,
   predict_output: PredictOutput,
   mcq: Mcq,
+  flowchart_match: FlowchartMatch,
+  flowchart_fill: FlowchartFill,
 }
 
 interface Props {

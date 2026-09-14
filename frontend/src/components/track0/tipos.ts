@@ -16,6 +16,8 @@ export interface Detalle {
   fila?: number
   columna?: number
   linea?: number
+  /** Hueco o fragmento que falla, en los tipos de diagrama. */
+  posicion?: number
 }
 
 export interface PropsTipo<Spec = Record<string, unknown>> {
@@ -30,6 +32,8 @@ export interface PropsTipo<Spec = Record<string, unknown>> {
 
 export interface SpecTraceTable {
   pseudocodigo?: string
+  /** Diagrama que se traza, cuando el ejercicio viene de la leccion 6. */
+  nodos?: import('./Flowchart').NodoDiagrama[]
   columnas: string[]
   filas: { etiqueta: string; fijas?: (string | null)[] }[]
   ayuda?: string

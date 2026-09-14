@@ -4,9 +4,8 @@ Tramo de entrada de PyCode, previo a Track 1 (Python). El alumno aprende a **raz
 algoritmos antes de escribir código**: pseudocódigo, trazas de ejecución, estructuras de
 datos elementales y diagramas de flujo.
 
-> Estado: **piloto en marcha** (2026-09-14). Infraestructura hecha, las 10 lecciones de
-> algoritmos construidas menos la 6 (que necesita Mermaid), y el **capstone cerrado**: Track 0
-> ya se puede recorrer de principio a fin y emite certificado. Este documento sigue siendo la
+> Estado: **CERRADO** (2026-09-14). Las 10 lecciones, sus 60 ejercicios y el capstone están
+> construidos y verificados. Track 0 se recorre de principio a fin y emite certificado. Este documento sigue siendo la
 > fuente de verdad del track; el README enlaza aquí.
 
 ## Por qué existe
@@ -61,22 +60,34 @@ Reglas que gobiernan la solución:
 
 `trace_table` es el tipo central del track. Si solo se implementa uno, es ese.
 
-**Hechos (2026-09-14)**: `trace_table`, `predict_output` y `mcq`, con los que se han escrito
-las nueve lecciones construidas. `trace_table` ha resultado ser mucho más elástico de lo que
+**Hechos (2026-09-14)**: los cinco que usa el track — `trace_table`, `predict_output`, `mcq`,
+`flowchart_match` y `flowchart_fill`. `trace_table` ha resultado ser mucho más elástico de lo que
 parecía: además de trazas de variables sirve para el estado de un arreglo tras cada pasada de
-un ordenamiento y para tablas de «para cada n, cuántas operaciones». Los cuatro tipos que
-faltan (`order_steps`, `find_bug`, `flowchart_match`, `flowchart_fill`) solo hacen falta para
-la lección 6. Cada uno es un componente en `frontend/src/components/track0/` y un
+un ordenamiento y para tablas de «para cada n, cuántas operaciones». `order_steps` y `find_bug` siguen sin escribirse: no han hecho falta, y no se
+añaden hasta que una lección los pida. Cada uno es un componente en `frontend/src/components/track0/` y un
 `_validar_<tipo>` en `backend/app/services/track0_service.py`; añadir uno nuevo es
 escribir ese par y registrarlo en `TIPOS` y en `VALIDADORES`, sin tocar el endpoint ni
 la página de lección (regla 5, ya verificada).
 
 ## Diagramas de flujo
 
-Se renderizan con **Mermaid** (`flowchart`), no como imágenes: texto versionable, editable,
-accesible y con tema claro/oscuro. En toda lección con condicionales o bucles se muestra el
-diagrama junto al pseudocódigo equivalente — la equivalencia entre ambos *es* el concepto que
-se enseña.
+Se renderizan como **SVG dibujado a partir de datos** (`frontend/src/components/track0/Flowchart.tsx`),
+no como imágenes ni con Mermaid. El diagrama es una lista de nodos dentro del `spec` del
+ejercicio: `{forma, texto, etiqueta, rama, volver}`.
+
+**Por qué no Mermaid**, que es lo que pedía la primera versión de este documento: sus cuatro
+razones —texto versionable, editable, accesible y con tema— las cumple igual un render propio,
+y a cambio Mermaid traía tres problemas concretos. Uno, un aviso **de severidad alta** en
+`lodash-es` **sin versión corregida disponible** (el rango afectado es `<=4.17.23`, o sea
+todas), que entraría en el árbol de producción. Dos, 122 MB instalados y un bundle mucho mayor,
+en un proyecto que acababa de hacer una pasada de tamaño. Y tres, la razón de diseño: en
+`flowchart_fill` hay que **sustituir el texto de un nodo por lo que el alumno elige y volver a
+dibujar**, que con datos es inmediato y con una cadena de Mermaid es dar rodeos.
+
+En toda lección con condicionales o bucles se muestra el diagrama junto al pseudocódigo
+equivalente — la equivalencia entre ambos *es* el concepto que se enseña. En el cuerpo de la
+lección los diagramas van en ASCII dentro de bloques de código (el contenido es Markdown); los
+SVG son para los ejercicios, que es donde el alumno interactúa.
 
 Fuera de alcance: editor gráfico de diagramas.
 
@@ -89,7 +100,7 @@ Fuera de alcance: editor gráfico de diagramas.
 | 3 | Traza de ejecución | Seguir un algoritmo a mano — **habilidad central del track** | ✅ |
 | 4 | Condicionales | Decisiones simples, anidadas, condiciones compuestas | ✅ |
 | 5 | Bucles | Mientras / Para, contadores, acumuladores, condición de parada | ✅ |
-| 6 | Diagramas de flujo | Símbolos y equivalencia con el pseudocódigo | |
+| 6 | Diagramas de flujo | Símbolos y equivalencia con el pseudocódigo | ✅ |
 | 7 | Descomposición | Subprogramas, parámetros, valor de retorno | ✅ |
 | 8 | Arreglos y recorridos | Indexación, recorrido completo, búsqueda lineal | ✅ |
 | 9 | Algoritmos clásicos | Máximo, conteo, intercambio, ordenamiento por selección y burbuja | ✅ |

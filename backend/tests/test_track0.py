@@ -298,6 +298,10 @@ def test_todo_ejercicio_de_track0_es_corregible():
         elif ex.exercise_type == "predict_output":
             respuesta = {"salida": ex.answer_key["salida"]}
             vacia = {"salida": ""}
+        elif ex.exercise_type in ("flowchart_fill", "flowchart_match"):
+            campo = "huecos" if ex.exercise_type == "flowchart_fill" else "asignaciones"
+            respuesta = {campo: list(ex.answer_key[campo])}
+            vacia = {campo: [None] * len(ex.answer_key[campo])}
         else:
             respuesta = {"opcion": ex.answer_key["correcta"]}
             vacia = {}
