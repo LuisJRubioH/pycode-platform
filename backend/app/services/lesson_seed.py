@@ -1531,6 +1531,646 @@ LESSON_TEMPLATES: list[LessonTemplate] = [
         ],
     ),
     LessonTemplate(
+        title="Fundamentos 7 · Descomposicion",
+        description=(
+            "Partir un algoritmo en funciones con nombre: parametros por posicion, Retornar, y por que lo de dentro no existe fuera."
+        ),
+        content=(
+            "# Descomposicion: partir un algoritmo en piezas\n"
+            "\n"
+            "Un algoritmo de cuarenta lineas seguidas no se entiende, no se prueba y no se arregla. Descomponer es partirlo en **piezas con nombre** que hacen una cosa cada una. En pseudocodigo esas piezas son funciones; en Track 1 seran exactamente lo mismo, escrito en Python.\n"
+            "\n"
+            "## Por que partir\n"
+            "\n"
+            "Mira este trozo y responde rapido que hace:\n"
+            "\n"
+            "```\n"
+            "Algoritmo Factura\n"
+            "    total <- 0\n"
+            "    total <- total + precio * unidades\n"
+            "    Si total > 100 Entonces\n"
+            "        total <- total - total * 0.1\n"
+            "    FinSi\n"
+            "    total <- total * 1.21\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Hay tres ideas mezcladas —el subtotal, el descuento y el impuesto— y ninguna tiene nombre. Con nombres, el algoritmo principal se lee de un vistazo y cada idea se puede probar por separado:\n"
+            "\n"
+            "```\n"
+            "total <- subtotal(precio, unidades)\n"
+            "total <- con_descuento(total)\n"
+            "total <- con_impuesto(total)\n"
+            "```\n"
+            "\n"
+            "Ese es el trabajo de esta leccion: **poner nombres a las partes**.\n"
+            "\n"
+            "## Una funcion: nombre, parametros y Retornar\n"
+            "\n"
+            "```\n"
+            "Funcion area_rectangulo(base, altura)\n"
+            "    Retornar base * altura           // calcula y devuelve; aqui se acaba\n"
+            "FinFuncion\n"
+            "\n"
+            "Algoritmo Principal\n"
+            "    a <- area_rectangulo(3, 4)       // 3 va a base, 4 va a altura\n"
+            "    Escribir a                       // 12\n"
+            "    Escribir area_rectangulo(10, 2)  // 20: se puede usar directamente\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Tres partes, y cada una tiene su nombre propio:\n"
+            "\n"
+            "- **El nombre** dice que hace. `area_rectangulo` se entiende sin leer el cuerpo.\n"
+            "- **Los parametros** (`base`, `altura`) son los datos que recibe. Se rellenan **por posicion**: el primer valor de la llamada va al primer parametro.\n"
+            "- **`Retornar`** entrega el resultado a quien llamo.\n"
+            "\n"
+            "Una funcion sin `Retornar` calcula algo y se lo queda: quien la llamo no recibe nada.\n"
+            "\n"
+            "## Lo de dentro no existe fuera\n"
+            "\n"
+            "Las variables que nacen dentro de una funcion **solo viven ahi**. Es lo que hace que una funcion se pueda leer sola, sin mirar el resto del algoritmo.\n"
+            "\n"
+            "```\n"
+            "Funcion doble(n)\n"
+            '    resultado <- n * 2               // "resultado" nace aqui...\n'
+            "    Retornar resultado\n"
+            "FinFuncion                           // ...y muere aqui\n"
+            "\n"
+            "Algoritmo Principal\n"
+            "    x <- doble(5)\n"
+            "    Escribir x                       // 10\n"
+            "    Escribir resultado               // ERROR: aqui fuera no existe\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Y al reves: cambiar un parametro dentro no toca la variable de fuera, porque lo que llega es **una copia del valor**, como en la leccion 2.\n"
+            "\n"
+            "```\n"
+            "Funcion suma_diez(n)\n"
+            "    n <- n + 10                      // cambia la copia, no el original\n"
+            "    Retornar n\n"
+            "FinFuncion\n"
+            "\n"
+            "Algoritmo Principal\n"
+            "    valor <- 5\n"
+            "    Escribir suma_diez(valor)        // 15\n"
+            "    Escribir valor                   // 5: no se entero de nada\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "## Retornar corta la funcion\n"
+            "\n"
+            "En cuanto se ejecuta un `Retornar`, la funcion termina. Lo que venga despues no se ejecuta, y eso se usa a proposito:\n"
+            "\n"
+            "```\n"
+            "Funcion clasificar(nota)\n"
+            "    Si nota >= 90 Entonces\n"
+            '        Retornar "A"                 // si entra aqui, ya no sigue leyendo\n'
+            "    FinSi\n"
+            "    Si nota >= 70 Entonces\n"
+            '        Retornar "B"\n'
+            "    FinSi\n"
+            '    Retornar "C"                     // solo se llega si fallaron las dos\n'
+            "FinFuncion\n"
+            "```\n"
+            "\n"
+            "Esta version hace lo mismo que la cadena de `SiNo` anidados de la leccion 4, con menos sangria. El orden sigue mandando igual: de la condicion mas exigente a la menos.\n"
+            "\n"
+            "## Componer: funciones que usan funciones\n"
+            "\n"
+            "Una funcion puede llamar a otra, y ahi es donde descomponer empieza a pagar:\n"
+            "\n"
+            "```\n"
+            "Funcion subtotal(precio, unidades)\n"
+            "    Retornar precio * unidades\n"
+            "FinFuncion\n"
+            "\n"
+            "Funcion con_impuesto(importe)\n"
+            "    Retornar importe * 1.21\n"
+            "FinFuncion\n"
+            "\n"
+            "Algoritmo Principal\n"
+            "    base <- subtotal(10, 3)          // 30\n"
+            "    Escribir con_impuesto(base)      // 36.3\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Para trazar una llamada anidada se empieza **por dentro**: primero `subtotal(10, 3)` da 30, y ese 30 es lo que entra en `con_impuesto`. Igual que los parentesis de una expresion.\n"
+            "\n"
+            "## Cuando partir\n"
+            "\n"
+            "Dos señales, y las dos son faciles de comprobar:\n"
+            "\n"
+            "- **El nombre sale solo.** Si al mirar un bloque puedes decir en tres palabras que hace, ese bloque es una funcion y ese es su nombre. Si no puedes, es que hace mas de una cosa.\n"
+            "- **Se repite.** El mismo calculo escrito dos veces son dos sitios donde arreglar el mismo error. Y siempre se arregla uno solo.\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            "- **Olvidar el `Retornar`.** La funcion calcula bien y no entrega nada. Quien la llama se queda sin valor y el fallo aparece lejos del sitio real.\n"
+            "- **Usar fuera una variable de dentro.** Nace y muere dentro de la funcion. Si hace falta fuera, se devuelve.\n"
+            "- **Creer que cambiar un parametro cambia el original.** Llega una copia del valor: `n <- n + 10` dentro no toca la variable de quien llamo.\n"
+            "- **Pasar los argumentos en otro orden.** Van por posicion, no por nombre: `area_rectangulo(altura, base)` compila igual y da otro numero cuando la funcion no es simetrica.\n"
+            "- **Poner codigo despues de un `Retornar` que siempre se ejecuta.** No se ejecuta nunca. Si tiene que correr, va antes.\n"
+            '- **Una funcion que hace tres cosas.** Si el nombre lleva un "y" (`calcular_y_escribir`), son dos funciones.\n'
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **`Funcion nombre(parametros) ... Retornar ... FinFuncion`**: una pieza con nombre que recibe datos y devuelve un resultado.\n"
+            "- **Los parametros se rellenan por posicion** y llegan como copia: cambiarlos dentro no toca el original.\n"
+            "- **Lo declarado dentro no existe fuera**; lo que haga falta fuera, se devuelve.\n"
+            "- **`Retornar` corta**: sirve para quitar anidamiento en una cadena de condiciones.\n"
+            "- **Componer**: para trazar una llamada dentro de otra, se empieza por dentro.\n"
+            "- **Se parte** cuando el nombre sale solo o cuando algo se repite.\n"
+        ),
+        difficulty="beginner",
+        category="algoritmos",
+        order=-4,
+        track="track-0",
+        estimated_duration=35,
+        prerequisites_titles=[
+            "Fundamentos 5 · Bucles",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Llamar a una funcion",
+                description="Los argumentos se rellenan por posicion.",
+                instructions=(
+                    "Sigue el algoritmo y escribe las dos lineas de salida.\n"
+                    "\n"
+                    "El primer valor de la llamada va al primer parametro."
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": "Funcion area_rectangulo(base, altura)\n    Retornar base * altura\nFinFuncion\n\nAlgoritmo Principal\n    a <- area_rectangulo(3, 4)\n    Escribir a\n    Escribir area_rectangulo(10, 2)\nFinAlgoritmo"
+                },
+                answer_key={"salida": "12\n20"},
+            ),
+            ExerciseTemplate(
+                title="La variable que no sale de la funcion",
+                description="Que pasa al usar fuera algo declarado dentro.",
+                instructions=("¿Que ocurre con la ultima linea de este algoritmo?"),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="mcq",
+                spec={
+                    "pseudocodigo": "Funcion doble(n)\n    resultado <- n * 2\n    Retornar resultado\nFinFuncion\n\nAlgoritmo Principal\n    x <- doble(5)\n    Escribir resultado\nFinAlgoritmo",
+                    "pregunta": "¿Que pasa con `Escribir resultado`?",
+                    "opciones": [
+                        "Escribe 10, porque la funcion la dejo calculada.",
+                        "Da error: `resultado` solo existe dentro de la funcion.",
+                        "Escribe 5, el valor que se paso.",
+                        "Escribe 0, porque se reinicia al salir.",
+                    ],
+                },
+                answer_key={
+                    "correcta": 1,
+                    "motivo": "Correcto: nace y muere dentro de la funcion. Lo que haga falta fuera hay que devolverlo.",
+                    "pista": "¿Donde se declaro `resultado`? ¿Hasta donde llega esa declaracion?",
+                },
+            ),
+            ExerciseTemplate(
+                title="El parametro es una copia",
+                description="Traza de lo que pasa dentro y fuera de la funcion.",
+                instructions=(
+                    "Completa la traza con el valor de `valor` (el de fuera) y de `n` (el de dentro) en cada momento.\n"
+                    "\n"
+                    "Usa «-» cuando una variable todavia no existe o ya no existe."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Funcion suma_diez(n)\n    n <- n + 10\n    Retornar n\nFinFuncion\n\nAlgoritmo Principal\n    valor <- 5\n    resultado <- suma_diez(valor)\n    Escribir valor\nFinAlgoritmo",
+                    "columnas": ["valor", "n"],
+                    "filas": [
+                        {"etiqueta": "valor <- 5", "fijas": ["5", "-"]},
+                        {"etiqueta": "al entrar en la funcion"},
+                        {"etiqueta": "despues de n <- n + 10"},
+                        {"etiqueta": "al volver al algoritmo"},
+                    ],
+                    "ayuda": "Al volver, `n` ya no existe: escribe «-».",
+                },
+                answer_key={
+                    "columnas": ["valor", "n"],
+                    "etiquetas_filas": [
+                        "valor <- 5",
+                        "al entrar en la funcion",
+                        "despues de n <- n + 10",
+                        "al volver al algoritmo",
+                    ],
+                    "celdas": [["5", "-"], ["5", "5"], ["5", "15"], ["5", "-"]],
+                },
+            ),
+            ExerciseTemplate(
+                title="Retornar corta la funcion",
+                description="Lo que viene despues de un Retornar que se ejecuta.",
+                instructions=(
+                    "Sigue las tres llamadas y escribe las tres lineas de salida.\n"
+                    "\n"
+                    "En cuanto se ejecuta un `Retornar`, la funcion termina."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": 'Funcion clasificar(nota)\n    Si nota >= 90 Entonces\n        Retornar "A"\n    FinSi\n    Si nota >= 70 Entonces\n        Retornar "B"\n    FinSi\n    Retornar "C"\nFinFuncion\n\nAlgoritmo Principal\n    Escribir clasificar(95)\n    Escribir clasificar(70)\n    Escribir clasificar(20)\nFinAlgoritmo',
+                    "ayuda": "Escribe las letras sin comillas.",
+                },
+                answer_key={"salida": "A\nB\nC"},
+            ),
+            ExerciseTemplate(
+                title="La funcion que no devuelve nada",
+                description="Detectar el Retornar que falta.",
+                instructions=(
+                    "Este algoritmo escribe algo que no es 12. ¿Cual es el problema?"
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=20,
+                exercise_type="mcq",
+                spec={
+                    "pseudocodigo": "Funcion area(base, altura)\n    resultado <- base * altura\nFinFuncion\n\nAlgoritmo Principal\n    Escribir area(3, 4)\nFinAlgoritmo",
+                    "pregunta": "¿Que le falta a este algoritmo?",
+                    "opciones": [
+                        "Los parametros estan en el orden equivocado.",
+                        "Falta `Retornar resultado`: la funcion calcula y no entrega nada.",
+                        "Falta declarar `resultado` fuera de la funcion.",
+                        "Hay que llamarla con `Escribir area(altura, base)`.",
+                    ],
+                },
+                answer_key={
+                    "correcta": 1,
+                    "motivo": "Eso es: sin `Retornar`, la funcion se queda el resultado y quien la llamo no recibe nada.",
+                    "pista": "Sigue el valor de `resultado`: ¿llega a salir de la funcion?",
+                },
+            ),
+            ExerciseTemplate(
+                title="Funciones compuestas",
+                description="Trazar una llamada dentro de otra, empezando por dentro.",
+                instructions=(
+                    "Estas dos funciones se usan juntas. Completa la tabla con lo que da cada paso para cada compra.\n"
+                    "\n"
+                    "Se empieza **por dentro**: primero `subtotal`, y su resultado entra en `con_impuesto`.\n"
+                    "\n"
+                    "```\n"
+                    "Funcion subtotal(precio, unidades)\n"
+                    "    Retornar precio * unidades\n"
+                    "FinFuncion\n"
+                    "\n"
+                    "Funcion con_impuesto(importe)\n"
+                    "    Retornar importe * 2\n"
+                    "FinFuncion\n"
+                    "```"
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=25,
+                exercise_type="trace_table",
+                spec={
+                    "columnas": ["subtotal", "con_impuesto(subtotal)"],
+                    "filas": [
+                        {"etiqueta": "subtotal(10, 3)", "fijas": ["30", "60"]},
+                        {"etiqueta": "subtotal(5, 4)"},
+                        {"etiqueta": "subtotal(7, 0)"},
+                        {"etiqueta": "subtotal(2, 9)"},
+                    ],
+                    "ayuda": "La primera fila es el ejemplo resuelto.",
+                },
+                answer_key={
+                    "columnas": ["subtotal", "con_impuesto(subtotal)"],
+                    "etiquetas_filas": [
+                        "subtotal(10, 3)",
+                        "subtotal(5, 4)",
+                        "subtotal(7, 0)",
+                        "subtotal(2, 9)",
+                    ],
+                    "celdas": [["30", "60"], ["20", "40"], ["0", "0"], ["18", "36"]],
+                },
+            ),
+        ],
+    ),
+    LessonTemplate(
+        title="Fundamentos 8 · Arreglos y recorridos",
+        description=(
+            "Muchos valores bajo un nombre: posiciones desde 0, recorrer y acumular, buscar decidiendo el caso «no esta», y el maximo."
+        ),
+        content=(
+            "# Arreglos y recorridos\n"
+            "\n"
+            "Hasta ahora cada variable guardaba un valor. Un **arreglo** guarda muchos bajo un solo nombre, y eso es lo que permite escribir un algoritmo que funciona igual con 5 datos que con 5.000.\n"
+            "\n"
+            "## Por que hace falta\n"
+            "\n"
+            "Para sumar tres notas bastan tres variables. Para sumar las notas de una clase entera, no: no sabes cuantas hay al escribir el algoritmo, y aunque lo supieras, `nota1 + nota2 + ... + nota30` no es un algoritmo, es una lista de la compra.\n"
+            "\n"
+            "Un arreglo resuelve las dos cosas: un nombre para todo el conjunto y una forma de recorrerlo sin saber cuantos son.\n"
+            "\n"
+            "## Posiciones: se cuenta desde 0\n"
+            "\n"
+            "Cada elemento tiene una **posicion** (o indice). La primera es la **0**, no la 1.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Notas\n"
+            "    notas <- [7, 4, 9, 6]            // cuatro elementos\n"
+            "    Escribir notas[0]                // 7: el primero\n"
+            "    Escribir notas[3]                // 6: el ultimo\n"
+            "    Escribir Longitud(notas)         // 4: cuantos hay\n"
+            "    Escribir notas[Longitud(notas) - 1]  // 6: el ultimo, sin saber cuantos hay\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Que se empiece en 0 tiene una consecuencia que hay que memorizar: con `n` elementos, **las posiciones van de 0 a n-1**. La posicion `n` no existe. Pedir `notas[4]` en un arreglo de cuatro es el error mas comun de esta leccion, y en Track 1 lo veras con su nombre de Python: `IndexError`.\n"
+            "\n"
+            "Se cuenta desde 0 porque es lo que hacen Python y casi todos los lenguajes. Aqui ya lo aprendes con la numeracion buena.\n"
+            "\n"
+            "## Recorrer: una vuelta por posicion\n"
+            "\n"
+            "Para recorrerlo entero se usa un `Para` que va de 0 a `Longitud - 1`:\n"
+            "\n"
+            "```\n"
+            "Algoritmo Recorrer\n"
+            "    notas <- [7, 4, 9]\n"
+            "    Para i <- 0 Hasta Longitud(notas) - 1 Hacer\n"
+            "        Escribir notas[i]            // 7, despues 4, despues 9\n"
+            "    FinPara\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Fijate en que `i` **no es el valor**: es la posicion. El valor es `notas[i]`. Confundirlos es lo que hace que un algoritmo sume 0+1+2 en vez de 7+4+9.\n"
+            "\n"
+            "## Acumular sobre un arreglo\n"
+            "\n"
+            "Con lo de la leccion 5, recorrer y acumular es la combinacion que mas se repite en toda la programacion:\n"
+            "\n"
+            "```\n"
+            "Algoritmo Media\n"
+            "    notas <- [7, 4, 9, 6]\n"
+            "    suma <- 0                        // acumulador, ANTES del bucle\n"
+            "    Para i <- 0 Hasta Longitud(notas) - 1 Hacer\n"
+            "        suma <- suma + notas[i]      // se acumula el VALOR, no la posicion\n"
+            "    FinPara\n"
+            "    Escribir suma                    // 26\n"
+            "    Escribir suma / Longitud(notas)  // 6.5\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "## Buscar: el recorrido que puede parar antes\n"
+            "\n"
+            "Buscar es recorrer preguntando. Y tiene dos cosas que no tenia acumular: puede **terminar antes** y puede **no encontrar nada**.\n"
+            "\n"
+            "```\n"
+            "Algoritmo Buscar\n"
+            "    notas <- [7, 4, 9, 6]\n"
+            "    buscado <- 9\n"
+            '    posicion <- -1                   // -1 significa "no encontrado"\n'
+            "    i <- 0\n"
+            "    Mientras i <= Longitud(notas) - 1 Y posicion = -1 Hacer\n"
+            "        Si notas[i] = buscado Entonces\n"
+            "            posicion <- i            // encontrado: la condicion del bucle ya es falsa\n"
+            "        FinSi\n"
+            "        i <- i + 1\n"
+            "    FinMientras\n"
+            "    Escribir posicion                // 2\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            'El `-1` inicial es el detalle importante: **hay que decidir que se devuelve cuando no esta**, y decidirlo antes de buscar. Un algoritmo que solo contempla el caso "lo encuentra" falla justo el dia que el dato no aparece.\n'
+            "\n"
+            "Como la condicion lleva `Y posicion = -1`, en cuanto encuentra deja de dar vueltas. Con un arreglo de cuatro da igual; con uno de un millon, no.\n"
+            "\n"
+            "## El maximo: guardar el mejor hasta ahora\n"
+            "\n"
+            "El otro recorrido clasico. La idea es llevar un candidato e ir cambiandolo cuando aparece algo mejor:\n"
+            "\n"
+            "```\n"
+            "Algoritmo Maximo\n"
+            "    notas <- [7, 4, 9, 6]\n"
+            "    maximo <- notas[0]               // el primero es el mejor por ahora\n"
+            "    Para i <- 1 Hasta Longitud(notas) - 1 Hacer   // desde 1: el 0 ya esta dentro\n"
+            "        Si notas[i] > maximo Entonces\n"
+            "            maximo <- notas[i]\n"
+            "        FinSi\n"
+            "    FinPara\n"
+            "    Escribir maximo                  // 9\n"
+            "FinAlgoritmo\n"
+            "```\n"
+            "\n"
+            "Empezar con `maximo <- 0` parece equivalente y no lo es: con notas negativas devolveria 0, que no esta en el arreglo. **El primer candidato tiene que ser un elemento de verdad.**\n"
+            "\n"
+            "## Errores comunes\n"
+            "\n"
+            "- **Pasarse del final.** Con `n` elementos las posiciones llegan a `n-1`. `Para i <- 0 Hasta Longitud(v)` da una vuelta de mas y pide una posicion que no existe.\n"
+            "- **Empezar en 1.** La primera posicion es la 0. Un recorrido de 1 a `n-1` se deja el primer elemento fuera, y eso no da error: solo da un resultado mal.\n"
+            "- **Confundir la posicion con el valor.** `i` es donde esta; `v[i]` es lo que hay. Sumar `i` en vez de `v[i]` da un numero perfectamente creible.\n"
+            "- **Inicializar el maximo en 0.** Con datos negativos devuelve algo que no esta en el arreglo. Empieza por `v[0]`.\n"
+            '- **No decidir que pasa si no se encuentra.** El caso "no esta" llega siempre. Decide el valor (`-1`) antes de escribir el bucle.\n'
+            "- **Declarar el acumulador dentro del bucle.** Igual que en la leccion 5: se reinicia en cada vuelta.\n"
+            "\n"
+            "## Resumen\n"
+            "\n"
+            "- **Arreglo**: muchos valores bajo un nombre; `v[i]` es el de la posicion `i` y `Longitud(v)` dice cuantos hay.\n"
+            "- **Se cuenta desde 0**: con `n` elementos, las posiciones van de **0 a n-1** (igual que en Python).\n"
+            "- **Recorrer**: `Para i <- 0 Hasta Longitud(v) - 1`; `i` es la posicion y `v[i]` el valor.\n"
+            "- **Acumular**: acumulador antes del bucle, y dentro se suma `v[i]`.\n"
+            "- **Buscar**: decide de antemano que devolver si no esta (`-1`), y para en cuanto encuentres.\n"
+            "- **Maximo**: empieza con `v[0]` como candidato y recorre desde la posicion 1.\n"
+        ),
+        difficulty="beginner",
+        category="algoritmos",
+        order=-3,
+        track="track-0",
+        estimated_duration=35,
+        prerequisites_titles=[
+            "Fundamentos 7 · Descomposicion",
+        ],
+        exercises=[
+            ExerciseTemplate(
+                title="Posiciones de un arreglo",
+                description="El primero es el 0 y el ultimo es Longitud menos uno.",
+                instructions=(
+                    "Sigue el algoritmo y escribe las tres lineas de salida."
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": "Algoritmo Posiciones\n    notas <- [7, 4, 9, 6]\n    Escribir notas[0]\n    Escribir notas[2]\n    Escribir Longitud(notas)\nFinAlgoritmo"
+                },
+                answer_key={"salida": "7\n9\n4"},
+            ),
+            ExerciseTemplate(
+                title="La posicion que no existe",
+                description="Por que el ultimo indice es n menos uno.",
+                instructions=(
+                    "El arreglo `notas` tiene 4 elementos. ¿Que pasa al pedir `notas[4]`?"
+                ),
+                starter_code="",
+                difficulty="easy",
+                points=10,
+                exercise_type="mcq",
+                spec={
+                    "pseudocodigo": "Algoritmo Limite\n    notas <- [7, 4, 9, 6]\n    Escribir notas[4]\nFinAlgoritmo",
+                    "pregunta": "¿Que pasa con `notas[4]`?",
+                    "opciones": [
+                        "Escribe 6, el ultimo elemento.",
+                        "Escribe 0, porque esa posicion esta vacia.",
+                        "Da error: con 4 elementos las posiciones van de 0 a 3.",
+                        "Escribe 7, porque vuelve a empezar por el principio.",
+                    ],
+                },
+                answer_key={
+                    "correcta": 2,
+                    "motivo": "Correcto: con n elementos, la ultima posicion es n-1.",
+                    "pista": "Cuenta las posiciones empezando por 0: ¿hasta cual llegas?",
+                },
+            ),
+            ExerciseTemplate(
+                title="Recorrer y acumular",
+                description="Sumar los valores, no las posiciones.",
+                instructions=(
+                    "Completa la traza con el estado **al terminar** cada vuelta.\n"
+                    "\n"
+                    "`i` es la posicion y `notas[i]` el valor que hay en ella."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Algoritmo Sumar\n    notas <- [7, 4, 9]\n    suma <- 0\n    Para i <- 0 Hasta Longitud(notas) - 1 Hacer\n        suma <- suma + notas[i]\n    FinPara\nFinAlgoritmo",
+                    "columnas": ["i", "notas[i]", "suma"],
+                    "filas": [
+                        {"etiqueta": "Antes del bucle", "fijas": ["-", "-", "0"]},
+                        {"etiqueta": "Fin de la vuelta 1"},
+                        {"etiqueta": "Fin de la vuelta 2"},
+                        {"etiqueta": "Fin de la vuelta 3"},
+                    ],
+                    "ayuda": "En cada fila, `i` es la posicion que se acaba de procesar.",
+                },
+                answer_key={
+                    "columnas": ["i", "notas[i]", "suma"],
+                    "etiquetas_filas": [
+                        "Antes del bucle",
+                        "Fin de la vuelta 1",
+                        "Fin de la vuelta 2",
+                        "Fin de la vuelta 3",
+                    ],
+                    "celdas": [
+                        ["-", "-", "0"],
+                        ["0", "7", "7"],
+                        ["1", "4", "11"],
+                        ["2", "9", "20"],
+                    ],
+                },
+            ),
+            ExerciseTemplate(
+                title="El recorrido que se deja uno fuera",
+                description="Comparar dos bucles que solo se diferencian en el inicio.",
+                instructions=(
+                    "Estos dos bucles recorren el mismo arreglo, pero empiezan en posiciones distintas. Escribe las dos lineas de salida."
+                ),
+                starter_code="",
+                difficulty="medium",
+                points=15,
+                exercise_type="predict_output",
+                spec={
+                    "pseudocodigo": "Algoritmo Comparar\n    v <- [5, 2, 8]\n    a <- 0\n    Para i <- 0 Hasta Longitud(v) - 1 Hacer\n        a <- a + v[i]\n    FinPara\n    Escribir a\n\n    b <- 0\n    Para i <- 1 Hasta Longitud(v) - 1 Hacer\n        b <- b + v[i]\n    FinPara\n    Escribir b\nFinAlgoritmo"
+                },
+                answer_key={"salida": "15\n10"},
+            ),
+            ExerciseTemplate(
+                title="El maximo, paso a paso",
+                description="Guardar el mejor hasta ahora y cambiarlo solo si aparece otro.",
+                instructions=(
+                    "Completa la traza con el estado al terminar cada vuelta.\n"
+                    "\n"
+                    "`maximo` empieza valiendo `v[0]` y el bucle arranca en la posicion 1. Si el valor de la vuelta no supera al maximo, `maximo` repite su valor."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=20,
+                exercise_type="trace_table",
+                spec={
+                    "pseudocodigo": "Algoritmo Maximo\n    v <- [7, 4, 9, 6]\n    maximo <- v[0]\n    Para i <- 1 Hasta Longitud(v) - 1 Hacer\n        Si v[i] > maximo Entonces\n            maximo <- v[i]\n        FinSi\n    FinPara\nFinAlgoritmo",
+                    "columnas": ["i", "v[i]", "maximo"],
+                    "filas": [
+                        {"etiqueta": "Antes del bucle", "fijas": ["-", "-", "7"]},
+                        {"etiqueta": "Fin de la vuelta i = 1"},
+                        {"etiqueta": "Fin de la vuelta i = 2"},
+                        {"etiqueta": "Fin de la vuelta i = 3"},
+                    ],
+                },
+                answer_key={
+                    "columnas": ["i", "v[i]", "maximo"],
+                    "etiquetas_filas": [
+                        "Antes del bucle",
+                        "Fin de la vuelta i = 1",
+                        "Fin de la vuelta i = 2",
+                        "Fin de la vuelta i = 3",
+                    ],
+                    "celdas": [
+                        ["-", "-", "7"],
+                        ["1", "4", "7"],
+                        ["2", "9", "9"],
+                        ["3", "6", "9"],
+                    ],
+                },
+            ),
+            ExerciseTemplate(
+                title="Busqueda lineal, encuentre o no",
+                description="El caso «no esta» tambien hay que trazarlo.",
+                instructions=(
+                    "Este algoritmo busca un valor y devuelve su posicion, o -1 si no esta. Completa la tabla con lo que vale `posicion` al terminar, para cada valor buscado.\n"
+                    "\n"
+                    "```\n"
+                    "posicion <- -1\n"
+                    "i <- 0\n"
+                    "Mientras i <= Longitud(v) - 1 Y posicion = -1 Hacer\n"
+                    "    Si v[i] = buscado Entonces\n"
+                    "        posicion <- i\n"
+                    "    FinSi\n"
+                    "    i <- i + 1\n"
+                    "FinMientras\n"
+                    "```\n"
+                    "\n"
+                    "con `v <- [7, 4, 9, 4]`."
+                ),
+                starter_code="",
+                difficulty="hard",
+                points=25,
+                exercise_type="trace_table",
+                spec={
+                    "columnas": ["posicion"],
+                    "filas": [
+                        {"etiqueta": "buscado = 7", "fijas": ["0"]},
+                        {"etiqueta": "buscado = 9"},
+                        {"etiqueta": "buscado = 4"},
+                        {"etiqueta": "buscado = 5"},
+                    ],
+                    "ayuda": "Ojo con el 4: aparece dos veces, y el bucle para en cuanto encuentra. La primera fila es el ejemplo.",
+                },
+                answer_key={
+                    "columnas": ["posicion"],
+                    "etiquetas_filas": [
+                        "buscado = 7",
+                        "buscado = 9",
+                        "buscado = 4",
+                        "buscado = 5",
+                    ],
+                    "celdas": [["0"], ["2"], ["1"], ["-1"]],
+                },
+            ),
+        ],
+    ),
+    LessonTemplate(
         title="Python desde Cero",
         description=(
             "Tu primer programa: print, variables, f-strings y como se lee un "

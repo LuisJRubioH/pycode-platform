@@ -4,8 +4,8 @@ Tramo de entrada de PyCode, previo a Track 1 (Python). El alumno aprende a **raz
 algoritmos antes de escribir código**: pseudocódigo, trazas de ejecución, estructuras de
 datos elementales y diagramas de flujo.
 
-> Estado: **piloto en marcha** (2026-09-14). Infraestructura hecha y lecciones 1-5
-> construidas; quedan las lecciones 6-10 y el capstone. Este documento sigue siendo la
+> Estado: **piloto en marcha** (2026-09-14). Infraestructura hecha y lecciones 1-5, 7 y 8
+> construidas; quedan la 6 (necesita Mermaid), la 9, la 10 y el capstone. Este documento sigue siendo la
 > fuente de verdad del track; el README enlaza aquí.
 
 ## Por qué existe
@@ -61,7 +61,7 @@ Reglas que gobiernan la solución:
 `trace_table` es el tipo central del track. Si solo se implementa uno, es ese.
 
 **Hechos (2026-09-14)**: `trace_table`, `predict_output` y `mcq`, que son los que usan las
-lecciones 1-5. Cada uno es un componente en `frontend/src/components/track0/` y un
+lecciones 1-5, 7 y 8. Cada uno es un componente en `frontend/src/components/track0/` y un
 `_validar_<tipo>` en `backend/app/services/track0_service.py`; añadir uno nuevo es
 escribir ese par y registrarlo en `TIPOS` y en `VALIDADORES`, sin tocar el endpoint ni
 la página de lección (regla 5, ya verificada).
@@ -85,8 +85,8 @@ Fuera de alcance: editor gráfico de diagramas.
 | 4 | Condicionales | Decisiones simples, anidadas, condiciones compuestas | ✅ |
 | 5 | Bucles | Mientras / Para, contadores, acumuladores, condición de parada | ✅ |
 | 6 | Diagramas de flujo | Símbolos y equivalencia con el pseudocódigo | |
-| 7 | Descomposición | Subprogramas, parámetros, valor de retorno | |
-| 8 | Arreglos y recorridos | Indexación, recorrido completo, búsqueda lineal | |
+| 7 | Descomposición | Subprogramas, parámetros, valor de retorno | ✅ |
+| 8 | Arreglos y recorridos | Indexación, recorrido completo, búsqueda lineal | ✅ |
 | 9 | Algoritmos clásicos | Máximo, conteo, intercambio, ordenamiento por selección y burbuja | |
 | 10 | Cuánto cuesta un algoritmo | Contar operaciones, comparación intuitiva de eficiencia | |
 | 11 | Capstone: del pseudocódigo al Python | Implementar en Python tres algoritmos ya trazados a mano | |
@@ -134,6 +134,14 @@ FinFuncion
 > español. Las lecciones 1-3 ya están escritas con ella, así que cambiarla ahora obliga a
 > reescribir sus 18 enunciados (y los 40+ que faltan).
 
+## Arreglos: se cuenta desde 0
+
+La convención de pseudocódigo no decía nada de la indexación, y PSeInt numera desde 1. Track 0
+usa **base 0** (`v[0]` es el primero, las posiciones van de 0 a `Longitud(v) - 1`), por una
+razón concreta: el capstone pide implementar en Python los algoritmos ya trazados a mano, y
+cambiar de base justo en ese salto convierte el puente en un tropiezo. El alumno aprende desde
+el principio la numeración con la que va a trabajar siempre.
+
 ## Tutor socrático en Track 0
 
 El prompt del tutor debe adaptarse: sobre pseudocódigo se pregunta por la **traza**
@@ -164,6 +172,9 @@ progreso, competencias y track-status no se enteran de que el ejercicio no era c
 ## Ubicación en el orden curricular
 
 `Lesson.order` es global y monótono (Track 1 va del 1 al 10, Track 2 del 11 al 21...), así que
-Track 0 usa **órdenes negativos**: -10 a -6 para las lecciones 1-5, y hasta el 0 para las
-que faltan. Alternativa descartada: renumerar las 48 lecciones existentes, que toca contenido
+Track 0 usa **órdenes negativos**: la lección N va en el orden **N - 11**, así que las once
+ocupan exactamente de -10 (la 1) a 0 (el capstone) y cada una tiene su hueco reservado
+aunque se escriban desordenadas. Lo comprueba
+`test_el_orden_de_cada_leccion_de_track0_cuadra_con_su_numero`, que nació de dejar sin sitio
+a la lección 6 al escribir la 7. Alternativa descartada: renumerar las 48 lecciones existentes, que toca contenido
 ya verificado en producción a cambio de nada.

@@ -342,3 +342,28 @@ def test_ninguna_categoria_se_comparte_entre_tracks():
         if len(tracks) > 1
     }
     assert not compartidas, f"categorías en más de un track: {compartidas}"
+
+
+def test_el_orden_de_cada_leccion_de_track0_cuadra_con_su_numero():
+    """Las 11 lecciones de Track 0 ocupan exactamente los órdenes -10..0.
+
+    `Lesson.order` es global y monótono (Track 1 empieza en 1), así que Track 0
+    vive en los negativos y cada lección tiene su hueco reservado: la número N
+    va en `N - 11`. Sin esta cuenta es fácil dejar sin sitio a una lección que
+    todavía no está escrita — pasó con la 6 (Diagramas de flujo), que se quedó
+    sin hueco entre la 5 y la 7.
+    """
+    import re
+
+    from app.services.lesson_seed import LESSON_TEMPLATES
+
+    for leccion in LESSON_TEMPLATES:
+        if leccion.track != "track-0":
+            continue
+        m = re.match(r"Fundamentos (\d+) ", leccion.title)
+        assert m, f"título fuera de convención: {leccion.title}"
+        numero = int(m.group(1))
+        assert 1 <= numero <= 11, leccion.title
+        assert (
+            leccion.order == numero - 11
+        ), f"{leccion.title}: order {leccion.order}, esperaba {numero - 11}"
