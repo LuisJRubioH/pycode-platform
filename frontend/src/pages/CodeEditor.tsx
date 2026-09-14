@@ -166,6 +166,8 @@ const CodeEditor: React.FC = () => {
 
   const [challenge, setChallenge] = useState<ChallengeContext | null>(null)
   const [challengeError, setChallengeError] = useState('')
+  // La lista de retos en la que esta el actual, para navegar entre ellos.
+  const [retosLista, setRetosLista] = useState<{ id: number; title: string }[]>([])
   // True cuando el reto quedo registrado como resuelto en esta sesion.
   const [retoResuelto, setRetoResuelto] = useState(false)
 
@@ -174,6 +176,9 @@ const CodeEditor: React.FC = () => {
   const exerciseParam = searchParams.get('exercise')
   // Si la URL trae las dos cosas, manda la lección.
   const challengeParam = lessonParam ? null : searchParams.get('challenge')
+  // Con que lista se llego al reto (el filtro de la pagina de Retos). Sirve
+  // para saber cual es el siguiente sin volver al listado.
+  const dificultadParam = searchParams.get('dificultad')
 
   const monaco = useMonaco()
 
@@ -257,6 +262,34 @@ const CodeEditor: React.FC = () => {
     }
   }, [challengeParam])
 
+  // La lista de retos del mismo filtro con el que se entro. Se pide una vez
+  // por filtro, no por reto: moverse entre retos no vuelve a pedirla.
+  useEffect(() => {
+    if (!challengeParam) {
+      setRetosLista([])
+      return
+    }
+    let cancelled = false
+    const url = dificultadParam
+      ? `/challenges?difficulty=${dificultadParam}&limit=60`
+      : '/challenges/recommended?limit=50'
+    api
+      .get(url)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`status ${res.status}`)
+        const data = await res.json()
+        if (!cancelled) setRetosLista(data.items || [])
+      })
+      .catch((err) => {
+        // Sin lista no hay Anterior/Siguiente, pero el reto se resuelve igual.
+        console.error('No se pudo cargar la lista de retos:', err)
+        if (!cancelled) setRetosLista([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [challengeParam, dificultadParam])
+
   // Carga la lección cuando la URL la referencia.
   useEffect(() => {
     if (!lessonParam) {
@@ -320,6 +353,18 @@ const CodeEditor: React.FC = () => {
     setEvaluation(null)
     setEvaluationError('')
   }, [lesson, activeExercise])
+
+  // Donde cae el reto actual dentro de la lista con la que se entro.
+  const retoIndex = challenge ? retosLista.findIndex((r) => r.id === challenge.id) : -1
+  const retoAnterior = retoIndex > 0 ? retosLista[retoIndex - 1] : null
+  const retoSiguiente =
+    retoIndex >= 0 && retoIndex < retosLista.length - 1 ? retosLista[retoIndex + 1] : null
+
+  const irAReto = (id: number) => {
+    const params: Record<string, string> = { challenge: String(id) }
+    if (dificultadParam) params.dificultad = dificultadParam
+    setSearchParams(params)
+  }
 
   // Siguiente nivel del mismo problema, para ofrecerlo al resolver el reto.
   const siguienteNivel =
@@ -837,16 +882,42 @@ const CodeEditor: React.FC = () => {
               </span>
             </div>
             <div className="mt-1 flex items-center gap-2 flex-wrap">
-              <h2 className="text-base font-semibold text-slate-900">{challenge.title}</h2>
+              <h2 className="text-base font-semibold text-slate-900">
+                {retoIndex >= 0 ? `Reto ${retoIndex + 1} de ${retosLista.length} — ` : ''}
+                {challenge.title}
+              </h2>
               <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700">
                 {DIFICULTAD_RETO[challenge.difficulty] || challenge.difficulty}
               </span>
             </div>
           </div>
-          <Link to="/challenges" className="btn-secondary">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Volver a retos
-          </Link>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <Link to="/challenges" className="btn-secondary">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Volver a retos
+            </Link>
+            {/* Anterior/Siguiente entre retos, igual que entre los ejercicios
+                de una lección: se sigue desde aquí sin volver al listado. */}
+            <button
+              onClick={() => retoAnterior && irAReto(retoAnterior.id)}
+              disabled={!retoAnterior}
+              className="btn-secondary disabled:opacity-50"
+              title={retoAnterior ? retoAnterior.title : 'Es el primer reto de la lista'}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" />
+              Anterior
+            </button>
+            <button
+              onClick={() => retoSiguiente && irAReto(retoSiguiente.id)}
+              disabled={!retoSiguiente}
+              className="btn-secondary disabled:opacity-50"
+              title={retoSiguiente ? retoSiguiente.title : 'Es el último reto de la lista'}
+            >
+              Siguiente
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </button>
+          </div>
         </div>
       )}
 
@@ -1035,11 +1106,17 @@ const CodeEditor: React.FC = () => {
                 Reto resuelto: queda marcado como hecho y suma a tu ELO de retos.
               </span>
               {siguienteNivel && (
-                <button
-                  onClick={() => setSearchParams({ challenge: String(siguienteNivel.id) })}
-                  className="btn-primary"
-                >
+                <button onClick={() => irAReto(siguienteNivel.id)} className="btn-primary">
                   Ir al Nivel {siguienteNivel.level}
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </button>
+              )}
+              {retoSiguiente && (
+                <button
+                  onClick={() => irAReto(retoSiguiente.id)}
+                  className={siguienteNivel ? 'btn-secondary' : 'btn-primary'}
+                >
+                  Siguiente reto
                   <ChevronRight className="h-4 w-4 ml-1" />
                 </button>
               )}

@@ -122,9 +122,15 @@ const Challenges: React.FC = () => {
 
   // El reto viaja en la URL, como el ejercicio de una lección: el editor
   // carga su enunciado y su starter, y el enlace se puede recargar.
+  //
+  // Va tambien el filtro activo, y no por capricho: con el, el editor
+  // reconstruye ESTA misma lista y puede ofrecer Anterior/Siguiente sin que el
+  // alumno tenga que volver aqui. Sin el, "siguiente reto" no significaria
+  // nada, porque la lista depende de lo que estuviera filtrado.
   const solveInEditor = () => {
     if (!selected) return
-    navigate(`/editor?challenge=${selected.id}`)
+    const lista = filter === 'all' ? '' : `&dificultad=${filter}`
+    navigate(`/editor?challenge=${selected.id}${lista}`)
   }
 
   // El estado de hecho sale de la progresion (retos por niveles) o del listado

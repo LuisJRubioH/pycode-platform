@@ -441,6 +441,83 @@ describe('CodeEditor — modo reto', () => {
     expect(screen.getByLabelText(/Enunciado del ejercicio/)).toHaveValue('')
   })
 
+  // ---- navegacion entre retos, sin volver al listado ----------------------
+
+  const listaRetos = {
+    items: [
+      { id: 41, title: 'Invertir cadena', difficulty: 'easy', topic: 'strings' },
+      { id: 42, title: 'Contar vocales', difficulty: 'easy', topic: 'strings' },
+      { id: 45, title: 'Palindromo', difficulty: 'easy', topic: 'strings' },
+    ],
+  }
+
+  const conLista = (path: string) => {
+    if (path === '/challenges/42') return Promise.resolve({ ok: true, json: async () => reto })
+    if (path === '/challenges/45')
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ ...reto, id: 45, title: 'Palindromo', level: null, levels: [] }),
+      })
+    if (path.startsWith('/challenges?difficulty=easy'))
+      return Promise.resolve({ ok: true, json: async () => listaRetos })
+    if (path.startsWith('/challenges/recommended'))
+      return Promise.resolve({ ok: true, json: async () => listaRetos })
+    return Promise.resolve({ ok: false, json: async () => ({}) })
+  }
+
+  it('dice en que reto de la lista estas y deja ir al anterior y al siguiente', async () => {
+    getMock.mockImplementation(conLista)
+    renderEditor('/editor?challenge=42&dificultad=easy')
+
+    await screen.findByText(/Reto 2 de 3 — Contar vocales/)
+    expect(screen.getByRole('button', { name: /Anterior/ })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /^Siguiente/ })).toBeEnabled()
+    // La lista se pide con el filtro con el que se entro, no otra.
+    expect(getMock.mock.calls.map(([p]) => p)).toContain('/challenges?difficulty=easy&limit=60')
+  })
+
+  it('"Siguiente" carga el siguiente reto sin pasar por el listado', async () => {
+    const user = userEvent.setup()
+    getMock.mockImplementation(conLista)
+    renderEditor('/editor?challenge=42&dificultad=easy')
+
+    await screen.findByText(/Reto 2 de 3 — Contar vocales/)
+    await user.click(screen.getByRole('button', { name: /^Siguiente/ }))
+
+    await screen.findByText(/Reto 3 de 3 — Palindromo/)
+    // Pidio el detalle del siguiente reto...
+    expect(getMock.mock.calls.map(([p]) => p)).toContain('/challenges/45')
+    // ...y la lista sigue siendo la del mismo filtro: no se pidio otra, asi
+    // que "siguiente" seguira significando lo mismo en el proximo salto.
+    const listas = getMock.mock.calls
+      .map(([p]) => p as string)
+      .filter((p) => p.startsWith('/challenges?') || p.startsWith('/challenges/recommended'))
+    expect(new Set(listas)).toEqual(new Set(['/challenges?difficulty=easy&limit=60']))
+  })
+
+  it('en los extremos de la lista los botones se deshabilitan', async () => {
+    getMock.mockImplementation(conLista)
+    renderEditor('/editor?challenge=45&dificultad=easy')
+
+    await screen.findByText(/Reto 3 de 3 — Palindromo/)
+    expect(screen.getByRole('button', { name: /Anterior/ })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /^Siguiente/ })).toBeDisabled()
+  })
+
+  it('si la lista no carga, el reto se resuelve igual y no hay navegacion', async () => {
+    getMock.mockImplementation((path: string) => {
+      if (path === '/challenges/42') return Promise.resolve({ ok: true, json: async () => reto })
+      return Promise.resolve({ ok: false, json: async () => ({}) })
+    })
+    renderEditor('/editor?challenge=42&dificultad=easy')
+
+    await screen.findByText('Contar vocales')
+    expect(screen.queryByText(/Reto 2 de 3/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Anterior/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /^Siguiente/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /Ejecutar tests/ })).toBeInTheDocument()
+  })
+
   it('si el reto no existe lo dice, en vez de dejar el editor en blanco sin mas', async () => {
     renderEditor('/editor?challenge=999')
     await screen.findByText('No pudimos cargar este reto.')

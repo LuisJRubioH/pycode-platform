@@ -39,6 +39,7 @@ Todo lo medible sale de comandos que se pueden repetir:
 | 12 | `AUDITORIA_CONTENIDO.md` describe un Track 1 que ya no existe | P3 | 10 min |
 | 13 | `CodeEditor.tsx` con 884 líneas | P3 | grande |
 | 14 | `/ws/code` sigue montado, deprecado | P3 | 10 min |
+| 15 | Desde un reto en el editor no se podía pasar al siguiente | **P2** | ✅ hecho |
 
 ---
 
@@ -231,6 +232,21 @@ worker, más un botón "Detener". Se descartó `setInterruptBuffer` porque exige
 COOP/COEP en Vercel. La lección 4 ya no pide recargar.
 
 ---
+
+### 15. Desde un reto no se podía seguir al siguiente — ✅ resuelto
+
+Lo reportó el usuario, no el barrido: *"cuando voy de un reto al editor de código, no
+tengo el botón de continuar con el siguiente reto, me toca volver a los retos"*.
+
+Era una incoherencia con las lecciones, que sí navegan Anterior/Siguiente dentro del
+editor desde el Bloque 2. En retos, lo único que había era "Ir al Nivel N+1" del **mismo
+problema** y **solo después de resolverlo**: si no lo resolvías, o querías otro problema,
+tocaba volver al listado.
+
+Arreglado llevando el filtro activo en la URL (`&dificultad=`), que es lo que permite al
+editor reconstruir la misma lista y saber cuál es el siguiente. Los botones están desde el
+primer momento, sin haber resuelto nada, y al resolver se ofrece además "Siguiente reto"
+junto al "Ir al Nivel N+1" que ya existía.
 
 ## P3 — limpieza
 
