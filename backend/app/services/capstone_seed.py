@@ -2132,6 +2132,784 @@ CAPSTONES: list[dict] = [
         "difficulty": "advanced",
         "order_index": 5,
     },
+    {
+        "slug": "track-6-pipeline-produccion",
+        "track": "track-6",
+        "title": "Pipeline de produccion: del experimento al despliegue",
+        "short_description": (
+            "Monta el pipeline completo de Nebula en cinco modulos: experimentos reproducibles, registro de modelos con checksum, un servicio con contrato de entrada, monitoreo de drift sobre su log y un despliegue con puerta de calidad, rollout y rollback."
+        ),
+        "description": (
+            "## Contexto\n"
+            "\n"
+            "El modelo de devoluciones de Nebula ya existe: predice si un pedido acabara devuelto. Lo que no existe es **todo lo que hay alrededor**, que es lo que separa un cuaderno de un sistema en produccion. Hoy nadie sabe con que datos se entreno el que esta sirviendo, el artefacto es un `.pkl` sin firma, el servicio revienta con una peticion rara, nadie mira si los datos han cambiado y desplegar consiste en que alguien copie un archivo un viernes.\n"
+            "\n"
+            "Vas a construir ese alrededor entero, separado en modulos como se haria en un proyecto real.\n"
+            "\n"
+            "## Que integra este capstone\n"
+            "\n"
+            "- **MLOps 1**: semillas, division reproducible, huellas SHA-256 y manifiesto del experimento.\n"
+            "- **MLOps 2**: runs con metricas, eleccion del mejor, artefacto con checksum y registro de versiones con etapas.\n"
+            "- **MLOps 3**: contrato de entrada, validacion que acumula errores, vector de caracteristicas y respuestas 200/422/500/503.\n"
+            "- **MLOps 4**: histogramas con bordes fijos, PSI y alertas de drift sobre el log del servicio.\n"
+            "- **MLOps 5**: puerta de calidad, champion contra challenger, reparto de trafico y los cuatro finales de un despliegue.\n"
+            "\n"
+            "## Arquitectura\n"
+            "\n"
+            "```\n"
+            "datos ──> reproducibilidad.manifiesto ──> registro.mejor_run ──> registro.guardar_modelo (+checksum)\n"
+            "                                                                      │\n"
+            "                                                                      v\n"
+            "peticion ──> servicio.servir ──> 200/422/500/503 + log ──> monitoreo.monitorear ──> alertas\n"
+            "                                                                      │\n"
+            "candidato ──> despliegue.desplegar ──> puerta ──> champion/challenger ──> rollout ──> promovido\n"
+            "                                                                                      rechazado\n"
+            "                                                                                      rollback\n"
+            "                                                                                      pausado\n"
+            "```\n"
+            "\n"
+            "Cada pieza recibe lo que necesita como argumento: el modelo entra en el servicio como `modelo_fn`, y el despliegue mide cada paso del rollout con un `medir_fn`. Esa inyeccion es lo que permite corregir el proyecto entero con datos de juguete, deterministas y sin entrenar nada de verdad.\n"
+            "\n"
+            "## Estructura\n"
+            "\n"
+            "```\n"
+            "reproducibilidad.py   huella, huella_config, huella_datos,\n"
+            "                      dividir, manifiesto                              (R1-R2)\n"
+            "registro.py           nuevo_run, registrar_metrica, mejor_run,\n"
+            "                      guardar_modelo, cargar_modelo,\n"
+            "                      registrar_version, promover                      (R3-R4)\n"
+            "servicio.py           validar, vector, servir                          (R5-R6)\n"
+            "monitoreo.py          histograma, psi, monitorear                      (R7-R8)\n"
+            "despliegue.py         puerta_de_calidad, comparar_modelos,\n"
+            "                      asignar_variante, evaluar_rollout, desplegar     (R9-R10)\n"
+            "datos.py              pedidos, esquema y referencias de Nebula (ya escrito)\n"
+            "demo.py               el pipeline de punta a punta (no se evalua)\n"
+            "```\n"
+            "\n"
+            "Las funciones que ya vienen escritas (`coaccionar`, `severidad`, `tasa_error`, `revisar_requisitos`) no hace falta tocarlas: son las de las lecciones, puestas ahi para que te centres en el resto.\n"
+            "\n"
+            "## Como se evalua\n"
+            "\n"
+            'Al pulsar "Enviar capstone" corren **10 tests ocultos**, uno por requisito, en tu navegador. Cada test importa tus modulos desde cero y usa **sus propios datos**, nunca los de `datos.py`: un manifiesto se comprueba con otras filas, el servicio con otro esquema y el despliegue con un `medir_fn` de juguete. Para aprobar hay que pasar **los 10**.\n'
+            "\n"
+            "Ninguna funcion entrena un modelo de verdad ni llama a la red: donde hace falta un modelo se inyecta una funcion, igual que en las lecciones.\n"
+            "\n"
+            "## Paso opcional: el pipeline entero\n"
+            "\n"
+            "No cuenta para aprobar. `demo.py` encadena las cinco piezas con los datos de `datos.py`: divide, entrena un modelo de umbral, registra el run, guarda el artefacto con su checksum, atiende un puñado de peticiones, monitorea el log resultante y decide si el candidato se despliega. Como el editor de PyCode trabaja con un solo archivo, pega alli tus cinco modulos seguidos del contenido de `demo.py` (quitando los `from ... import` entre modulos). Es la forma de ver que las piezas encajan de verdad y no solo pasan los tests por separado.\n"
+        ),
+        "requirements": [
+            {
+                "id": "R1",
+                "text": "`reproducibilidad.py`: `huella(texto, n=12)` devuelve los primeros `n` caracteres del SHA-256 del texto en UTF-8. `huella_config(config)` aplica `huella` a `json.dumps(config, sort_keys=True, separators=(',', ':'))`, de modo que el orden de las claves no cambie el resultado. `huella_datos(filas)` es la huella de la concatenacion de las huellas de cada fila (`json.dumps(fila, sort_keys=True)`), asi que el orden de las filas **si** cuenta. `dividir(filas, fraccion_test, semilla)` copia la lista, la baraja con `random.Random(semilla)`, parte por `round(len(filas) * fraccion_test)` y devuelve `(train, test)` con el test **primero** en la lista barajada.",
+            },
+            {
+                "id": "R2",
+                "text": "`manifiesto(filas, config, semilla, entorno, metricas)` devuelve `{'datos': {'huella', 'filas'}, 'config': {'huella', 'valores'}, 'semilla', 'entorno', 'metricas', 'id'}`. `entorno` se copia (quien llame despues no puede cambiarlo). El `'id'` es la `huella_config` de un diccionario con **solo** `datos`, `config`, `semilla` y `entorno`: dos ejecuciones con la misma receta comparten id aunque las metricas cambien.",
+            },
+            {
+                "id": "R3",
+                "text": "`registro.py`: `nuevo_run(run_id, params)` devuelve `{'id', 'params': <copia>, 'metricas': {}, 'historial': {}, 'estado': 'en_curso'}`. `registrar_metrica(run, nombre, valor, paso)` anade `[paso, valor]` (una **lista**) al historial y guarda el ultimo valor en `metricas`. `mejor_run(runs, metrica, mayor_es_mejor=True)` devuelve el mejor run entre los que tienen `estado == 'terminado'` **y** esa metrica; en empate gana el primero, y sin candidatos devuelve `None`.",
+            },
+            {
+                "id": "R4",
+                "text": "`guardar_modelo(modelo, ruta)` escribe `pickle.dumps(modelo)` y devuelve su SHA-256 completo. `cargar_modelo(ruta, checksum)` compara el checksum del archivo **antes** de `pickle.loads` y lanza `ValueError` si no coincide. `registrar_version(registro, nombre, run_id, checksum)` anade `{'version': <len+1>, 'run_id', 'checksum', 'etapa': 'ninguna'}` y la devuelve. `promover(registro, nombre, version, etapa)` pone esa etapa y, si es `'production'`, archiva la que estuviera en produccion.",
+            },
+            {
+                "id": "R5",
+                "text": "`servicio.py`: `validar(peticion, esquema)` devuelve `(datos, errores)` recorriendo el esquema en su orden: ausente con `'por_defecto'` se rellena, ausente sin el da `f'{nombre}: requerido'`; el valor se convierte con `coaccionar` (ya escrita) y si falla da `f\"{nombre}: se esperaba {tipo}\"`; despues, **solo el primer limite que falle** entre `'min'`, `'max'` y `'opciones'`. Al final, los campos que no estan en el esquema dan `f'{nombre}: campo desconocido'` en orden alfabetico. `vector(datos, orden, mapas)` recorre `orden` y devuelve `float`s, mapeando las categorias y lanzando `ValueError` si un nombre falta (`f'{nombre}: ausente'`) o la categoria no esta en el mapa (`f'{nombre}: categoria desconocida'`).",
+            },
+            {
+                "id": "R6",
+                "text": "`servir(peticion, servicio, peticion_id)` devuelve siempre `{'codigo', 'peticion_id', 'version', 'cuerpo'}`: **503** con `{'error': 'modelo no cargado'}` y `version` `None` si `servicio['modelo_fn']` es `None`; **422** con `{'errores': [...]}` si la validacion o el vector fallan; **500** con `{'error': 'error interno'}` si `modelo_fn` lanza (el mensaje real no sale en la respuesta); **200** con `{'prediccion': valor}`. Salvo el 503, anade al log `{'id', 'codigo'}` mas `'errores'` (422), `'detalle'` con `str(e)` (500) o `'entrada'` y `'prediccion'` (200).",
+            },
+            {
+                "id": "R7",
+                "text": "`monitoreo.py`: `histograma(valores, bordes)` cuenta por tramos con los bordes dados, metiendo lo que se sale por los extremos en el primer o ultimo tramo (asi `sum(conteos) == len(valores)`), y lanza `ValueError` con menos de dos bordes. `psi(referencia, actual)` devuelve el PSI de dos listas de conteos: proporciones con suelo `1e-6` y suma de `(pa - pe) * ln(pa / pe)`; `ValueError` si las longitudes no coinciden o alguna suma 0.",
+            },
+            {
+                "id": "R8",
+                "text": "`monitorear(log, referencia, config)` devuelve `{'resumen': {'peticiones', 'por_codigo', 'tasa_error'}, 'alertas': [...]}`. Si la tasa de error (codigos `>= 400`, redondeada a 4 decimales) supera `config['tasa_error_maxima']`, anade `{'tipo': 'errores', 'valor', 'severidad': 'critico'}`. Con menos de `config['minimo']` peticiones de codigo 200 anade `{'tipo': 'muestra', 'valor', 'severidad': 'aviso'}` y **no** revisa drift. Si hay muestra, revisa cada columna de `config['orden']` que este en `referencia['columnas']` y despues la prediccion, anadiendo `{'tipo': 'drift', 'columna', 'psi', 'severidad'}` cuando `severidad` (ya escrita) del PSI no es `None`; el `psi` va redondeado a 4 decimales. Las criticas van delante, sin alterar el orden dentro de cada severidad.",
+            },
+            {
+                "id": "R9",
+                "text": "`despliegue.py`: `puerta_de_calidad(candidato, requisitos, minimo_casos)` devuelve `{'pasa', 'motivos'}` juntando los motivos de `revisar_requisitos` (ya escrita) y, al final, `f\"casos: {casos} < {minimo}\"` si el candidato se midio con pocos casos. `comparar_modelos(campeon, retador, metrica, margen, mayor_es_mejor=True)` devuelve `{'delta': <redondeado a 4>, 'gana': delta >= margen}` y lanza `ValueError` si la metrica falta en alguno. `asignar_variante(peticion_id, porcentaje)` reparte con `int(sha256(id), 16) % 100 < porcentaje`, y lanza `ValueError` fuera de 0..100.",
+            },
+            {
+                "id": "R10",
+                "text": "`evaluar_rollout(log_champion, log_challenger, minimo, tolerancia)` devuelve `'sin datos'` si alguno de los dos logs no llega al minimo, `'rollback'` si la tasa de error del challenger supera la del champion mas la tolerancia, y `'seguir'` si no. `desplegar(candidato, campeon, config, medir_fn)` devuelve `{'estado', 'motivos', 'historial'}`: `'rechazado'` con los motivos de la puerta (historial vacio); `'rechazado'` con `[f\"no mejora al campeon: delta {delta}\"]` si hay campeon y no gana; y si no, recorre `config['pasos']` llamando a `medir_fn(porcentaje)` (devuelve `{'champion', 'challenger'}`), anotando `{'porcentaje', 'decision'}` y parando en `'rollback'` (estado `'rollback'`) o `'sin datos'` (estado `'pausado'`). Si todos siguen, `'promovido'`.",
+            },
+        ],
+        "starter_files": [
+            {
+                "path": "reproducibilidad.py",
+                "editable": True,
+                "content": (
+                    '"""Reproducibilidad: huellas, division y manifiesto (R1-R2)."""\n'
+                    "import hashlib\n"
+                    "import json\n"
+                    "import random\n"
+                    "\n"
+                    "\n"
+                    "def huella(texto, n=12):\n"
+                    "    # TODO: sha256 del texto en utf-8, recortado a n caracteres\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def huella_config(config):\n"
+                    "    # TODO: huella del json canonico (sort_keys y separators)\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def huella_datos(filas):\n"
+                    "    # TODO: huella de la concatenacion de las huellas de cada fila\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def dividir(filas, fraccion_test, semilla):\n"
+                    "    # TODO: copiar, barajar con la semilla y partir; el test va primero\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def manifiesto(filas, config, semilla, entorno, metricas):\n"
+                    "    # TODO: datos, config, semilla, entorno (copiado), metricas\n"
+                    "    # TODO: id = huella_config de la receta, sin las metricas\n"
+                    "    pass\n"
+                ),
+            },
+            {
+                "path": "registro.py",
+                "editable": True,
+                "content": (
+                    '"""Registro de experimentos y de modelos (R3-R4)."""\n'
+                    "import hashlib\n"
+                    "import pickle\n"
+                    "from pathlib import Path\n"
+                    "\n"
+                    "\n"
+                    "def nuevo_run(run_id, params):\n"
+                    "    # TODO: id, params copiados, metricas, historial y estado 'en_curso'\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def registrar_metrica(run, nombre, valor, paso):\n"
+                    "    # TODO: [paso, valor] al historial y el ultimo valor en metricas\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def mejor_run(runs, metrica, mayor_es_mejor=True):\n"
+                    "    # TODO: solo los terminados que midieron la metrica; empate, el primero\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def guardar_modelo(modelo, ruta):\n"
+                    "    # TODO: pickle.dumps -> archivo, y devolver el sha256 de esos bytes\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def cargar_modelo(ruta, checksum):\n"
+                    "    # TODO: comprobar el checksum ANTES de pickle.loads\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def registrar_version(registro, nombre, run_id, checksum):\n"
+                    "    # TODO: version numerada desde 1, etapa 'ninguna', y devolverla\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def promover(registro, nombre, version, etapa):\n"
+                    "    # TODO: una sola version en production; la anterior se archiva\n"
+                    "    pass\n"
+                ),
+            },
+            {
+                "path": "servicio.py",
+                "editable": True,
+                "content": (
+                    '"""El servicio: contrato de entrada, vector y respuesta (R5-R6)."""\n'
+                    "\n"
+                    "def coaccionar(valor, tipo):\n"
+                    '    """Ya escrito: convierte lo inequivoco y lanza ValueError con el resto."""\n'
+                    "    if tipo == 'numero':\n"
+                    "        if isinstance(valor, bool):\n"
+                    "            raise ValueError('booleano no es numero')\n"
+                    "        if isinstance(valor, (int, float)):\n"
+                    "            return float(valor)\n"
+                    "        if isinstance(valor, str):\n"
+                    "            return float(valor.strip())\n"
+                    "        raise ValueError('no es numero')\n"
+                    "    if tipo == 'texto':\n"
+                    "        if isinstance(valor, str):\n"
+                    "            return valor.strip()\n"
+                    "        raise ValueError('no es texto')\n"
+                    "    if tipo == 'booleano':\n"
+                    "        if isinstance(valor, bool):\n"
+                    "            return valor\n"
+                    "        if isinstance(valor, str) and valor.strip().lower() in ('true', 'false'):\n"
+                    "            return valor.strip().lower() == 'true'\n"
+                    "        raise ValueError('no es booleano')\n"
+                    "    raise ValueError('tipo desconocido')\n"
+                    "\n"
+                    "\n"
+                    "def validar(peticion, esquema):\n"
+                    "    # TODO: recorrer el esquema; ausentes, coaccion y limites\n"
+                    "    # TODO: campos desconocidos al final, ordenados\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def vector(datos, orden, mapas):\n"
+                    "    # TODO: recorrer orden (no el diccionario), mapear categorias y float\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def servir(peticion, servicio, peticion_id):\n"
+                    "    # TODO: 503 sin modelo, 422 con errores, 500 generico, 200 con prediccion\n"
+                    "    # TODO: y cada peticion atendida al log\n"
+                    "    pass\n"
+                ),
+            },
+            {
+                "path": "monitoreo.py",
+                "editable": True,
+                "content": (
+                    '"""Monitoreo: histogramas, PSI y alertas de drift (R7-R8)."""\n'
+                    "import math\n"
+                    "\n"
+                    "def severidad(valor):\n"
+                    '    """Ya escrito: los umbrales estandar del PSI."""\n'
+                    "    if valor >= 0.25:\n"
+                    "        return 'critico'\n"
+                    "    if valor >= 0.1:\n"
+                    "        return 'aviso'\n"
+                    "    return None\n"
+                    "\n"
+                    "\n"
+                    "def tasa_error(log):\n"
+                    '    """Ya escrito: proporcion de peticiones con codigo >= 400."""\n'
+                    "    if not log:\n"
+                    "        return 0.0\n"
+                    "    return sum(1 for r in log if r['codigo'] >= 400) / len(log)\n"
+                    "\n"
+                    "\n"
+                    "def histograma(valores, bordes):\n"
+                    "    # TODO: ValueError con menos de dos bordes\n"
+                    "    # TODO: un conteo por tramo; los extremos al primero y al ultimo\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def psi(referencia, actual):\n"
+                    "    # TODO: validar longitudes y totales\n"
+                    "    # TODO: proporciones con suelo 1e-6 y suma de (pa - pe) * log(pa / pe)\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def monitorear(log, referencia, config):\n"
+                    "    # TODO: resumen del servicio y alerta de tasa de error\n"
+                    "    # TODO: los 200; si no llegan al minimo, alerta de muestra y parar\n"
+                    "    # TODO: columnas del orden, prediccion, y lo critico delante\n"
+                    "    pass\n"
+                ),
+            },
+            {
+                "path": "despliegue.py",
+                "editable": True,
+                "content": (
+                    '"""Despliegue: puerta, champion/challenger, rollout y rollback (R9-R10)."""\n'
+                    "import hashlib\n"
+                    "\n"
+                    "from monitoreo import tasa_error\n"
+                    "\n"
+                    "def revisar_requisitos(metricas, requisitos):\n"
+                    '    """Ya escrito: todos los motivos por los que un candidato no pasa."""\n'
+                    "    motivos = []\n"
+                    "    for nombre, regla in requisitos.items():\n"
+                    "        if nombre not in metricas:\n"
+                    "            motivos.append(f'{nombre}: no medida')\n"
+                    "        elif 'minimo' in regla and metricas[nombre] < regla['minimo']:\n"
+                    "            motivos.append(f\"{nombre}: {metricas[nombre]} < {regla['minimo']}\")\n"
+                    "        elif 'maximo' in regla and metricas[nombre] > regla['maximo']:\n"
+                    "            motivos.append(f\"{nombre}: {metricas[nombre]} > {regla['maximo']}\")\n"
+                    "    return motivos\n"
+                    "\n"
+                    "\n"
+                    "def puerta_de_calidad(candidato, requisitos, minimo_casos):\n"
+                    "    # TODO: los motivos de los requisitos y, al final, el de los casos\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def comparar_modelos(campeon, retador, metrica, margen, mayor_es_mejor=True):\n"
+                    "    # TODO: ValueError si la metrica no esta en los dos\n"
+                    "    # TODO: delta (invertido si menor es mejor) y el veredicto con el margen\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def asignar_variante(peticion_id, porcentaje):\n"
+                    "    # TODO: ValueError fuera de 0..100; huella -> cubo 0..99 -> variante\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def evaluar_rollout(log_champion, log_challenger, minimo, tolerancia):\n"
+                    "    # TODO: 'sin datos' / 'rollback' / 'seguir'\n"
+                    "    pass\n"
+                    "\n"
+                    "\n"
+                    "def desplegar(candidato, campeon, config, medir_fn):\n"
+                    "    # TODO: puerta -> rechazado; comparacion -> rechazado\n"
+                    "    # TODO: recorrer los pasos con medir_fn y anotar el historial\n"
+                    "    # TODO: rollback / pausado / promovido\n"
+                    "    pass\n"
+                ),
+            },
+            {
+                "path": "datos.py",
+                "editable": False,
+                "content": (
+                    '"""Datos del pipeline de Nebula (ya escrito: no hace falta tocarlo)."""\n'
+                    "\n"
+                    "# 200 pedidos historicos: importe, pais, urgencia y si acabaron devueltos.\n"
+                    "FILAS = [\n"
+                    "    {\n"
+                    "        'importe': float(20 + (i * 37) % 280),\n"
+                    "        'pais': ['ES', 'PT', 'FR'][i % 3],\n"
+                    "        'urgente': i % 5 == 0,\n"
+                    "        'devuelto': ((i * 37) % 280 > 150) != (i % 11 == 0),  # ~9% de ruido\n"
+                    "    }\n"
+                    "    for i in range(200)\n"
+                    "]\n"
+                    "\n"
+                    "CONFIG = {'modelo': 'umbral', 'umbral': 170.0, 'fraccion_test': 0.25}\n"
+                    "ENTORNO = {'python': '3.11', 'numpy': '2.0.2'}\n"
+                    "SEMILLA = 7\n"
+                    "\n"
+                    "# El contrato de entrada del servicio y el vector con el que se entreno.\n"
+                    "ESQUEMA = {\n"
+                    "    'importe': {'tipo': 'numero', 'min': 0, 'max': 10000},\n"
+                    "    'pais': {'tipo': 'texto', 'opciones': ['ES', 'PT', 'FR']},\n"
+                    "    'urgente': {'tipo': 'booleano', 'por_defecto': False},\n"
+                    "}\n"
+                    "ORDEN = ['importe', 'pais', 'urgente']\n"
+                    "MAPAS = {'pais': {'ES': 0, 'PT': 1, 'FR': 2}}\n"
+                    "\n"
+                    "# Histogramas del entrenamiento: los bordes se fijan aqui y no se recalculan.\n"
+                    "REFERENCIA = {\n"
+                    "    'columnas': {\n"
+                    "        'importe': {'bordes': [0, 100, 200, 300], 'conteos': [58, 71, 71]},\n"
+                    "        'pais': {'bordes': [0, 1, 2, 3], 'conteos': [67, 67, 66]},\n"
+                    "    },\n"
+                    "    'prediccion': {'bordes': [0, 0.5, 1], 'conteos': [110, 90]},\n"
+                    "}\n"
+                    "\n"
+                    "CONFIG_MONITOREO = {'orden': ORDEN, 'minimo': 20, 'tasa_error_maxima': 0.1}\n"
+                    "\n"
+                    "CONFIG_DESPLIEGUE = {\n"
+                    "    'requisitos': {'acierto': {'minimo': 0.80}, 'latencia_ms': {'maximo': 200}},\n"
+                    "    'minimo_casos': 50,\n"
+                    "    'metrica': 'acierto',\n"
+                    "    'margen': 0.02,\n"
+                    "    'pasos': [1, 10, 50],\n"
+                    "    'minimo_peticiones': 20,\n"
+                    "    'tolerancia': 0.02,\n"
+                    "}\n"
+                ),
+            },
+            {
+                "path": "demo.py",
+                "editable": True,
+                "content": (
+                    '"""El pipeline entero, de punta a punta (paso opcional: no se evalua).\n'
+                    "\n"
+                    "Pega en el editor tus cinco modulos seguidos de este archivo, quitando los\n"
+                    "`from ... import` de abajo, y ejecuta. Deberia imprimir el manifiesto, la\n"
+                    "version registrada, el resultado del monitoreo y el final del despliegue.\n"
+                    '"""\n'
+                    "from datos import (CONFIG, CONFIG_DESPLIEGUE, CONFIG_MONITOREO, ENTORNO,\n"
+                    "                   ESQUEMA, FILAS, MAPAS, ORDEN, REFERENCIA, SEMILLA)\n"
+                    "from reproducibilidad import dividir, manifiesto\n"
+                    "from registro import (cargar_modelo, guardar_modelo, mejor_run, nuevo_run,\n"
+                    "                      promover, registrar_metrica, registrar_version)\n"
+                    "from servicio import servir\n"
+                    "from monitoreo import monitorear\n"
+                    "from despliegue import desplegar\n"
+                    "\n"
+                    "# 1. Un experimento reproducible: mismas filas y misma semilla, mismo id.\n"
+                    "train, test = dividir(FILAS, CONFIG['fraccion_test'], SEMILLA)\n"
+                    "\n"
+                    "\n"
+                    "def entrenar(train, umbral):\n"
+                    '    """Un "modelo" de una sola regla: importe por encima del umbral, devuelto."""\n'
+                    "    return {'umbral': umbral}\n"
+                    "\n"
+                    "\n"
+                    "def acierto(modelo, filas):\n"
+                    "    aciertos = sum(1 for f in filas\n"
+                    "                   if (f['importe'] > modelo['umbral']) == f['devuelto'])\n"
+                    "    return aciertos / len(filas)\n"
+                    "\n"
+                    "\n"
+                    "runs = []\n"
+                    "modelos = {}\n"
+                    "for i, umbral in enumerate([140.0, 170.0, 200.0], start=1):\n"
+                    "    run = nuevo_run(f'run-{i}', {**CONFIG, 'umbral': umbral})\n"
+                    "    modelo = entrenar(train, umbral)\n"
+                    "    registrar_metrica(run, 'acierto', round(acierto(modelo, test), 4), 0)\n"
+                    "    run['estado'] = 'terminado'\n"
+                    "    runs.append(run)\n"
+                    "    modelos[run['id']] = modelo\n"
+                    "\n"
+                    "mejor = mejor_run(runs, 'acierto')\n"
+                    "m = manifiesto(FILAS, CONFIG, SEMILLA, ENTORNO, mejor['metricas'])\n"
+                    "print('experimento', m['id'], '| mejor', mejor['id'], mejor['metricas'])\n"
+                    "\n"
+                    "# 2. El artefacto, con su checksum, y una version en el registro.\n"
+                    "checksum = guardar_modelo(modelos[mejor['id']], 'modelo.pkl')\n"
+                    "registro = {}\n"
+                    "entrada = registrar_version(registro, 'devoluciones', mejor['id'], checksum)\n"
+                    "promover(registro, 'devoluciones', entrada['version'], 'production')\n"
+                    "modelo = cargar_modelo('modelo.pkl', checksum)\n"
+                    "print('version', entrada['version'], entrada['etapa'], '| checksum', checksum[:12])\n"
+                    "\n"
+                    "# 3. El servicio atiende peticiones y deja su log.\n"
+                    "servicio = {'esquema': ESQUEMA, 'orden': ORDEN, 'mapas': MAPAS,\n"
+                    "            'version': entrada['version'], 'log': [],\n"
+                    "            'modelo_fn': lambda fila: 1.0 if fila[0] > modelo['umbral'] else 0.0}\n"
+                    "for i, fila in enumerate(FILAS[:60]):\n"
+                    "    peticion = {'importe': fila['importe'], 'pais': fila['pais'], 'urgente': fila['urgente']}\n"
+                    "    servir(peticion, servicio, f'p-{i}')\n"
+                    "servir({'pais': 'DE'}, servicio, 'p-mala')\n"
+                    "print('peticiones', len(servicio['log']))\n"
+                    "\n"
+                    "# 4. El monitoreo mira ese log.\n"
+                    "informe = monitorear(servicio['log'], REFERENCIA, CONFIG_MONITOREO)\n"
+                    "print('resumen', informe['resumen'])\n"
+                    "print('alertas', informe['alertas'])\n"
+                    "\n"
+                    "# 5. Y el despliegue decide si el candidato sustituye al campeon.\n"
+                    "sano = [{'codigo': 200}] * 95 + [{'codigo': 500}] * 5\n"
+                    "candidato = {'metricas': {**mejor['metricas'], 'latencia_ms': 90}, 'casos': len(test)}\n"
+                    "campeon = {'metricas': {'acierto': 0.80, 'latencia_ms': 95}, 'casos': len(test)}\n"
+                    "resultado = desplegar(candidato, campeon, CONFIG_DESPLIEGUE,\n"
+                    "                      lambda p: {'champion': sano, 'challenger': sano})\n"
+                    "print('despliegue', resultado['estado'], resultado['historial'])\n"
+                ),
+            },
+        ],
+        "hidden_tests": [
+            {
+                "name": "R1 · huellas y division reproducible",
+                "code": (
+                    "from reproducibilidad import huella, huella_config, huella_datos, dividir\n"
+                    "h = huella('hola')\n"
+                    "assert isinstance(h, str) and len(h) == 12, h\n"
+                    "assert h == huella('hola') and h != huella('hola ')\n"
+                    "assert len(huella('hola', 8)) == 8\n"
+                    "assert huella_config({'a': 1, 'b': 2}) == huella_config({'b': 2, 'a': 1}), 'el orden de claves no cuenta'\n"
+                    "assert huella_config({'a': 1}) != huella_config({'a': 1.5})\n"
+                    "filas = [{'x': 1, 'y': 'a'}, {'x': 2, 'y': 'b'}, {'x': 3, 'y': 'c'}]\n"
+                    "assert huella_datos(filas) == huella_datos(list(filas))\n"
+                    "assert huella_datos(filas) != huella_datos(filas[::-1]), 'el orden de las filas si cuenta'\n"
+                    "assert huella_datos(filas) != huella_datos(filas + filas[:1])\n"
+                    "todos = [{'i': i} for i in range(12)]\n"
+                    "train, test = dividir(todos, 0.25, 5)\n"
+                    "assert len(test) == 3 and len(train) == 9\n"
+                    "assert (train, test) == dividir(todos, 0.25, 5), 'misma semilla, misma division'\n"
+                    "assert dividir(todos, 0.25, 6) != (train, test), 'otra semilla, otra division'\n"
+                    "assert sorted(x['i'] for x in train + test) == list(range(12)), 'no se pierde ni se repite nada'\n"
+                    "assert todos == [{'i': i} for i in range(12)], 'no se toca la lista original'\n"
+                ),
+            },
+            {
+                "name": "R2 · manifiesto con id de la receta",
+                "code": (
+                    "from reproducibilidad import manifiesto, huella_config, huella_datos\n"
+                    "filas = [{'a': 1}, {'a': 2}]\n"
+                    "config = {'modelo': 'umbral', 'umbral': 3.0}\n"
+                    "entorno = {'python': '3.11'}\n"
+                    "m = manifiesto(filas, config, 7, entorno, {'auc': 0.9})\n"
+                    "assert m['datos'] == {'huella': huella_datos(filas), 'filas': 2}, m['datos']\n"
+                    "assert m['config'] == {'huella': huella_config(config), 'valores': config}, m['config']\n"
+                    "assert m['semilla'] == 7 and m['entorno'] == {'python': '3.11'} and m['metricas'] == {'auc': 0.9}\n"
+                    "entorno['python'] = '3.12'\n"
+                    "assert m['entorno'] == {'python': '3.11'}, 'el entorno se copia'\n"
+                    "otro = manifiesto(filas, config, 7, {'python': '3.11'}, {'auc': 0.1})\n"
+                    "assert otro['id'] == m['id'], 'las metricas no forman parte del id'\n"
+                    "assert manifiesto(filas, config, 8, {'python': '3.11'}, {})['id'] != m['id'], 'la semilla si'\n"
+                    "assert manifiesto(filas[::-1], config, 7, {'python': '3.11'}, {})['id'] != m['id'], 'los datos si'\n"
+                    "esperado = huella_config({k: m[k] for k in ('datos', 'config', 'semilla', 'entorno')})\n"
+                    "assert m['id'] == esperado, m['id']\n"
+                ),
+            },
+            {
+                "name": "R3 · runs, metricas y el mejor",
+                "code": (
+                    "from registro import nuevo_run, registrar_metrica, mejor_run\n"
+                    "import json\n"
+                    "params = {'umbral': 3}\n"
+                    "run = nuevo_run('run-1', params)\n"
+                    "assert run == {'id': 'run-1', 'params': {'umbral': 3}, 'metricas': {}, 'historial': {}, 'estado': 'en_curso'}, run\n"
+                    "params['umbral'] = 99\n"
+                    "assert run['params'] == {'umbral': 3}, 'los params se copian'\n"
+                    "for paso, v in enumerate([0.9, 0.6, 0.45]):\n"
+                    "    registrar_metrica(run, 'perdida', v, paso)\n"
+                    "assert run['historial'] == {'perdida': [[0, 0.9], [1, 0.6], [2, 0.45]]}, run['historial']\n"
+                    "assert run['metricas'] == {'perdida': 0.45}\n"
+                    "assert json.loads(json.dumps(run)) == run, 'usa listas, no tuplas'\n"
+                    "runs = [\n"
+                    "    {'id': 'a', 'estado': 'terminado', 'metricas': {'auc': 0.81}},\n"
+                    "    {'id': 'b', 'estado': 'fallido', 'metricas': {'auc': 0.99}},\n"
+                    "    {'id': 'c', 'estado': 'terminado', 'metricas': {'perdida': 0.2}},\n"
+                    "    {'id': 'd', 'estado': 'terminado', 'metricas': {'auc': 0.86}},\n"
+                    "    {'id': 'e', 'estado': 'terminado', 'metricas': {'auc': 0.86}},\n"
+                    "]\n"
+                    "assert mejor_run(runs, 'auc')['id'] == 'd', 'en empate gana el primero'\n"
+                    "assert mejor_run(runs, 'perdida', mayor_es_mejor=False)['id'] == 'c'\n"
+                    "assert mejor_run(runs, 'f1') is None\n"
+                    "assert mejor_run([], 'auc') is None\n"
+                ),
+            },
+            {
+                "name": "R4 · artefacto con checksum y versiones",
+                "code": (
+                    "from registro import guardar_modelo, cargar_modelo, registrar_version, promover\n"
+                    "import hashlib, pickle, tempfile\n"
+                    "from pathlib import Path\n"
+                    "carpeta = Path(tempfile.mkdtemp())\n"
+                    "modelo = {'tipo': 'umbral', 'umbral': 120.0}\n"
+                    "ruta = carpeta / 'm.pkl'\n"
+                    "checksum = guardar_modelo(modelo, ruta)\n"
+                    "assert isinstance(checksum, str) and len(checksum) == 64, checksum\n"
+                    "assert checksum == hashlib.sha256(ruta.read_bytes()).hexdigest()\n"
+                    "assert pickle.loads(ruta.read_bytes()) == modelo\n"
+                    "assert cargar_modelo(ruta, checksum) == modelo\n"
+                    "ruta.write_bytes(ruta.read_bytes()[:-1] + b'!')\n"
+                    "try:\n"
+                    "    cargar_modelo(ruta, checksum)\n"
+                    "    raise AssertionError('un artefacto alterado no se carga')\n"
+                    "except ValueError:\n"
+                    "    pass\n"
+                    "registro = {}\n"
+                    "v1 = registrar_version(registro, 'dev', 'run-1', 'aa')\n"
+                    "v2 = registrar_version(registro, 'dev', 'run-3', 'bb')\n"
+                    "assert v1 == {'version': 1, 'run_id': 'run-1', 'checksum': 'aa', 'etapa': 'ninguna'}, v1\n"
+                    "assert v2['version'] == 2 and len(registro['dev']) == 2\n"
+                    "promover(registro, 'dev', 1, 'production')\n"
+                    "promover(registro, 'dev', 2, 'production')\n"
+                    "assert [(v['version'], v['etapa']) for v in registro['dev']] == [(1, 'archivado'), (2, 'production')]\n"
+                    "promover(registro, 'dev', 1, 'production')\n"
+                    "assert [(v['version'], v['etapa']) for v in registro['dev']] == [(1, 'production'), (2, 'archivado')], 'rollback'\n"
+                ),
+            },
+            {
+                "name": "R5 · validar y vector de caracteristicas",
+                "code": (
+                    "from servicio import validar, vector\n"
+                    "esquema = {\n"
+                    "    'importe': {'tipo': 'numero', 'min': 0, 'max': 1000},\n"
+                    "    'canal': {'tipo': 'texto', 'opciones': ['web', 'app']},\n"
+                    "    'vip': {'tipo': 'booleano', 'por_defecto': False},\n"
+                    "}\n"
+                    "datos, errores = validar({'importe': '120.5', 'canal': ' web '}, esquema)\n"
+                    "assert errores == [] and datos == {'importe': 120.5, 'canal': 'web', 'vip': False}, (datos, errores)\n"
+                    "datos, errores = validar({'canal': 'fax', 'vip': 1, 'zona': 3, 'Canal': 'web'}, esquema)\n"
+                    "assert errores == ['importe: requerido', 'canal: valor no permitido', 'vip: se esperaba booleano',\n"
+                    "                   'Canal: campo desconocido', 'zona: campo desconocido'], errores\n"
+                    "assert datos == {}, datos\n"
+                    "assert validar({'importe': True, 'canal': 'web'}, esquema)[1] == ['importe: se esperaba numero']\n"
+                    "assert validar({'importe': -1, 'canal': 'web'}, esquema)[1] == ['importe: minimo 0']\n"
+                    "assert validar({'importe': 1001, 'canal': 'web'}, esquema)[1] == ['importe: maximo 1000']\n"
+                    "orden = ['importe', 'canal', 'vip']\n"
+                    "mapas = {'canal': {'web': 0, 'app': 1}}\n"
+                    "f = vector({'vip': True, 'importe': 120.5, 'canal': 'app'}, orden, mapas)\n"
+                    "assert f == [120.5, 1.0, 1.0] and all(isinstance(x, float) for x in f), f\n"
+                    "for datos, mensaje in ([{'importe': 1, 'canal': 'fax', 'vip': False}, 'canal: categoria desconocida'],\n"
+                    "                       [{'importe': 1, 'vip': False}, 'canal: ausente']):\n"
+                    "    try:\n"
+                    "        vector(datos, orden, mapas)\n"
+                    "        raise AssertionError(mensaje)\n"
+                    "    except ValueError as e:\n"
+                    "        assert str(e) == mensaje, str(e)\n"
+                ),
+            },
+            {
+                "name": "R6 · servir con sus cuatro codigos",
+                "code": (
+                    "from servicio import servir\n"
+                    "esquema = {'importe': {'tipo': 'numero', 'min': 0}, 'canal': {'tipo': 'texto', 'opciones': ['web']}}\n"
+                    "base = {'esquema': esquema, 'orden': ['importe', 'canal'], 'mapas': {'canal': {'web': 0}}, 'version': 4}\n"
+                    "s = {**base, 'log': [], 'modelo_fn': lambda f: round(f[0] / 1000, 4)}\n"
+                    "r = servir({'importe': '120.5', 'canal': 'web'}, s, 'p-1')\n"
+                    "assert r == {'codigo': 200, 'peticion_id': 'p-1', 'version': 4, 'cuerpo': {'prediccion': 0.1205}}, r\n"
+                    "assert s['log'] == [{'id': 'p-1', 'codigo': 200, 'entrada': [120.5, 0.0], 'prediccion': 0.1205}], s['log']\n"
+                    "r = servir({'canal': 'otro', 'zona': 1}, s, 'p-2')\n"
+                    "assert r['codigo'] == 422 and r['version'] == 4, r\n"
+                    "assert r['cuerpo'] == {'errores': ['importe: requerido', 'canal: valor no permitido',\n"
+                    "                                   'zona: campo desconocido']}, r['cuerpo']\n"
+                    "assert s['log'][1] == {'id': 'p-2', 'codigo': 422, 'errores': r['cuerpo']['errores']}, s['log'][1]\n"
+                    "def rompe(fila):\n"
+                    "    raise RuntimeError('ruta /srv/v4.pkl corrupta')\n"
+                    "s2 = {**base, 'log': [], 'modelo_fn': rompe}\n"
+                    "r = servir({'importe': 10, 'canal': 'web'}, s2, 'p-3')\n"
+                    "assert r == {'codigo': 500, 'peticion_id': 'p-3', 'version': 4, 'cuerpo': {'error': 'error interno'}}, r\n"
+                    "assert 'v4.pkl' not in str(r), 'el detalle no sale en la respuesta'\n"
+                    "assert s2['log'] == [{'id': 'p-3', 'codigo': 500, 'detalle': 'ruta /srv/v4.pkl corrupta'}], s2['log']\n"
+                    "s3 = {**base, 'log': [], 'modelo_fn': None}\n"
+                    "r = servir({'importe': 10, 'canal': 'web'}, s3, 'p-4')\n"
+                    "assert r == {'codigo': 503, 'peticion_id': 'p-4', 'version': None,\n"
+                    "             'cuerpo': {'error': 'modelo no cargado'}}, r\n"
+                    "assert s3['log'] == [], 'el 503 no se registra'\n"
+                ),
+            },
+            {
+                "name": "R7 · histograma y PSI",
+                "code": (
+                    "from monitoreo import histograma, psi\n"
+                    "bordes = [0, 50, 100, 200]\n"
+                    "assert histograma([10, 60, 70, 120, 999], bordes) == [1, 2, 2]\n"
+                    "assert histograma([-5, 0, 49.9], bordes) == [3, 0, 0]\n"
+                    "assert histograma([], bordes) == [0, 0, 0]\n"
+                    "assert histograma([50, 99.99], bordes) == [0, 2, 0]\n"
+                    "valores = [-100, 0, 5, 10, 19, 20, 29, 30, 39, 40, 1000]\n"
+                    "c = histograma(valores, [0, 10, 20, 30, 40])\n"
+                    "assert c == [3, 2, 2, 4] and sum(c) == len(valores), c\n"
+                    "for malos in ([], [0]):\n"
+                    "    try:\n"
+                    "        histograma([1], malos)\n"
+                    "        raise AssertionError('con menos de dos bordes no hay tramos')\n"
+                    "    except ValueError:\n"
+                    "        pass\n"
+                    "ref = [10, 40, 30, 20]\n"
+                    "assert psi(ref, ref) == 0.0\n"
+                    "assert abs(psi(ref, [20, 80, 60, 40])) < 1e-9, 'la misma forma con mas datos no es drift'\n"
+                    "assert round(psi(ref, [12, 38, 32, 18]), 4) == 0.0081\n"
+                    "assert round(psi(ref, [25, 35, 25, 15]), 4) == 0.1676\n"
+                    "assert round(psi(ref, [40, 30, 20, 10]), 4) == 0.5545\n"
+                    "assert round(psi(ref, [0, 40, 30, 30]), 4) == 1.1918, 'el suelo evita el infinito'\n"
+                    "for a, b in ([[1, 2], [1, 2, 3]], [[0, 0], [1, 2]], [[1, 2], [0, 0]]):\n"
+                    "    try:\n"
+                    "        psi(a, b)\n"
+                    "        raise AssertionError(f'{a} vs {b} deberia lanzar ValueError')\n"
+                    "    except ValueError:\n"
+                    "        pass\n"
+                ),
+            },
+            {
+                "name": "R8 · monitorear el log del servicio",
+                "code": (
+                    "from monitoreo import monitorear\n"
+                    "referencia = {\n"
+                    "    'columnas': {'importe': {'bordes': [0, 50, 100, 200], 'conteos': [10, 40, 30]},\n"
+                    "                 'canal': {'bordes': [0, 1, 2, 3], 'conteos': [10, 40, 30]}},\n"
+                    "    'prediccion': {'bordes': [0, 0.25, 0.5, 1], 'conteos': [10, 40, 30]},\n"
+                    "}\n"
+                    "config = {'orden': ['importe', 'canal'], 'minimo': 4, 'tasa_error_maxima': 0.2}\n"
+                    "log = [{'codigo': 200, 'entrada': [10.0, 0.0], 'prediccion': 0.1} for _ in range(10)]\n"
+                    "log += [{'codigo': 200, 'entrada': [60.0, 1.0], 'prediccion': 0.3} for _ in range(40)]\n"
+                    "log += [{'codigo': 200, 'entrada': [150.0, 2.0], 'prediccion': 0.8} for _ in range(30)]\n"
+                    "r = monitorear(log, referencia, config)\n"
+                    "assert r['resumen'] == {'peticiones': 80, 'por_codigo': {200: 80}, 'tasa_error': 0.0}, r['resumen']\n"
+                    "assert r['alertas'] == [], r['alertas']\n"
+                    "r = monitorear([{'codigo': 200, 'entrada': [10.0, 0.0], 'prediccion': 0.1}] * 3, referencia, config)\n"
+                    "assert r['alertas'] == [{'tipo': 'muestra', 'valor': 3, 'severidad': 'aviso'}], r['alertas']\n"
+                    "r = monitorear([], referencia, config)\n"
+                    "assert r['resumen'] == {'peticiones': 0, 'por_codigo': {}, 'tasa_error': 0.0}, r['resumen']\n"
+                    "assert r['alertas'] == [{'tipo': 'muestra', 'valor': 0, 'severidad': 'aviso'}], r['alertas']\n"
+                    "malo = log + [{'codigo': 422, 'errores': ['importe: requerido']} for _ in range(40)]\n"
+                    "r = monitorear(malo, referencia, config)\n"
+                    "assert r['alertas'][0] == {'tipo': 'errores', 'valor': 0.3333, 'severidad': 'critico'}, r['alertas']\n"
+                    "assert r['resumen']['por_codigo'] == {200: 80, 422: 40}, r['resumen']\n"
+                    "movido = [{'codigo': 200, 'entrada': [10.0, 0.0], 'prediccion': 0.1} for _ in range(60)]\n"
+                    "movido += [{'codigo': 200, 'entrada': [60.0, 1.0], 'prediccion': 0.3} for _ in range(20)]\n"
+                    "r = monitorear(movido, referencia, config)\n"
+                    "tipos = [(a['tipo'], a.get('columna'), a['severidad']) for a in r['alertas']]\n"
+                    "assert ('drift', 'importe', 'critico') in tipos and ('drift', 'prediccion', 'critico') in tipos, tipos\n"
+                    "assert all(a['psi'] == round(a['psi'], 4) for a in r['alertas'] if a['tipo'] == 'drift')\n"
+                    "mezcla = [{'codigo': 200, 'entrada': [10.0, 0.0], 'prediccion': 0.1} for _ in range(25)]\n"
+                    "mezcla += [{'codigo': 200, 'entrada': [60.0, 1.0], 'prediccion': 0.3} for _ in range(45)]\n"
+                    "mezcla += [{'codigo': 200, 'entrada': [150.0, 2.0], 'prediccion': 0.8} for _ in range(30)]\n"
+                    "r = monitorear(mezcla, referencia, config)\n"
+                    "sev = [a['severidad'] for a in r['alertas']]\n"
+                    "assert sev == sorted(sev, key=lambda s: 0 if s == 'critico' else 1), sev\n"
+                ),
+            },
+            {
+                "name": "R9 · puerta, comparacion y reparto",
+                "code": (
+                    "from despliegue import puerta_de_calidad, comparar_modelos, asignar_variante\n"
+                    "requisitos = {'auc': {'minimo': 0.85}, 'latencia_ms': {'maximo': 200}}\n"
+                    "bueno = {'metricas': {'auc': 0.9, 'latencia_ms': 120}, 'casos': 400}\n"
+                    "assert puerta_de_calidad(bueno, requisitos, 100) == {'pasa': True, 'motivos': []}\n"
+                    "pocos = {'metricas': {'auc': 0.99, 'latencia_ms': 10}, 'casos': 7}\n"
+                    "assert puerta_de_calidad(pocos, requisitos, 100) == {'pasa': False, 'motivos': ['casos: 7 < 100']}\n"
+                    "malo = {'metricas': {'auc': 0.5}, 'casos': 10}\n"
+                    "r = puerta_de_calidad(malo, requisitos, 100)\n"
+                    "assert r['motivos'] == ['auc: 0.5 < 0.85', 'latencia_ms: no medida', 'casos: 10 < 100'], r['motivos']\n"
+                    "assert comparar_modelos({'auc': 0.86}, {'auc': 0.87}, 'auc', 0.02) == {'delta': 0.01, 'gana': False}\n"
+                    "assert comparar_modelos({'auc': 0.86}, {'auc': 0.88}, 'auc', 0.02)['gana'] is True, 'el margen justo gana'\n"
+                    "r = comparar_modelos({'perdida': 0.30}, {'perdida': 0.22}, 'perdida', 0.05, mayor_es_mejor=False)\n"
+                    "assert r == {'delta': 0.08, 'gana': True}, r\n"
+                    "try:\n"
+                    "    comparar_modelos({'auc': 0.8}, {}, 'auc', 0.01)\n"
+                    "    raise AssertionError('sin la metrica en los dos no hay comparacion')\n"
+                    "except ValueError:\n"
+                    "    pass\n"
+                    "ids = [f'p-{i}' for i in range(2000)]\n"
+                    "assert all(asignar_variante(i, 0) == 'champion' for i in ids)\n"
+                    "assert all(asignar_variante(i, 100) == 'challenger' for i in ids)\n"
+                    "diez = {i for i in ids if asignar_variante(i, 10) == 'challenger'}\n"
+                    "cincuenta = {i for i in ids if asignar_variante(i, 50) == 'challenger'}\n"
+                    "assert diez <= cincuenta and len(diez) < len(cincuenta), 'estable y monotono'\n"
+                    "assert abs(len(diez) / len(ids) * 100 - 10) < 3, len(diez)\n"
+                    "for p in (-1, 101):\n"
+                    "    try:\n"
+                    "        asignar_variante('p-1', p)\n"
+                    "        raise AssertionError('porcentaje invalido')\n"
+                    "    except ValueError:\n"
+                    "        pass\n"
+                ),
+            },
+            {
+                "name": "R10 · rollout y los cuatro finales",
+                "code": (
+                    "from despliegue import evaluar_rollout, desplegar\n"
+                    "sano = [{'codigo': 200}] * 95 + [{'codigo': 500}] * 5\n"
+                    "roto = [{'codigo': 200}] * 80 + [{'codigo': 500}] * 20\n"
+                    "assert evaluar_rollout(sano, roto, 50, 0.02) == 'rollback'\n"
+                    "assert evaluar_rollout(sano, sano, 50, 0.02) == 'seguir'\n"
+                    "assert evaluar_rollout(sano, roto, 500, 0.02) == 'sin datos'\n"
+                    "assert evaluar_rollout(sano, roto, 50, 0.2) == 'seguir', 'con mas tolerancia aguanta'\n"
+                    "config = {'requisitos': {'auc': {'minimo': 0.85}}, 'minimo_casos': 100, 'metrica': 'auc',\n"
+                    "          'margen': 0.02, 'pasos': [1, 10, 50], 'minimo_peticiones': 50, 'tolerancia': 0.02}\n"
+                    "candidato = {'metricas': {'auc': 0.90}, 'casos': 400}\n"
+                    "campeon = {'metricas': {'auc': 0.86}, 'casos': 400}\n"
+                    "llamadas = []\n"
+                    "def medir(p):\n"
+                    "    llamadas.append(p)\n"
+                    "    return {'champion': sano, 'challenger': sano}\n"
+                    "r = desplegar(candidato, campeon, config, medir)\n"
+                    "assert r['estado'] == 'promovido' and r['motivos'] == [], r\n"
+                    "assert llamadas == [1, 10, 50] and [h['porcentaje'] for h in r['historial']] == [1, 10, 50], r['historial']\n"
+                    "assert all(h['decision'] == 'seguir' for h in r['historial'])\n"
+                    "llamadas.clear()\n"
+                    "r = desplegar({'metricas': {'auc': 0.5}, 'casos': 10}, campeon, config, medir)\n"
+                    "assert r['estado'] == 'rechazado' and r['historial'] == [] and llamadas == [], r\n"
+                    "assert r['motivos'] == ['auc: 0.5 < 0.85', 'casos: 10 < 100'], r['motivos']\n"
+                    "r = desplegar({'metricas': {'auc': 0.87}, 'casos': 400}, campeon, config, medir)\n"
+                    "assert r['estado'] == 'rechazado' and r['motivos'] == ['no mejora al campeon: delta 0.01'], r\n"
+                    "assert desplegar({'metricas': {'auc': 0.87}, 'casos': 400}, None, config, medir)['estado'] == 'promovido'\n"
+                    "r = desplegar(candidato, campeon, config,\n"
+                    "              lambda p: {'champion': sano, 'challenger': sano if p == 1 else roto})\n"
+                    "assert r['estado'] == 'rollback', r\n"
+                    "assert r['historial'] == [{'porcentaje': 1, 'decision': 'seguir'},\n"
+                    "                          {'porcentaje': 10, 'decision': 'rollback'}], r['historial']\n"
+                    "r = desplegar(candidato, campeon, config, lambda p: {'champion': sano[:10], 'challenger': sano[:10]})\n"
+                    "assert r['estado'] == 'pausado', r\n"
+                    "assert r['historial'] == [{'porcentaje': 1, 'decision': 'sin datos'}], r['historial']\n"
+                ),
+            },
+        ],
+        "estimated_hours": 16,
+        "difficulty": "advanced",
+        "order_index": 6,
+    },
 ]
 
 
