@@ -170,9 +170,23 @@ el principio la numeración con la que va a trabajar siempre.
 
 ## Tutor socrático en Track 0
 
-El prompt del tutor debe adaptarse: sobre pseudocódigo se pregunta por la **traza**
-("¿cuánto vale `i` en la tercera vuelta?", "¿qué condición hizo que saliera del bucle?"),
-nunca por sintaxis de Python.
+**Hecho (2026-09-14).** El contexto que recibe el tutor lleva ahora el `track`, y con
+`track-0` cambian tres cosas en `AITutorService`:
+
+- se antepone un bloque de instrucciones que dice que lo que ve es pseudocódigo, que no
+  mencione sintaxis de Python, y que pregunte por la **traza** ("¿cuánto vale `i` en la
+  tercera vuelta?", "¿qué condición hizo que saliera del bucle?");
+- lo que escribió el alumno **no** se envuelve en un bloque ```python, porque no lo es;
+- el *fallback* determinista (el que se usa sin API key y cuando el modelo falla) deja de
+  devolver una `CALIFICACION` con notas sobre "claridad del código" —que a quien traza a mano
+  le habla de otra cosa— y devuelve las tres preguntas que le hacen seguir el algoritmo.
+
+Los ejercicios de Track 0 tienen su botón *Revisar con tutor*, que se había quedado solo en la
+rama de los ejercicios de código, y el contexto que guarda es el **pseudocódigo del enunciado**,
+no un starter de Python.
+
+Fuera de alcance por ahora: el Q&A del WebSocket (`/ws/tutor`), que es un chat general sin
+contexto de lección y tendría que recibir el track por otra vía.
 
 ## ELO y competencias
 

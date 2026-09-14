@@ -34,6 +34,7 @@ interface LessonDetailPayload {
   content: string
   difficulty: string
   category: string
+  track?: string
   estimated_duration: number
   prerequisites: number[]
   exercises: LessonExercise[]
@@ -87,12 +88,18 @@ const LessonDetail: React.FC = () => {
     if (!lesson) return
     saveTutorContext({
       problem_description: `${lesson.title}\n\nEjercicio: ${exercise.title}\n${exercise.instructions}`,
-      student_code: exercise.starter_code || '# Escribe tu solucion aqui\n',
+      // En Track 0 no hay codigo: lo que el alumno tiene delante es el
+      // pseudocodigo del enunciado, y eso es lo que el tutor debe leer.
+      student_code:
+        exercise.exercise_type && exercise.exercise_type !== 'code'
+          ? (exercise.spec?.pseudocodigo as string) || exercise.description
+          : exercise.starter_code || '# Escribe tu solucion aqui\n',
       expected_output: '',
       current_lesson: `lesson-${lesson.id}`,
       level: lesson.difficulty,
       source: `lesson:${lesson.id}:exercise:${exercise.id}`,
       exercise_id: exercise.id,
+      track: lesson.track,
     })
   }
 
@@ -203,13 +210,25 @@ const LessonDetail: React.FC = () => {
                     {exercise.exercise_type && exercise.exercise_type !== 'code' ? (
                       /* Track 0: el pseudocodigo no se ejecuta, asi que el
                          ejercicio se resuelve aqui y lo corrige el backend. */
-                      <ExerciseRunner
-                        exerciseId={exercise.id}
-                        exerciseType={exercise.exercise_type}
-                        spec={exercise.spec ?? null}
-                        completed={exercise.completed}
-                        onCompleted={() => loadLesson({ silencioso: true })}
-                      />
+                      <div>
+                        <ExerciseRunner
+                          exerciseId={exercise.id}
+                          exerciseType={exercise.exercise_type}
+                          spec={exercise.spec ?? null}
+                          completed={exercise.completed}
+                          onCompleted={() => loadLesson({ silencioso: true })}
+                        />
+                        <button
+                          onClick={() => {
+                            rememberForTutor(exercise)
+                            navigate('/tutor')
+                          }}
+                          className="btn-secondary mt-3"
+                        >
+                          Revisar con tutor
+                          <ArrowRight className="h-4 w-4 ml-2" />
+                        </button>
+                      </div>
                     ) : (
                       <div className="mt-4 flex flex-wrap gap-3">
                         <button

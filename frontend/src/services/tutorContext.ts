@@ -10,6 +10,9 @@ export interface TutorContextPayload {
   recent_errors?: string[]
   source?: string
   exercise_id?: number
+  /** Track de la leccion. En "track-0" el tutor pregunta por la traza, no por
+   *  sintaxis de Python, que el alumno todavia no ha visto. */
+  track?: string
 }
 
 export function saveTutorContext(context: TutorContextPayload) {

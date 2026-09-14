@@ -87,6 +87,7 @@ class AITutorService:
             "attempt_count": ("attempt_count", "attemptCount", "tries", "intentos"),
             "recent_errors": ("recent_errors", "recentErrors", "errors"),
             "weaknesses": ("weaknesses", "topics", "debilidades"),
+            "track": ("track", "pista"),
         }
 
         normalized: dict[str, Any] = {}
@@ -103,6 +104,25 @@ class AITutorService:
 
         return normalized
 
+    #: Track 0 no enseña Python: el alumno razona algoritmos en pseudocodigo.
+    #: Sin esto el tutor le corrige sintaxis que nadie le ha enseñado todavia,
+    #: que es justo lo que `docs/TRACK_0.md` pide evitar.
+    _INSTRUCCIONES_TRACK_0 = (
+        "IMPORTANTE - este estudiante esta en Track 0 (Fundamentos), donde "
+        "todavia NO se programa en Python:\n"
+        "- Lo que ves abajo es PSEUDOCODIGO o una tabla de traza, no codigo "
+        "Python. No lo corrijas como si lo fuera y no menciones sintaxis de "
+        "Python (dos puntos, sangria, print, len...).\n"
+        "- Pregunta por la TRAZA: cuanto vale una variable en una vuelta "
+        "concreta, que condicion hizo que el bucle terminara, que rama del Si "
+        "se tomo con esos datos.\n"
+        "- La notacion es: `<-` asigna, `=` compara, `Si/Entonces/SiNo/FinSi`, "
+        "`Mientras/Hacer/FinMientras`, `Para <- Hasta Hacer/FinPara`, "
+        "`Escribir`, `Leer`, `Longitud(v)`, y los arreglos empiezan en 0.\n"
+        "- No le des la respuesta: devuelvele una pregunta que le haga seguir "
+        "el algoritmo a mano hasta el punto donde se equivoco."
+    )
+
     def _build_context(self, context: dict[str, Any] | None = None) -> str:
         """Build the structured prompt context for the tutor."""
         if not context:
@@ -112,7 +132,11 @@ class AITutorService:
                 "- Si falta el enunciado o el codigo, pide esos datos antes de evaluar."
             )
 
+        es_track_0 = str(context.get("track") or "").strip() == "track-0"
+
         context_parts = [f"- Nivel del estudiante: {context.get('level', 'beginner')}"]
+        if es_track_0:
+            context_parts.append("- Track: 0 (Fundamentos, en pseudocodigo)")
 
         current_lesson = context.get("current_lesson")
         if current_lesson:
@@ -148,9 +172,15 @@ class AITutorService:
 
         student_code = context.get("student_code")
         if student_code:
-            context_parts.append(
-                f"\nCodigo del estudiante:\n```python\n{student_code}\n```"
-            )
+            if es_track_0:
+                context_parts.append(
+                    "\nLo que tiene delante el estudiante (pseudocodigo, NO "
+                    f"Python):\n```\n{student_code}\n```"
+                )
+            else:
+                context_parts.append(
+                    f"\nCodigo del estudiante:\n```python\n{student_code}\n```"
+                )
 
         expected_output = context.get("expected_output")
         if expected_output:
@@ -162,7 +192,12 @@ class AITutorService:
         if actual_output:
             context_parts.append(f"\nSalida actual del estudiante:\n{actual_output}")
 
-        return "Contexto disponible:\n" + "\n".join(context_parts)
+        cabecera = (
+            f"{self._INSTRUCCIONES_TRACK_0}\n\nContexto disponible:\n"
+            if es_track_0
+            else "Contexto disponible:\n"
+        )
+        return cabecera + "\n".join(context_parts)
 
     def _get_fallback_response(
         self, message: str, context: dict[str, Any] | None = None
@@ -170,6 +205,22 @@ class AITutorService:
         """Return a deterministic response when the model is unavailable."""
         problem_description = (context or {}).get("problem_description")
         student_code = (context or {}).get("student_code")
+
+        # En Track 0 no hay codigo que puntuar: el alumno esta siguiendo un
+        # algoritmo a mano. Devolverle una CALIFICACION con notas sobre
+        # "claridad del codigo" no solo no ayuda, es que habla de otra cosa.
+        if str((context or {}).get("track") or "").strip() == "track-0":
+            return (
+                "Vamos a seguirlo juntos, sin mirar la respuesta.\n\n"
+                "- Empieza por el estado inicial: que valor tiene cada variable "
+                "ANTES de entrar al bucle?\n"
+                "- Haz una vuelta entera a mano y anota los valores al terminarla. "
+                "Coinciden con lo que esperabas?\n"
+                "- Mira la condicion: que tendria que pasar para que dejara de "
+                "ser cierta, y que linea de dentro lo acerca?\n\n"
+                "Cuando llegues a la primera fila donde tu tabla y el algoritmo "
+                "no coinciden, ahi esta el fallo. Cuentame que encuentras."
+            )
         actual_output = (context or {}).get("actual_output")
         expected_output = (context or {}).get("expected_output")
 

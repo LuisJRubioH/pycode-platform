@@ -371,3 +371,96 @@ def test_el_orden_de_cada_leccion_de_track0_cuadra_con_su_numero():
         assert (
             leccion.order == numero - 11
         ), f"{leccion.title}: order {leccion.order}, esperaba {numero - 11}"
+
+
+# ------------------------------------------------- el tutor y el pseudocodigo
+
+
+def test_el_tutor_sabe_cuando_el_alumno_esta_en_pseudocodigo():
+    """En Track 0 el tutor no puede corregir sintaxis de Python.
+
+    `docs/TRACK_0.md` lo pide explicitamente: sobre pseudocodigo se pregunta
+    por la traza. El alumno no ha visto Python todavia, asi que corregirle la
+    sangria o sugerirle `print` es ruido, y ademas le adelanta el idioma que
+    el capstone le va a enseñar.
+    """
+    from app.services.ai_tutor import AITutorService
+
+    tutor = AITutorService()
+    contexto = tutor._normalize_context(
+        {
+            "track": "track-0",
+            "current_lesson": "Fundamentos 3 · Traza de ejecucion",
+            "problem_description": "Completa la traza",
+            "student_code": "i <- 1\nMientras i <= 3 Hacer",
+        }
+    )
+    texto = tutor._build_context(contexto)
+
+    assert "Track 0" in texto
+    assert "PSEUDOCODIGO" in texto
+    assert "TRAZA" in texto
+    # El pseudocodigo NO se presenta como si fuera Python.
+    assert "```python" not in texto
+    assert "i <- 1" in texto
+
+
+def test_un_ejercicio_de_codigo_no_cambia_de_forma():
+    """El contexto de Tracks 1-6 se queda exactamente como estaba."""
+    from app.services.ai_tutor import AITutorService
+
+    tutor = AITutorService()
+    contexto = tutor._normalize_context(
+        {
+            "problem_description": "Suma dos numeros",
+            "student_code": "def suma(a, b):\n    return a + b",
+        }
+    )
+    texto = tutor._build_context(contexto)
+
+    assert texto.startswith("Contexto disponible:")
+    assert "```python" in texto
+    assert "Track 0" not in texto
+    assert "PSEUDOCODIGO" not in texto
+
+
+def test_el_track_llega_por_cualquiera_de_sus_alias():
+    from app.services.ai_tutor import AITutorService
+
+    tutor = AITutorService()
+    for clave in ("track", "pista"):
+        contexto = tutor._normalize_context(
+            {clave: "track-0", "student_code": "x <- 1"}
+        )
+        assert "PSEUDOCODIGO" in tutor._build_context(contexto), clave
+    # Y un track cualquiera no activa el modo pseudocodigo.
+    contexto = tutor._normalize_context({"track": "track-3", "student_code": "x = 1"})
+    assert "PSEUDOCODIGO" not in tutor._build_context(contexto)
+
+
+def test_sin_modelo_el_tutor_de_track0_pregunta_por_la_traza():
+    """El fallback tampoco puede puntuar codigo a quien no escribe codigo.
+
+    Se usa sin API key (dev) y cuando el modelo falla (producción), así que un
+    alumno de Track 0 puede verlo de verdad.
+    """
+    from app.services.ai_tutor import AITutorService
+
+    tutor = AITutorService()
+    contexto = {
+        "track": "track-0",
+        "problem_description": "Completa la traza",
+        "student_code": "i <- 1",
+    }
+    respuesta = tutor._get_fallback_response("no me sale", contexto)
+
+    assert "CALIFICACION" not in respuesta
+    assert "/100" not in respuesta
+    assert "bucle" in respuesta and "condicion" in respuesta
+
+    # Y un ejercicio de código sigue recibiendo la evaluación de siempre.
+    de_codigo = tutor._get_fallback_response(
+        "no me sale",
+        {"problem_description": "Suma", "student_code": "def f(): pass"},
+    )
+    assert "CALIFICACION" in de_codigo
