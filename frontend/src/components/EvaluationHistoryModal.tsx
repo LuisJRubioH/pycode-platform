@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { X, History, ChevronDown, ChevronRight } from 'lucide-react'
 import { api } from '../services/api'
+import EvaluacionSocratica from './EvaluacionSocratica'
 
 interface EvaluationVerdict {
   raw: string
@@ -168,9 +169,14 @@ const EvaluationHistoryModal: React.FC<EvaluationHistoryModalProps> = ({
                           <p className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">
                             Veredicto
                           </p>
-                          <pre className="text-xs font-mono whitespace-pre-wrap bg-white border border-slate-200 rounded p-3 text-slate-800 max-h-72 overflow-auto">
-                            {item.verdict.raw}
-                          </pre>
+                          <div className="max-h-96 overflow-auto rounded border border-slate-200 bg-white p-3">
+                            <EvaluacionSocratica
+                              raw={item.verdict.raw}
+                              logicScore={item.verdict.logic_score}
+                              generalScore={item.verdict.general_score}
+                              compacto
+                            />
+                          </div>
                         </div>
                       </div>
                     )}

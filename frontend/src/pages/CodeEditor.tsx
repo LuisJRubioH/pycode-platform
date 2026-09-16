@@ -35,6 +35,7 @@ import {
 } from '../services/codeRunner'
 import { api } from '../services/api'
 import EvaluationHistoryModal from '../components/EvaluationHistoryModal'
+import EvaluacionSocratica from '../components/EvaluacionSocratica'
 import Markdown from '../components/Markdown'
 import type { HiddenTest, RunStatus, RunTestsResult } from '@/sandbox'
 
@@ -1355,27 +1356,12 @@ const CodeEditor: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-4 border-b border-slate-200 grid grid-cols-2 gap-4">
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Lógica</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {evaluation.verdict.logic_score ?? '—'}
-                  <span className="text-sm font-normal text-slate-500"> /100</span>
-                </p>
-              </div>
-              <div className="bg-slate-50 rounded-lg p-3">
-                <p className="text-xs uppercase tracking-wide text-slate-500">Solución general</p>
-                <p className="text-2xl font-bold text-slate-900">
-                  {evaluation.verdict.general_score ?? '—'}
-                  <span className="text-sm font-normal text-slate-500"> /100</span>
-                </p>
-              </div>
-            </div>
-
             <div className="p-4 overflow-auto flex-1">
-              <pre className="text-sm font-mono whitespace-pre-wrap text-slate-800">
-                {evaluation.verdict.raw}
-              </pre>
+              <EvaluacionSocratica
+                raw={evaluation.verdict.raw}
+                logicScore={evaluation.verdict.logic_score}
+                generalScore={evaluation.verdict.general_score}
+              />
             </div>
           </div>
         </div>

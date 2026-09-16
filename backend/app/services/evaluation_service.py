@@ -19,9 +19,14 @@ from app.services.llm_provider import StubProvider
 logger = structlog.get_logger()
 
 
-_LOGIC_RE = re.compile(r"L[oó]gica\s*:?\s*(\d{1,3})\s*/\s*100", re.IGNORECASE)
+# Entre la etiqueta y la nota puede haber Markdown: los modelos escriben
+# `- Lógica: **95/100**`, no `Logica: 95/100`. Sin tolerar los asteriscos la
+# nota no se extraia y la ficha del modal salia con un guion mientras el texto
+# de al lado decia 95/100.
+_SEPARADOR = r"[\s:*_`~()\[\]-]*"
+_LOGIC_RE = re.compile(rf"L[oó]gica{_SEPARADOR}(\d{{1,3}})\s*/\s*100", re.IGNORECASE)
 _GENERAL_RE = re.compile(
-    r"Soluci[oó]n\s*General\s*:?\s*(\d{1,3})\s*/\s*100", re.IGNORECASE
+    rf"Soluci[oó]n\s*General{_SEPARADOR}(\d{{1,3}})\s*/\s*100", re.IGNORECASE
 )
 
 
