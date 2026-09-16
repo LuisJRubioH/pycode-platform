@@ -17,7 +17,9 @@ export default defineConfig({
   reporter: [['list']],
   timeout: 60_000,
   use: {
-    baseURL: 'http://localhost:5173',
+    // Por defecto el dev server; `E2E_BASE_URL` permite apuntar al preview
+    // del build (`vite preview`) o a produccion sin tocar el archivo.
+    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:5173',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     navigationTimeout: 60_000,
@@ -29,11 +31,20 @@ export default defineConfig({
     { name: 'setup', testMatch: /.*\.setup\.ts/ },
     {
       name: 'chromium',
+      testIgnore: /responsive\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'e2e/.auth/user.json',
       },
       dependencies: ['setup'],
+    },
+    // El guard rail de responsive solo mide layout: stubea /api e inyecta el
+    // token a mano, asi que no necesita backend ni el proyecto `setup`. Corre
+    // con `npx playwright test --project=responsive` y basta con `npm run dev`.
+    {
+      name: 'responsive',
+      testMatch: /responsive\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'] },
     },
   ],
   // webServer: {

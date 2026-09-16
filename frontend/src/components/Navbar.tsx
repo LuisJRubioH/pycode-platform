@@ -25,7 +25,7 @@ const Navbar: React.FC = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden lg:flex items-center gap-4 xl:gap-6">
             <Link to="/lessons" className="text-slate-600 hover:text-slate-900">
               Lecciones
             </Link>
@@ -75,7 +75,7 @@ const Navbar: React.FC = () => {
           {/* Mobile menu button */}
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="md:hidden p-2 text-slate-600 hover:text-slate-900"
+            className="lg:hidden p-2 text-slate-600 hover:text-slate-900"
           >
             {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -83,7 +83,7 @@ const Navbar: React.FC = () => {
 
         {/* Mobile Navigation */}
         {isOpen && (
-          <div className="md:hidden py-4 border-t border-slate-200">
+          <div className="lg:hidden py-4 border-t border-slate-200">
             <div className="flex flex-col space-y-4">
               <Link to="/lessons" className="text-slate-600 hover:text-slate-900" onClick={() => setIsOpen(false)}>
                 Lecciones

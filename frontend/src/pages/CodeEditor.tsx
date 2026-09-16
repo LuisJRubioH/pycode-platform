@@ -738,16 +738,16 @@ const CodeEditor: React.FC = () => {
     <div
       className={
         pantallaCompleta
-          ? 'fixed inset-0 z-40 flex flex-col bg-white'
-          : // Sin el min-h, en una ventana de portatil el area de codigo se
-            // quedaba en dos lineas: todo lo de arriba (barra, cabecera del
-            // reto, enunciado) tiene altura fija y el editor era el unico que
-            // encogia. Es preferible que la pagina haga scroll.
-            'flex flex-col h-[calc(100vh-8rem)] min-h-[42rem] lg:min-h-[38rem]'
+          ? 'fixed inset-0 z-40 flex flex-col overflow-y-auto bg-white'
+          : // Solo a partir de lg se ata el alto a la ventana. Por debajo no
+            // caben las dos columnas ni con calzador: se apilan y la pagina
+            // scrollea, en vez de repartir una pantalla de movil entre barra,
+            // enunciado, editor y salida y dejarlos todos inservibles.
+            'flex flex-col lg:h-[calc(100vh-8rem)] lg:min-h-[38rem]'
       }
     >
-      <div className="bg-white border-b border-slate-200 p-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="bg-white border-b border-slate-200 p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <h1 className="text-xl font-semibold text-slate-900">Editor de Codigo</h1>
           <div
             className={`w-2 h-2 rounded-full ${
@@ -769,7 +769,7 @@ const CodeEditor: React.FC = () => {
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <button
             onClick={runCode}
             disabled={isRunning}
@@ -1223,7 +1223,7 @@ const CodeEditor: React.FC = () => {
       <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         {/* Apilados por debajo de lg: ahi la salida se llevaba 24rem de ancho
             y dejaba el codigo en una columna donde no cabe ni una linea. */}
-        <div className="flex-1 min-h-[18rem] lg:min-h-0">
+        <div className="h-72 min-w-0 flex-1 lg:h-auto lg:min-h-0">
           <Editor
             height="100%"
             defaultLanguage="python"
@@ -1243,7 +1243,7 @@ const CodeEditor: React.FC = () => {
           />
         </div>
 
-        <div className="w-full lg:w-96 shrink-0 h-64 lg:h-auto bg-slate-900 text-white flex flex-col">
+        <div className="flex h-64 w-full min-w-0 flex-col bg-slate-900 text-white lg:h-auto lg:w-96 lg:shrink-0">
           <div className="p-3 bg-slate-800 border-b border-slate-700 flex items-center gap-2">
             <Terminal className="h-4 w-4" />
             <span className="text-sm font-medium">Salida</span>
