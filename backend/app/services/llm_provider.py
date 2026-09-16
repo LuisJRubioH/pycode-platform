@@ -22,11 +22,26 @@ class LLMProvider(ABC):
 
 
 class GroqProvider(LLMProvider):
+    #: Los `openai/gpt-oss-*` razonan antes de contestar y esos tokens salen del
+    #: MISMO presupuesto que la respuesta. Con el esfuerzo por defecto, el tope
+    #: de 700 tokens del tutor se puede gastar entero razonando y devolver
+    #: `content` vacio — que es exactamente lo que dispara `_fallback_response`,
+    #: el texto generico que tenemos que evitar. Se vio en `/health/llm?ping=1`:
+    #: la llamada iba bien y aun asi el `sample` volvia vacio.
+    #: `reasoning_effort` no es un kwarg del SDK instalado (groq 0.5.0), asi que
+    #: viaja por `extra_body`, que si pasa cualquier version.
+    _MODELOS_QUE_RAZONAN = ("gpt-oss",)
+
     def __init__(self, api_key: str, model: str = "openai/gpt-oss-120b"):
         from groq import AsyncGroq
 
         self.client = AsyncGroq(api_key=api_key)
         self.model = model
+
+    def _extra_body(self) -> dict:
+        if any(m in self.model for m in self._MODELOS_QUE_RAZONAN):
+            return {"reasoning_effort": "low"}
+        return {}
 
     async def chat(self, system, user, max_tokens=700, temperature=0.4) -> str:
         resp = await self.client.chat.completions.create(
@@ -37,6 +52,7 @@ class GroqProvider(LLMProvider):
             ],
             max_tokens=max_tokens,
             temperature=temperature,
+            extra_body=self._extra_body(),
         )
         return resp.choices[0].message.content or ""
 

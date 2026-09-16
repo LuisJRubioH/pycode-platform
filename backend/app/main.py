@@ -180,10 +180,13 @@ async def health_check_llm(ping: bool = False):
         return {"status": "configured", "api_key_configured": True, **base}
 
     try:
+        # El presupuesto no es simbolico: los modelos que razonan gastan de aqui
+        # antes de escribir nada, y con un tope minusculo devuelven texto vacio
+        # aunque la llamada vaya bien.
         muestra = await provider.chat(
             system="Responde unicamente con la palabra ok.",
             user="ok",
-            max_tokens=5,
+            max_tokens=256,
             temperature=0.0,
         )
     except Exception as exc:
@@ -194,6 +197,22 @@ async def health_check_llm(ping: bool = False):
                 "status": "unhealthy",
                 "api_key_configured": True,
                 "reason": detalle[:400],
+                **base,
+            },
+        )
+
+    # Una respuesta vacia cuenta como fallo: el tutor la trata igual que un
+    # error y cae a su texto de reserva, que es el sintoma que perseguimos.
+    if not muestra.strip():
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "api_key_configured": True,
+                "reason": (
+                    "el modelo respondio vacio: el tutor caeria a su texto de "
+                    "reserva igual que si fallara"
+                ),
                 **base,
             },
         )
