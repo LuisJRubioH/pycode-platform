@@ -18,7 +18,7 @@ Plataforma de aprendizaje que lleva de **Fundamentos → Python → Data Science
 | **Track 5** — AI Engineering | ✅ Cerrado | 6 lecciones (embeddings, RAG, LLM real vía proxy, agentes, evals) · capstone `Nebula RAG` |
 | **Track 6** — MLOps | ✅ Cerrado | 5 lecciones (reproducibilidad, tracking/registro, servir un modelo, drift, CI/CD) · capstone `Pipeline de producción` |
 
-**En números**: ~60 lecciones · ~260 ejercicios (los de código con `hidden_tests`; los de Track 0 con su clave en el servidor) · 265 puzzles ELO (100 curados) · 85 retos, todos con tests · 7 capstones · 3 datasets · migraciones 0001-0016 · 230+ tests backend y ~50 de frontend. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**. *(Cifras redondeadas a propósito; el conteo exacto vive en los tests, ej. `test_bank_has_100_puzzles`.)*
+**En números**: ~60 lecciones · ~260 ejercicios (los de código con `hidden_tests`; los de Track 0 con su clave en el servidor) · 265 puzzles ELO (100 curados) · 85 retos, todos con tests · 7 capstones · 3 datasets · migraciones 0001-0016 · 245 tests backend, 60 de frontend y un guard rail E2E de responsive. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**. *(Cifras redondeadas a propósito; el conteo exacto vive en los tests, ej. `test_bank_has_100_puzzles`.)*
 
 ## Rampa de entrada
 
@@ -34,6 +34,8 @@ El capstone del track es el puente: implementar en Python los algoritmos ya traz
 
 El contenido y la plataforma están construidos y desplegados; lo que falta es **recorrerlos**. A día de hoy nadie ha llegado a un capstone en producción, así que los ~260 ejercicios están verificados con solución de referencia y pruebas E2E, que no es lo mismo que haberlos atravesado aprendiendo. La deuda técnica abierta (cobertura de tests del frontend, código muerto, un componente de 900 líneas) está listada y priorizada en [docs/BARRIDO_PROBLEMAS.md](docs/BARRIDO_PROBLEMAS.md).
 
+Lo del 2026-09-15 lo ilustra: usando la plataforma un rato aparecieron tres fallos que ninguna suite veía. El **tutor llevaba un mes muerto** — Groq retiró el modelo configurado y el fallback del evaluador se parece tanto a una respuesta real que nada lo delató—; la nota del veredicto salía con un guión porque el modelo escribe `**95/100**` y el parser esperaba `95/100`; y el editor **se desbordaba al encoger la ventana**, no al abrirla estrecha. De ahí salieron `/health/llm` y el guard rail de responsive: la lección no es que faltaran tests, es que fallaban cosas que solo se ven usándolo.
+
 ## Producción
 
 - **Frontend**: https://pycode-platform.vercel.app (Vercel Hobby)
@@ -43,9 +45,10 @@ El contenido y la plataforma están construidos y desplegados; lo que falta es *
 
 ## Características
 
-- **Editor Monaco** con tema/fuente configurables, descarga de script, copia al portapapeles.
+- **Editor Monaco** con tema/fuente configurables, descarga de script, copia al portapapeles, **pantalla completa** (Esc para salir) y enunciado plegable para devolverle alto al código.
 - **Pyodide en Web Worker**: el código del estudiante se ejecuta en el navegador con Comlink + timeout duro. El backend nunca lo ejecuta (`/api/v1/execute/run` retorna 410; `/validate` solo hace `ast.parse`). numpy/pandas/scipy/sklearn/matplotlib autocargan bajo demanda.
-- **Tutor IA Socrático** con dos roles separados: **evaluador de código** (REST atómico) y **Q&A** (WebSocket multi-turno). Provider abstraction: Groq (default) → OpenAI fallback → Stub determinístico si no hay API key.
+- **Tutor IA Socrático** con dos roles separados: **evaluador de código** (REST atómico) y **Q&A** (WebSocket multi-turno). Provider abstraction: Groq (default) → OpenAI fallback → Stub determinístico si no hay API key. La retroalimentación se presenta con forma: las dos notas como fichas de color por tramo (85/70/50) y cada bloque del veredicto en su tarjeta — verde lo que ya está bien, ámbar lo que falta, índigo las preguntas socráticas.
+- **Diagnóstico del LLM** (`GET /health/llm?ping=1`, público y sin secretos): dice si hay API key, si el modelo responde y **si responde vacío**. Existe porque el modo degradado del tutor es invisible — su texto de reserva se parece a una respuesta real, así que `/health` y `/health/db` pueden estar en verde con el tutor muerto.
 - **Proxy LLM para AI Engineering** (Track 5): `POST /api/v1/ai/complete` deja que el código del alumno (en Pyodide) llame a un LLM real vía backend — auth + rate limit + tope de tokens, sin exponer API keys. Helper `pycode.llm_complete()` en el editor.
 - **Ejercicios que no se ejecutan** (Track 0): tablas de traza, predecir la salida, opción múltiple y dos tipos de diagrama de flujo. Los corrige el backend, no el navegador. Los diagramas se dibujan en **SVG a partir de datos** (nodos en el `spec` del ejercicio), sin Mermaid ni imágenes: en el de completar huecos, el diagrama se redibuja con lo que el alumno elige.
 - **Tests ocultos por ejercicio**: `hidden_tests` que corren en Pyodide en namespace fresco, sin exponerse a la UI. Es el patrón base de validación replicado en todos los tracks de código.
@@ -111,7 +114,8 @@ cd frontend
 npm run build       # tsc + vite build (errores de TS fallan el build)
 npm run lint        # eslint --max-warnings 0
 npm run test        # vitest
-npm run test:e2e    # Playwright (Chromium headless)
+npm run test:e2e    # Playwright (Chromium headless) — necesita backend + usuario E2E
+npx playwright test --project=responsive   # guard rail de responsive; no necesita backend
 ```
 
 Las migraciones se renombran a `NNNN_descripcion.py` con orden monotónico. Las que tocan DDL Postgres-only (RLS) empiezan con:
@@ -148,7 +152,8 @@ frontend/
 │   ├── pages/               # Dashboard, Lessons, LessonDetail, CodeEditor, Puzzles,
 │   │                          InterviewProblems, Challenges, Competencies, CapstoneDetail,
 │   │                          CertificateVerify, TutorChat, Home, Login, Register
-│   ├── components/          # EloResultModal, EloTracks, CodeQualityPanel, PuzzleOfTheDay, ...
+│   ├── components/          # EvaluacionSocratica (veredicto del tutor), EloResultModal,
+│   │                       EloTracks, CodeQualityPanel, PuzzleOfTheDay, ...
 │   │   └── track0/          # ExerciseRunner + un componente por tipo no ejecutable,
 │   │                          incluido el render SVG de diagramas de flujo
 │   ├── sandbox/             # pyodideWorker, PyodideSandbox (Comlink)
@@ -186,6 +191,7 @@ docs/
 - Async SQLAlchemy: usar `selectinload`/`joinedload` para relaciones accedidas en endpoints.
 - Añadir lección/track de **código** = agregar `LessonTemplate(track=..., category=...)` + registrar la categoría en `Competencies.tsx`. Sin migración ni endpoints nuevos. Track 0 es la excepción, ya construida: sus tipos no ejecutables viven en `exercise_type` + `spec` + `answer_key` (migración 0016) y añadir uno nuevo es un validador en `track0_service` y un componente en `components/track0/` (ver `docs/TRACK_0.md`).
 - Guard rail de no-leak: lo oculto a la UI (`hidden_tests`, `reference_solution`, y la solución de cualquier ejercicio no ejecutable) debe tener un test que verifique que no se expone.
+- Guard rail de responsive: `e2e/responsive.spec.ts` comprueba que ninguna página sea más ancha que la ventana, en 6 anchos (360–1920) **y encogiendo** una ventana que estaba a 1920 — la mitad de los fallos solo aparecen ahí. Toda columna flex que contenga Monaco, una tabla o un `pre` necesita **`min-w-0`**: sin él un hijo flex no baja del ancho de su contenido.
 
 ## Licencia
 
