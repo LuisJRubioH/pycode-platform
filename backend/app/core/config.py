@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # LLM provider
     LLM_PROVIDER: str = "groq"  # groq | openai | anthropic
-    LLM_MODEL: str = "llama-3.3-70b-versatile"
+    LLM_MODEL: str = "openai/gpt-oss-120b"
     GROQ_API_KEY: str = ""
     HF_TOKEN: str = ""
 

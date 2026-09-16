@@ -4,6 +4,8 @@ PyCode Platform - Backend Application
 FastAPI backend for the Python learning platform with AI tutor.
 """
 
+import re
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -130,3 +132,75 @@ async def health_check_db():
         return JSONResponse(
             status_code=503, content={"status": "unhealthy", "db": "down"}
         )
+
+
+#: Cualquier cosa con pinta de credencial que pudiera venir en el mensaje de
+#: error del proveedor: el endpoint es publico, asi que no se reenvia tal cual.
+_RE_CREDENCIAL = re.compile(r"\b(gsk_|sk-|Bearer\s+)\S+", re.IGNORECASE)
+
+
+@app.get("/health/llm")
+async def health_check_llm(ping: bool = False):
+    """Diagnóstico del proveedor LLM (nunca expone la API key).
+
+    Existe porque este fallo es **invisible desde fuera**: si el modelo deja de
+    servirse —Groq retiró `llama-3.3-70b-versatile` el 2026-08-16— el tutor
+    captura la excepción y devuelve su respuesta de reserva, que se parece
+    bastante a una respuesta real. La plataforma estuvo semanas "funcionando"
+    con el tutor muerto. `/health` y `/health/db` seguían en verde.
+
+    Sin `?ping=1` solo dice qué hay configurado (barato, apto para monitor).
+    Con `?ping=1` hace una llamada mínima al modelo, que es lo único que
+    distingue "configurado" de "responde".
+    """
+    from app.services.llm_provider import StubProvider, get_provider
+
+    base = {"provider": settings.LLM_PROVIDER, "model": settings.LLM_MODEL}
+
+    try:
+        provider = get_provider(settings)
+    except ValueError as exc:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "reason": str(exc), **base},
+        )
+
+    if isinstance(provider, StubProvider):
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "degraded",
+                "api_key_configured": False,
+                "reason": "sin API key: el tutor responde con su texto de reserva",
+                **base,
+            },
+        )
+
+    if not ping:
+        return {"status": "configured", "api_key_configured": True, **base}
+
+    try:
+        muestra = await provider.chat(
+            system="Responde unicamente con la palabra ok.",
+            user="ok",
+            max_tokens=5,
+            temperature=0.0,
+        )
+    except Exception as exc:
+        detalle = _RE_CREDENCIAL.sub("[redacted]", f"{type(exc).__name__}: {exc}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "unhealthy",
+                "api_key_configured": True,
+                "reason": detalle[:400],
+                **base,
+            },
+        )
+
+    return {
+        "status": "healthy",
+        "api_key_configured": True,
+        "sample": muestra.strip()[:80],
+        **base,
+    }

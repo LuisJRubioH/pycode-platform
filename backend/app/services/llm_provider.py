@@ -22,7 +22,7 @@ class LLMProvider(ABC):
 
 
 class GroqProvider(LLMProvider):
-    def __init__(self, api_key: str, model: str = "llama-3.3-70b-versatile"):
+    def __init__(self, api_key: str, model: str = "openai/gpt-oss-120b"):
         from groq import AsyncGroq
 
         self.client = AsyncGroq(api_key=api_key)

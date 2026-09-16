@@ -21,6 +21,10 @@ import {
   Square,
   Eraser,
   Trophy,
+  Maximize2,
+  Minimize2,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import {
   runPythonCode,
@@ -37,6 +41,8 @@ import type { HiddenTest, RunStatus, RunTestsResult } from '@/sandbox'
 // El modo libre arranca vacio: es para el codigo propio del alumno (ejemplos
 // suyos o ejercicios de fuera de la plataforma), no para un ejemplo nuestro.
 const INITIAL_CODE = ''
+
+const CLAVE_CONTEXTO_PLEGADO = 'pycode:editor:contexto-plegado'
 
 const PLACEHOLDER_PROBLEM =
   'Describe aqui que deberia hacer tu codigo. Mientras mas claro sea el objetivo, mejor sera la evaluacion del tutor.'
@@ -152,6 +158,22 @@ const CodeEditor: React.FC = () => {
   const [fontSize, setFontSize] = useState(14)
   const [minimap, setMinimap] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  // Pantalla completa: el editor se sale del contenedor de `Layout`, que le
+  // come navbar + 4rem de padding vertical, y ocupa toda la ventana. Sin esto,
+  // en un portatil el area de codigo se quedaba en un par de lineas visibles y
+  // no habia ninguna forma de agrandarla.
+  const [pantallaCompleta, setPantallaCompleta] = useState(false)
+  // El enunciado y la salida esperada ocupan una banda fija que solo hace falta
+  // mientras se lee; plegarla devuelve ese espacio al codigo. Se recuerda entre
+  // sesiones porque es una preferencia de como trabaja el alumno, no del
+  // ejercicio concreto.
+  const [contextoPlegado, setContextoPlegado] = useState(() => {
+    try {
+      return localStorage.getItem(CLAVE_CONTEXTO_PLEGADO) === '1'
+    } catch {
+      return false
+    }
+  })
   const [isEvaluating, setIsEvaluating] = useState(false)
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null)
   const [evaluationError, setEvaluationError] = useState('')
@@ -517,6 +539,27 @@ const CodeEditor: React.FC = () => {
     return () => window.removeEventListener('keydown', alPulsar, true)
   }, [])
 
+  // Escape sale de pantalla completa. En pantalla completa la navbar queda
+  // tapada, asi que sin esto la unica salida seria el boton: si el foco esta
+  // dentro de Monaco no es evidente que siga ahi.
+  useEffect(() => {
+    if (!pantallaCompleta) return
+    const alPulsar = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPantallaCompleta(false)
+    }
+    window.addEventListener('keydown', alPulsar)
+    return () => window.removeEventListener('keydown', alPulsar)
+  }, [pantallaCompleta])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CLAVE_CONTEXTO_PLEGADO, contextoPlegado ? '1' : '0')
+    } catch {
+      // Modo privado o almacenamiento lleno: la preferencia no sobrevive a la
+      // recarga, pero la sesion actual funciona igual.
+    }
+  }, [contextoPlegado])
+
   const haySalida = Boolean(output || errorOutput || outputNote || outputImages.length > 0)
 
   // Vacia el panel de salida sin tocar el codigo. Tambien sirve mientras corre:
@@ -691,7 +734,17 @@ const CodeEditor: React.FC = () => {
   }
 
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col">
+    <div
+      className={
+        pantallaCompleta
+          ? 'fixed inset-0 z-40 flex flex-col bg-white'
+          : // Sin el min-h, en una ventana de portatil el area de codigo se
+            // quedaba en dos lineas: todo lo de arriba (barra, cabecera del
+            // reto, enunciado) tiene altura fija y el editor era el unico que
+            // encogia. Es preferible que la pagina haga scroll.
+            'flex flex-col h-[calc(100vh-8rem)] min-h-[42rem] lg:min-h-[38rem]'
+      }
+    >
       <div className="bg-white border-b border-slate-200 p-4 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-semibold text-slate-900">Editor de Codigo</h1>
@@ -795,6 +848,23 @@ const CodeEditor: React.FC = () => {
           >
             <ClipboardCheck className="h-4 w-4 mr-2" />
             {isEvaluating ? 'Evaluando...' : 'Evaluar mi código'}
+          </button>
+
+          <button
+            onClick={() => setPantallaCompleta((v) => !v)}
+            className="btn-secondary"
+            aria-pressed={pantallaCompleta}
+            title={
+              pantallaCompleta
+                ? 'Salir de pantalla completa (Esc)'
+                : 'Editor a pantalla completa'
+            }
+          >
+            {pantallaCompleta ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize2 className="h-4 w-4" />
+            )}
           </button>
 
           <div className="relative">
@@ -987,8 +1057,29 @@ const CodeEditor: React.FC = () => {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-[1.4fr,1fr] gap-0 border-b border-slate-200 bg-slate-50">
-        <div className="p-4 border-r border-slate-200">
+      <div className="border-b border-slate-200 bg-slate-50">
+        {/* El enunciado ocupa una banda fija que solo hace falta mientras se
+            lee. Plegarla es la forma barata de devolverle ese alto al codigo
+            sin irse a pantalla completa. */}
+        <button
+          onClick={() => setContextoPlegado((v) => !v)}
+          aria-expanded={!contextoPlegado}
+          className="flex w-full items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 hover:bg-slate-100"
+        >
+          {contextoPlegado ? (
+            <ChevronDown className="h-4 w-4" />
+          ) : (
+            <ChevronUp className="h-4 w-4" />
+          )}
+          {contextoPlegado ? 'Mostrar enunciado' : 'Ocultar enunciado'}
+        </button>
+
+        <div
+          className={`grid lg:grid-cols-[1.4fr,1fr] gap-0 border-t border-slate-200 ${
+            contextoPlegado ? 'hidden' : ''
+          }`}
+        >
+        <div className="p-4 lg:border-r border-slate-200">
           {enunciadoFijo !== null ? (
             <>
               {/* Lección o reto: el enunciado es del ejercicio, no del alumno.
@@ -1033,6 +1124,7 @@ const CodeEditor: React.FC = () => {
             className="w-full p-3 border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
             rows={4}
           />
+        </div>
         </div>
       </div>
 
@@ -1127,8 +1219,10 @@ const CodeEditor: React.FC = () => {
 
       {/* min-h-0: sin el, un hijo flex no baja de la altura de su contenido y
           una salida larga estiraba la pagina en vez de hacer scroll en el panel. */}
-      <div className="flex-1 flex min-h-0">
-        <div className="flex-1">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+        {/* Apilados por debajo de lg: ahi la salida se llevaba 24rem de ancho
+            y dejaba el codigo en una columna donde no cabe ni una linea. */}
+        <div className="flex-1 min-h-[18rem] lg:min-h-0">
           <Editor
             height="100%"
             defaultLanguage="python"
@@ -1148,7 +1242,7 @@ const CodeEditor: React.FC = () => {
           />
         </div>
 
-        <div className="w-96 bg-slate-900 text-white flex flex-col">
+        <div className="w-full lg:w-96 shrink-0 h-64 lg:h-auto bg-slate-900 text-white flex flex-col">
           <div className="p-3 bg-slate-800 border-b border-slate-700 flex items-center gap-2">
             <Terminal className="h-4 w-4" />
             <span className="text-sm font-medium">Salida</span>
