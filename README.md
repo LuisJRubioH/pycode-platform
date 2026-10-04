@@ -18,7 +18,7 @@ Plataforma de aprendizaje que lleva de **Fundamentos → Python → Data Science
 | **Track 5** — AI Engineering | ✅ Cerrado | 6 lecciones (embeddings, RAG, LLM real vía proxy, agentes, evals) · capstone `Nebula RAG` |
 | **Track 6** — MLOps | ✅ Cerrado | 5 lecciones (reproducibilidad, tracking/registro, servir un modelo, drift, CI/CD) · capstone `Pipeline de producción` |
 
-**En números**: ~60 lecciones · ~260 ejercicios (los de código con `hidden_tests`; los de Track 0 con su clave en el servidor) · 265 puzzles ELO (100 curados) · 85 retos, todos con tests · 7 capstones · 3 datasets · migraciones 0001-0016 · 245 tests backend, 60 de frontend y un guard rail E2E de responsive. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**. *(Cifras redondeadas a propósito; el conteo exacto vive en los tests, ej. `test_bank_has_100_puzzles`.)*
+**En números**: ~60 lecciones · ~260 ejercicios (los de código con `hidden_tests`; los de Track 0 con su clave en el servidor) · 265 puzzles ELO (100 curados) · 85 retos, todos con tests · 7 capstones · 3 datasets · migraciones 0001-0017 · 270 tests backend, 70 de frontend y un guard rail E2E de responsive. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**. *(Cifras redondeadas a propósito; el conteo exacto vive en los tests, ej. `test_bank_has_100_puzzles`.)*
 
 ## Rampa de entrada
 
@@ -35,6 +35,22 @@ El capstone del track es el puente: implementar en Python los algoritmos ya traz
 El contenido y la plataforma están construidos y desplegados; lo que falta es **recorrerlos**. A día de hoy nadie ha llegado a un capstone en producción, así que los ~260 ejercicios están verificados con solución de referencia y pruebas E2E, que no es lo mismo que haberlos atravesado aprendiendo. La deuda técnica abierta (cobertura de tests del frontend, código muerto, un componente de 900 líneas) está listada y priorizada en [docs/BARRIDO_PROBLEMAS.md](docs/BARRIDO_PROBLEMAS.md).
 
 Lo del 2026-09-15 lo ilustra: usando la plataforma un rato aparecieron tres fallos que ninguna suite veía. El **tutor llevaba un mes muerto** — Groq retiró el modelo configurado y el fallback del evaluador se parece tanto a una respuesta real que nada lo delató—; la nota del veredicto salía con un guión porque el modelo escribe `**95/100**` y el parser esperaba `95/100`; y el editor **se desbordaba al encoger la ventana**, no al abrirla estrecha. De ahí salieron `/health/llm` y el guard rail de responsive: la lección no es que faltaran tests, es que fallaban cosas que solo se ven usándolo.
+
+### Cuentas y acceso
+
+El 2026-10-04 un estudiante no consiguió registrarse: el formulario le decía
+`String should match pattern '^[a-zA-Z0-9_-]+$'` sin aclarar que ese patrón era
+el del **nombre de usuario**, así que estuvo cambiando la contraseña intento
+tras intento. Y al terminar descubrió que tampoco había forma de recuperar el
+acceso si se le olvidaba.
+
+Arreglado en los dos frentes: el registro ahora pinta cada error **dentro de su
+campo** y enseña las reglas antes de enviar, y existe recuperación por email
+(`/forgot-password`) con token de un solo uso. Detalle, decisiones de seguridad
+y puesta en marcha de Brevo en **[docs/RECUPERACION_PASSWORD.md](docs/RECUPERACION_PASSWORD.md)**.
+
+Es otro caso del mismo patrón: un fallo que ninguna suite veía y que apareció
+en cuanto alguien de fuera intentó usar la plataforma.
 
 ## Producción
 
@@ -179,6 +195,7 @@ docs/
 - **[docs/DATABASE.md](docs/DATABASE.md)** — esquema de base de datos: 22 tablas por dominio, columnas, relaciones, RLS y migraciones.
 - **[docs/TRACK_0.md](docs/TRACK_0.md)** — Track 0: temario, tipos de ejercicio no ejecutables, convención de pseudocódigo y por qué los diagramas no usan Mermaid.
 - **[docs/BARRIDO_PROBLEMAS.md](docs/BARRIDO_PROBLEMAS.md)** — problemas detectados con evidencia y prioridad, y cuáles siguen abiertos.
+- **[docs/RECUPERACION_PASSWORD.md](docs/RECUPERACION_PASSWORD.md)** — registro con errores por campo y recuperación de contraseña por email: diseño del token, qué no se filtra y cómo configurar Brevo.
 - **[docs/DEPLOY.md](docs/DEPLOY.md)** — despliegue Render + Vercel + Supabase.
 - `docs/historico/` — `PYCODE_SPEC.md` y `PLAN_COMPLETO.md`: diseño inicial **descartado** (ejecución en Docker server-side, Kubernetes, microservicios). Se conservan como registro; no son fuente de verdad.
 

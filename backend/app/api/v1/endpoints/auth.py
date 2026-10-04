@@ -23,11 +23,14 @@ from app.models.refresh_token import RefreshToken
 from app.models.user import User, UserProfile
 from app.schemas.auth import (
     LoginRequest,
+    PasswordResetConfirm,
+    PasswordResetRequest,
     RefreshRequest,
     Token,
     UserCreate,
     UserResponse,
 )
+from app.services import password_reset_service
 
 router = APIRouter()
 
@@ -35,7 +38,7 @@ router = APIRouter()
 @router.post(
     "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
 )
-@limiter.limit("3/hour")
+@limiter.limit("10/hour")
 async def register(
     request: Request, user_data: UserCreate, db: AsyncSession = Depends(get_db)
 ):
@@ -186,6 +189,55 @@ async def logout(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
         .values(revoked=True)
     )
     await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/password-reset/request", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("10/hour")
+async def password_reset_request(
+    request: Request, body: PasswordResetRequest, db: AsyncSession = Depends(get_db)
+):
+    """Envía el enlace de recuperación. Responde 204 pase lo que pase.
+
+    La respuesta es idéntica exista o no la cuenta, a propósito: si dijéramos
+    "no hay ninguna cuenta con ese email", el formulario se convertiría en un
+    comprobador de qué direcciones están registradas en la plataforma, que es
+    justo lo que no queremos regalar. Tampoco distingue si el correo salió o
+    no, para no filtrar lo mismo por la puerta de atrás.
+    """
+    result = await db.execute(select(User).where(User.email == body.email))
+    user = result.scalar_one_or_none()
+
+    if user is not None and user.is_active:
+        token = await password_reset_service.crear_token(db, user)
+        if token is not None:
+            await password_reset_service.enviar_correo_de_recuperacion(user, token)
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/password-reset/confirm", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("10/hour")
+async def password_reset_confirm(
+    request: Request, body: PasswordResetConfirm, db: AsyncSession = Depends(get_db)
+):
+    """Canjea el token por una contraseña nueva.
+
+    Aquí sí se responde con un error: quien llega con un token caducado o ya
+    usado necesita saberlo para pedir otro enlace, y el token no revela a qué
+    cuenta pertenece.
+    """
+    ok = await password_reset_service.consumir_token(
+        db, body.token, get_password_hash(body.password)
+    )
+    if not ok:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "El enlace de recuperación no es válido, ya se usó o caducó. "
+                "Pide uno nuevo."
+            ),
+        )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

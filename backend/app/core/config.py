@@ -56,6 +56,16 @@ class Settings(BaseSettings):
     # Frontend
     FRONTEND_URL: str = "http://localhost:5173"
 
+    # Email (recuperación de contraseña).
+    # Brevo por API HTTP: Render free bloquea los puertos SMTP salientes.
+    # Sin BREVO_API_KEY se cae al ConsoleProvider, que registra el enlace en el
+    # log en vez de enviarlo — igual que el StubProvider del LLM.
+    EMAIL_PROVIDER: str = "brevo"  # brevo | console
+    BREVO_API_KEY: str = ""
+    EMAIL_FROM: str = "no-reply@pycode.local"
+    EMAIL_FROM_NAME: str = "PyCode Platform"
+    PASSWORD_RESET_TOKEN_TTL_MINUTES: int = 60
+
     # Tutor — dos roles separados (Fase 1):
     # - TUTOR_PROMPT_FILE: prompt evaluador (POST /tutor/evaluate)
     # - TUTOR_GUIDE_PROMPT_FILE: prompt Q&A general (WS /ws/tutor)

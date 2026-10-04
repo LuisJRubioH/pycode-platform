@@ -29,6 +29,16 @@ services:
         value: groq
       - key: LLM_MODEL
         value: openai/gpt-oss-120b
+      - key: EMAIL_PROVIDER
+        value: brevo
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: EMAIL_FROM_NAME
+        value: PyCode Platform
+      - key: FRONTEND_URL
+        value: https://pycode-platform.vercel.app
       - key: SENTRY_DSN
         sync: false
       - key: CORS_ORIGINS

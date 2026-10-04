@@ -18,7 +18,14 @@ import { test, expect, type Page } from '@playwright/test'
 // de breakpoint, que es donde se rompen las cosas.
 const ANCHOS = [360, 390, 768, 1024, 1280, 1920]
 
-const RUTAS = ['/editor', '/lessons', '/dashboard']
+const RUTAS = [
+  '/editor',
+  '/lessons',
+  '/dashboard',
+  '/register',
+  '/forgot-password',
+  '/reset-password?token=prueba',
+]
 
 const USUARIO = {
   id: 1,

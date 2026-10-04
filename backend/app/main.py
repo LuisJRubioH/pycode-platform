@@ -6,7 +6,8 @@ FastAPI backend for the Python learning platform with AI tutor.
 
 import re
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
@@ -29,6 +30,7 @@ from app.models import code_quality  # noqa: F401
 from app.models import dataset  # noqa: F401
 from app.models import elo_models  # noqa: F401
 from app.models import learning  # noqa: F401
+from app.models import password_reset  # noqa: F401
 from app.models import refresh_token  # noqa: F401
 from app.models import user  # noqa: F401
 from app.services.capstone_seed import seed_capstones_if_empty
@@ -81,6 +83,34 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
+
+
+#: Pydantic antepone "Value error, " al texto de un validador propio, y mete en
+#: cada error un `input` con el valor que se envió: en /auth/register eso
+#: significa devolver la contraseña en claro dentro del 422, que acaba en logs y
+#: en cualquier proxy del camino. Este handler limpia las dos cosas y deja
+#: `loc` intacto, que es lo que el formulario usa para pintar el mensaje en su
+#: campo (la causa del lío: un alumno leyó un error de `username` como si fuera
+#: de la contraseña, porque el aviso no decía de qué campo hablaba).
+_PREFIJO_PYDANTIC = "Value error, "
+
+
+@app.exception_handler(RequestValidationError)
+async def validacion_sin_eco(request: Request, exc: RequestValidationError):
+    detalle = []
+    for error in exc.errors():
+        mensaje = str(error.get("msg", ""))
+        if mensaje.startswith(_PREFIJO_PYDANTIC):
+            mensaje = mensaje[len(_PREFIJO_PYDANTIC) :]
+        detalle.append(
+            {
+                "loc": [str(parte) for parte in error.get("loc", [])],
+                "msg": mensaje,
+                "type": error.get("type", "value_error"),
+            }
+        )
+    return JSONResponse(status_code=422, content={"detail": detalle})
+
 
 app.add_middleware(SecurityHeadersMiddleware)
 

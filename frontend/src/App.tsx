@@ -10,6 +10,8 @@ import './index.css'
 const Home = lazy(() => import('./pages/Home'))
 const Login = lazy(() => import('./pages/Login'))
 const Register = lazy(() => import('./pages/Register'))
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword'))
+const ResetPassword = lazy(() => import('./pages/ResetPassword'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const CodeEditor = lazy(() => import('./pages/CodeEditor'))
 const Lessons = lazy(() => import('./pages/Lessons'))
@@ -88,6 +90,8 @@ function App() {
           <Route index element={pagina(Home)} />
           <Route path="login" element={pagina(Login)} />
           <Route path="register" element={pagina(Register)} />
+          <Route path="forgot-password" element={pagina(ForgotPassword)} />
+          <Route path="reset-password" element={pagina(ResetPassword)} />
           <Route path="dashboard" element={pagina(Dashboard)} />
           <Route path="editor" element={pagina(CodeEditor)} />
           <Route path="lessons" element={pagina(Lessons)} />
