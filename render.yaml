@@ -30,8 +30,14 @@ services:
       - key: LLM_MODEL
         value: openai/gpt-oss-120b
       - key: EMAIL_PROVIDER
-        value: brevo
+        sync: false
       - key: BREVO_API_KEY
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      - key: MAILJET_API_KEY
+        sync: false
+      - key: MAILJET_API_SECRET
         sync: false
       - key: EMAIL_FROM
         sync: false

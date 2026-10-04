@@ -107,62 +107,102 @@ caducidad.
 
 ## El envío del correo
 
-`services/email_provider.py`, mismo patrón que `llm_provider.py`: un proveedor
-real y un stub.
+`services/email_provider.py`, mismo patrón que `llm_provider.py`: varios
+proveedores reales intercambiables y un stub.
 
-- **`BrevoProvider`** — API HTTP (`https://api.brevo.com/v3/smtp/email`).
-  Se usa API y **no SMTP** porque Render free bloquea los puertos salientes
-  25/465/587: un `smtplib` funcionaría en local y se colgaría hasta el timeout
-  en producción, que es el peor modo de fallo posible (el mismo perfil que el
-  tutor caído del 2026-09-15).
-- **`ConsoleProvider`** — sin `BREVO_API_KEY`, escribe el enlace en el log en
-  vez de enviarlo. Es lo que corre en desarrollo y en los tests, así que la
-  suite no toca la red.
+Hay **tres** y no uno porque ninguno garantiza que te deje abrir la cuenta.
+Esto no es teórico: el primer intento con Brevo se quedó atascado en su
+verificación por SMS —los códigos llegaban pero la web los daba por
+incorrectos—, con el flujo entero ya terminado y esperando solo una clave.
+Cambiar de proveedor es `EMAIL_PROVIDER`, no un cambio de código.
+
+| Proveedor | Gratis | Pega conocida |
+|---|---|---|
+| **SendGrid** | 100/día, sin caducidad | 2FA obligatorio (vale app de autenticación, no hace falta SMS) |
+| **Mailjet** | 200/día (6.000/mes) | revisa cuentas con remitente de Gmail |
+| **Brevo** | 300/día | **exige verificar el teléfono por SMS** antes de dar la clave API |
+| `console` | — | no envía: escribe el enlace en el log. Dev y tests |
+
+Todos van por **API HTTP, nunca SMTP**: Render free bloquea los puertos
+salientes 25/465/587, así que un `smtplib` funcionaría en local y se colgaría
+hasta el timeout en producción — el peor modo de fallo posible, el mismo perfil
+que el tutor caído del 2026-09-15.
+
+Comparten `_ProveedorHttp`, que hace el envío, el timeout y el tratamiento de
+errores. Cada proveedor solo define su URL, sus cabeceras y la forma de su
+payload. **Ninguno lanza nunca**: un rechazo o una caída de red devuelven
+`False` y quedan en el log, porque si lanzaran, un timeout del proveedor
+tumbaría el endpoint de recuperación. Hay test de las dos cosas para los tres.
+
+### Añadir un cuarto proveedor
+
+Heredar de `_ProveedorHttp`, definir `nombre`, `api_url`, `_cabeceras()` y
+`_payload()` (y `_auth()` si usa Basic auth, como Mailjet), y añadir su rama en
+`get_email_provider`. Unas 30 líneas. Los tests de forma de payload en
+`tests/test_email_provider.py` son la plantilla.
 
 ### Variables de entorno
 
 | Variable | Valor | Nota |
 |---|---|---|
-| `EMAIL_PROVIDER` | `brevo` \| `console` | |
-| `BREVO_API_KEY` | secreto | sin ella se cae al `ConsoleProvider` |
-| `EMAIL_FROM` | remitente | **tiene que estar verificado en Brevo** |
+| `EMAIL_PROVIDER` | `sendgrid` \| `mailjet` \| `brevo` \| `console` | por defecto `console` |
+| `SENDGRID_API_KEY` | secreto | solo si usas SendGrid |
+| `MAILJET_API_KEY` + `MAILJET_API_SECRET` | secretos | Mailjet necesita **las dos** |
+| `BREVO_API_KEY` | secreto | solo si usas Brevo |
+| `EMAIL_FROM` | remitente | **tiene que estar verificado en el proveedor** |
 | `EMAIL_FROM_NAME` | `PyCode Platform` | |
 | `FRONTEND_URL` | `https://pycode-platform.vercel.app` | base del enlace del correo |
 | `PASSWORD_RESET_TOKEN_TTL_MINUTES` | `60` | |
+
+Si al proveedor elegido le faltan credenciales **no se revienta**: se cae al
+`ConsoleProvider` y lo deja en el log. Que falte una variable de entorno no
+puede tumbar el registro ni el login.
 
 **`FRONTEND_URL` es la que más fácil se olvida**: por defecto vale
 `http://localhost:5173`, así que sin ponerla en Render los correos de
 producción llevarían a los alumnos a su propio ordenador.
 
-### Puesta en marcha en Brevo
+### Puesta en marcha (SendGrid, la vía recomendada)
 
-1. Crear cuenta en [brevo.com](https://www.brevo.com) (plan gratis: 300
-   correos/día).
-2. **Senders, Domains & Dedicated IPs → Senders → Add a sender**: verificar la
-   dirección que se vaya a usar como `EMAIL_FROM`. Brevo manda un correo de
-   confirmación a esa dirección. Esto permite enviar desde un email individual
-   sin tener dominio propio — es el motivo de elegir Brevo frente a Resend, que
-   exige dominio con DNS verificado.
-3. **SMTP & API → API Keys**: generar una clave v3 → `BREVO_API_KEY`.
-4. En Render: Settings → Environment, añadir las variables de la tabla y
-   redesplegar. Ojo con la nota de `CLAUDE.md`: la copia de la env var que vive
-   en Render gana sobre `render.yaml`.
+1. Cuenta en [sendgrid.com](https://signup.sendgrid.com) — plan Free, 100/día.
+2. Activar el 2FA que pide la cuenta **con una app de autenticación** (Google
+   Authenticator, Authy). Evita depender del SMS.
+3. **Settings → Sender Authentication → Single Sender Verification**: verificar
+   la dirección que se use como `EMAIL_FROM`. Llega un correo con un enlace.
+   Esto es lo que permite enviar sin dominio propio.
+4. **Settings → API Keys → Create API Key**, permiso *Mail Send* → `SENDGRID_API_KEY`.
+5. En Render: Settings → Environment, las variables de la tabla, y redesplegar.
+   Ojo: la copia de la env var que vive en Render gana sobre `render.yaml`.
+
+Con **Mailjet** el camino es el mismo cambiando los nombres: *Account settings
+→ Sender domains & addresses* para verificar el remitente, y *API Key
+Management* para sacar **las dos** claves.
+
+### Enviar desde un Gmail
+
+Funciona, pero los correos tienen más papeletas de caer en spam: `gmail.com` no
+es un dominio tuyo, así que no puedes firmarlos (DKIM) y desde 2024 Google,
+Yahoo y Microsoft son estrictos con eso. El proveedor avisará con un triángulo
+naranja en DKIM/DMARC — **no tiene arreglo con un Gmail**, no pierdas tiempo.
+Para arrancar y validar con los primeros estudiantes, sirve. Un dominio propio
+(10-15 € al año) lo elimina del todo.
 
 ### Diagnóstico
 
 Si un alumno dice que no le llega el correo, el orden de sospecha es:
 
-1. ¿Está `BREVO_API_KEY` en Render? Sin ella el backend no falla: escribe el
-   enlace en el log y responde 204 igual. Buscar `email_no_enviado_sin_proveedor`
-   en los logs de Render.
-2. ¿Está `EMAIL_FROM` verificado en Brevo? Si no, Brevo rechaza con 400 y el
-   log dice `email_rechazado` con el motivo de Brevo en `cuerpo`.
+1. ¿Están las credenciales en Render? Sin ellas el backend **no falla**: escribe
+   el enlace en el log y responde 204 igual. Buscar
+   `email_sin_credenciales_usando_consola` en los logs de Render.
+2. ¿Está `EMAIL_FROM` verificado en el proveedor? Si no, rechaza con 400 y el
+   log dice `email_rechazado` con el motivo del proveedor en `cuerpo`.
 3. ¿Pidió dos enlaces seguidos? El segundo no se envía
    (`password_reset_throttled` en el log).
-4. Carpeta de spam.
+4. ¿Cuota diaria agotada? También sale como `email_rechazado`.
+5. Carpeta de spam.
 
-Los tres primeros son invisibles para el alumno a propósito —el endpoint
-responde 204 siempre—, así que **los logs son el único sitio donde se ve**.
+Los cuatro primeros son invisibles para el alumno a propósito —el endpoint
+responde 204 siempre—, así que **los logs son el único sitio donde se ven**.
 
 ## Archivos
 

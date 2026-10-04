@@ -56,12 +56,15 @@ class Settings(BaseSettings):
     # Frontend
     FRONTEND_URL: str = "http://localhost:5173"
 
-    # Email (recuperación de contraseña).
-    # Brevo por API HTTP: Render free bloquea los puertos SMTP salientes.
-    # Sin BREVO_API_KEY se cae al ConsoleProvider, que registra el enlace en el
-    # log en vez de enviarlo — igual que el StubProvider del LLM.
-    EMAIL_PROVIDER: str = "brevo"  # brevo | console
+    # Email (recuperación de contraseña). Tres proveedores intercambiables,
+    # todos por API HTTP: Render free bloquea los puertos SMTP salientes.
+    # Sin las credenciales del elegido se cae al ConsoleProvider, que registra
+    # el enlace en el log en vez de enviarlo — igual que el StubProvider del LLM.
+    EMAIL_PROVIDER: str = "console"  # brevo | sendgrid | mailjet | console
     BREVO_API_KEY: str = ""
+    SENDGRID_API_KEY: str = ""
+    MAILJET_API_KEY: str = ""
+    MAILJET_API_SECRET: str = ""
     EMAIL_FROM: str = "no-reply@pycode.local"
     EMAIL_FROM_NAME: str = "PyCode Platform"
     PASSWORD_RESET_TOKEN_TTL_MINUTES: int = 60
