@@ -6,7 +6,8 @@ import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test_pycode.db")
-os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-prod")
+# >= 32 bytes: PyJWT avisa (InsecureKeyLengthWarning) con claves HS256 mas cortas.
+os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-prod-0123456789")
 os.environ.setdefault("ENVIRONMENT", "test")
 
 _TEST_DB_PATH = pathlib.Path(__file__).resolve().parents[1] / "test_pycode.db"

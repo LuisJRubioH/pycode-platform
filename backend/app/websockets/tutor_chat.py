@@ -22,7 +22,8 @@ from typing import Optional
 
 import structlog
 from fastapi import WebSocket, WebSocketDisconnect, status
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
 from sqlalchemy import select, text
 
 from app.core.config import settings
@@ -43,7 +44,7 @@ def _decode_token(token: str) -> Optional[int]:
         )
         sub = payload.get("sub")
         return int(sub) if sub is not None else None
-    except (JWTError, ValueError):
+    except (InvalidTokenError, ValueError):
         return None
 
 

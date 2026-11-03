@@ -4,7 +4,7 @@ Authentication endpoints.
 
 from datetime import timedelta, datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from jose import JWTError
+from jwt import InvalidTokenError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 
@@ -136,7 +136,7 @@ async def refresh(
     """Rota el refresh token: revoca el actual y emite uno nuevo."""
     try:
         payload = decode_refresh_token(body.refresh_token)
-    except JWTError:
+    except InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="refresh token inválido",
@@ -181,7 +181,7 @@ async def logout(body: RefreshRequest, db: AsyncSession = Depends(get_db)):
     """Revoca el refresh token recibido. Idempotente para tokens inválidos."""
     try:
         payload = decode_refresh_token(body.refresh_token)
-    except JWTError:
+    except InvalidTokenError:
         return Response(status_code=status.HTTP_204_NO_CONTENT)
     await db.execute(
         update(RefreshToken)

@@ -5,7 +5,8 @@ Authentication utilities and dependencies.
 import secrets
 from datetime import datetime, timedelta
 from typing import Optional
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
 import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -66,7 +67,7 @@ def create_refresh_token(user_id: int) -> tuple[str, str, datetime]:
 def decode_refresh_token(token: str) -> dict:
     payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     if payload.get("type") != "refresh":
-        raise JWTError("not a refresh token")
+        raise InvalidTokenError("not a refresh token")
     return payload
 
 
@@ -97,7 +98,7 @@ async def get_current_user(
         if user_id is None:
             raise credentials_exception
 
-    except JWTError:
+    except InvalidTokenError:
         raise credentials_exception
 
     from sqlalchemy import select, text

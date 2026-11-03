@@ -1,7 +1,7 @@
 fastapi>=0.139.0
 uvicorn[standard]==0.24.0
 python-multipart>=0.0.18
-python-jose[cryptography]>=3.4.0
+PyJWT==2.15.1
 passlib[bcrypt]==1.7.4
 sqlalchemy==2.0.23
 psycopg2-binary==2.9.9
@@ -11,7 +11,7 @@ redis==5.0.1
 slowapi==0.1.9
 structlog==24.1.0
 sentry-sdk[fastapi]>=1.45.1
-openai==1.3.6
+openai==1.109.1
 groq==0.5.0
 pydantic[email]==2.13.4
 pydantic-settings==2.1.0
@@ -23,17 +23,26 @@ flower==2.0.1
 pytest>=9.0.3
 pytest-asyncio>=1.0.0
 pytest-cov>=6.0.0
-black>=26.3.1
+black>=26.10.1
 flake8==6.1.0
 mypy==1.7.1
 stripe==7.8.0
 aiosqlite==0.19.0
 aioredis==2.0.1
 reportlab==4.5.1
-pillow==12.3.0
+pillow==13.0.0
 numpy==2.4.4
 pandas==3.0.2
-# Floors de seguridad para deps transitivas (Dependabot): urllib3 (PYSEC-2026-141/142),
+# Floors de seguridad para deps transitivas (Dependabot): urllib3 (PYSEC-2026-141/142;
+# 2.8.0 por PYSEC-2026-4175/4176/4177),
 # idna (CVE-2026-45409). pip-compile las resuelve via requests/sentry/anyio/httpx.
-urllib3>=2.7.0
+urllib3>=2.8.0
 idna>=3.15
+# anyio 3.x: GHSA-82r6-8w77-94w6 y GHSA-5p39-cfhj-2xmp (parche en 4.14.2). Llega via
+# starlette/httpx/openai/groq; por eso openai paso de 1.3.6 (pedia anyio<4) a 1.109.1.
+anyio>=4.14.2
+# 2026-11-03 (pip-audit sobre requirements.lock): certifi, dnspython (via
+# email-validator) y tornado (via flower; flower no corre en el contenedor).
+certifi>=2026.10.18
+dnspython>=2.9.0
+tornado>=6.6

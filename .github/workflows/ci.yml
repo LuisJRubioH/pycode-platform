@@ -26,7 +26,7 @@ jobs:
           python-version: "3.11"
       # Versiones fijadas para que el formato coincida con el local/requirements
       # (black sin pin trae una version nueva con reglas distintas -> falsos fallos).
-      - run: pip install black==26.5.1 flake8==6.1.0 mypy==1.7.1
+      - run: pip install black==26.10.1 flake8==6.1.0 mypy==1.7.1
       - run: cd backend && black --check . && flake8 .
       - name: SQLi guard
         run: cd backend && python scripts/check_no_sqli.py
@@ -49,6 +49,9 @@ jobs:
           python-version: "3.11"
       - run: pip install pip-audit
       - run: pip-audit -r requirements.txt --desc --strict || echo "vulns encontradas"
+      # El lock es lo que instala el Dockerfile; el .txt resuelve los ">=" a lo ultimo
+      # y puede salir limpio con el lock vulnerable (paso el 2026-11-03).
+      - run: pip-audit -r requirements.lock --desc --strict || echo "vulns encontradas en el lock"
       - uses: actions/setup-node@v6
         with:
           node-version: "20"
