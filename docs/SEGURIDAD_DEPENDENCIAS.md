@@ -139,3 +139,38 @@ está en la 4.1.11.
 Gotcha al subir Vite: la **primera** carga en frío del servidor de desarrollo
 optimiza dependencias y recarga la página; una prueba automática que empiece
 justo entonces puede fallar sin que haya un error real.
+
+## Triaje 2026-11-03 (`npm audit` en la laptop nueva)
+
+Al reinstalar el frontend con `npm ci`, `npm audit` dio **25** avisos
+(1 critical, 3 high, 21 moderate). Se publicaron advisories nuevos después del
+2026-09-13 para versiones que ya teníamos.
+
+### Aplicado el 2026-11-03 (sin versiones mayores)
+
+| Paquete | Antes → después | Severidad | Por qué ahora |
+|---|---|---|---|
+| `dompurify` | 3.4.14 → **3.4.17** (directa y `overrides`) | critical | Llega al navegador del alumno vía `monaco-editor`. El parche es un bump de patch: P2 "bump menor de riesgo bajo". |
+| `vite` | 6.4.3 → **6.4.5** | high | `launch-editor` en Windows, que es justo el equipo de desarrollo. Solo dev, pero el parche es de patch. |
+| `vitest` / `@vitest/mocker` | 4.1.11 → **4.1.12** | moderate | Solo tests. |
+| `source-map-js`, `brace-expansion` | transitivas, `npm audit fix` | high | Solo build. |
+
+Verificado tras el cambio: `npm run build`, `npm run test -- --run` (71/71) y
+`npm run lint` en verde; `npm audit` queda en **0 critical, 0 high, 19 moderate**.
+Comprobado otra vez el disparador de `react-router`: todos los `navigate()` y
+`<Link to>` van a rutas literales con ids; `ResetPassword` navega a `'/login'`
+fijo. No se cumple.
+
+### Plan para las 19 moderadas restantes
+
+Ninguna tiene parche sin versión mayor, y ninguna es P1.
+
+| Grupo | Avisos | Alcance | Prioridad | Acción |
+|---|---|---|---|---|
+| **Cadena de ESLint 8**: `eslint`, `@eslint/eslintrc`, `@humanwhocodes/config-array`, `@eslint-community/eslint-utils`, `@typescript-eslint/*` (5), `eslint-plugin-react-refresh`, `file-entry-cache`, `flat-cache`, `rimraf`, `glob`, `minimatch` | 15 | Solo lint, local y CI. No viaja al navegador ni a Render. | P3 | Migrar a **ESLint 9 + flat config** (`eslint.config.js`), `eslint-plugin-react-hooks` 5+ y `eslint-plugin-react-refresh` 0.5 (Dependabot ya tiene ramas abiertas para estos dos). Una rama propia; criterio de cierre: `npm run lint` con `--max-warnings 0` sin desactivar reglas para pasar. |
+| **`@tailwindcss/typography` → `postcss-selector-parser` 6.0.10** | 2 | Build CSS con selectores propios, no entrada externa. | P4 | Sin parche: la 0.5.20 es la última y fija 6.0.10. `npm audit` propone *bajar* a 0.5.4, que es peor. Reabrir cuando salga una typography que suba la dependencia, o al migrar a Tailwind 4. |
+| **`react-router` / `react-router-dom` 6.30.6** | 2 | Llega al navegador, pero sin ruta explotable (SPA sin SSR; ninguna navegación usa destino del usuario). | P4 | Siguen siendo #93/#94. Migrar a 7.18+ **solo** si se cumple el disparador de arriba, o como tarea propia con recorrido E2E del editor (modo lección y modo reto). |
+
+Orden propuesto: (1) migración de ESLint 9, que se lleva 15 de 19 de una vez;
+(2) revisar typography y react-router en cada triaje, sin tocarlos mientras no
+cambie su condición.

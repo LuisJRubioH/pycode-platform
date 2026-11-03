@@ -18,7 +18,7 @@ Plataforma de aprendizaje que lleva de **Fundamentos → Python → Data Science
 | **Track 5** — AI Engineering | ✅ Cerrado | 6 lecciones (embeddings, RAG, LLM real vía proxy, agentes, evals) · capstone `Nebula RAG` |
 | **Track 6** — MLOps | ✅ Cerrado | 5 lecciones (reproducibilidad, tracking/registro, servir un modelo, drift, CI/CD) · capstone `Pipeline de producción` |
 
-**En números**: ~60 lecciones · ~260 ejercicios (los de código con `hidden_tests`; los de Track 0 con su clave en el servidor) · 265 puzzles ELO (100 curados) · 85 retos, todos con tests · 7 capstones · 3 datasets · migraciones 0001-0017 · 270 tests backend, 70 de frontend y un guard rail E2E de responsive. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**. *(Cifras redondeadas a propósito; el conteo exacto vive en los tests, ej. `test_bank_has_100_puzzles`.)*
+**En números**: ~60 lecciones · ~260 ejercicios (los de código con `hidden_tests`; los de Track 0 con su clave en el servidor) · 265 puzzles ELO (100 curados) · 85 retos, todos con tests · 7 capstones · 3 datasets · migraciones 0001-0017 · ~290 tests backend, ~70 de frontend y un guard rail E2E de responsive. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**. *(Cifras redondeadas a propósito; el conteo exacto vive en los tests, ej. `test_bank_has_100_puzzles`.)*
 
 ## Rampa de entrada
 
@@ -84,7 +84,7 @@ en cuanto alguien de fuera intentó usar la plataforma.
 
 ## Requisitos
 
-- Python 3.11 · Node.js 20 · Postgres 16 local (opcional; los tests corren contra SQLite, pero Postgres es necesario para autogenerar migraciones y validar RLS).
+- Python 3.11 · Node.js 20 (el de CI; también probado con Node 24) · Postgres 16 local (opcional; los tests corren contra SQLite, pero Postgres es necesario para autogenerar migraciones y validar RLS).
 
 ## Instalación
 
@@ -96,13 +96,21 @@ python -m venv .venv311
 .venv311\Scripts\activate            # Windows; en Unix: source .venv311/bin/activate
 pip install -r ../requirements.txt   # o ../requirements.lock para versiones pinned
 
-cp ../.env.example ../.env            # editar con tus credenciales
+cp ../.env.example .env              # backend/.env: se lee desde la carpeta donde arrancas
 
 alembic upgrade head                 # obligatorio antes de levantar — crea las tablas
 # Windows: exportar UTF-8 para que structlog no crashee al seedear contenido Unicode
 $env:PYTHONUTF8="1"                  # (PowerShell)
 uvicorn app.main:app --reload --port 8000
 ```
+
+`Settings` lee `env_file=".env"` **relativo al directorio de arranque**, así que
+el `.env` va en `backend/`, que es desde donde se lanzan `alembic` y `uvicorn`.
+Para desarrollo local basta con `DATABASE_URL=sqlite+aiosqlite:///./pycode.db`,
+una `SECRET_KEY` propia y `EMAIL_PROVIDER=console`. **No uses la `DATABASE_URL`
+de producción en local**: al arrancar, el `lifespan` siembra contenido en la base
+a la que apunte. Sin `GROQ_API_KEY` el tutor responde con su texto de reserva
+(`GET /health/llm` lo dice).
 
 ### Frontend
 
@@ -158,7 +166,7 @@ backend/
 │   │                          elo_service, elo_rating_service, code_quality_service,
 │   │                          capstone_seed, certificate_pdf, dataset_seed, curated_retos, ...
 │   └── websockets/          # tutor_chat (/ws/tutor); /ws/code deprecado
-├── alembic/versions/        # 0001 → 0016
+├── alembic/versions/        # 0001 → 0017
 ├── scripts/check_no_sqli.py
 ├── tests/                   # suite de tests del backend
 └── Dockerfile               # alembic upgrade head + uvicorn
@@ -197,6 +205,7 @@ docs/
 - **[docs/BARRIDO_PROBLEMAS.md](docs/BARRIDO_PROBLEMAS.md)** — problemas detectados con evidencia y prioridad, y cuáles siguen abiertos.
 - **[docs/RECUPERACION_PASSWORD.md](docs/RECUPERACION_PASSWORD.md)** — registro con errores por campo y recuperación de contraseña por email: diseño del token, qué no se filtra y cómo configurar Brevo.
 - **[docs/DEPLOY.md](docs/DEPLOY.md)** — despliegue Render + Vercel + Supabase.
+- **[docs/SEGURIDAD_DEPENDENCIAS.md](docs/SEGURIDAD_DEPENDENCIAS.md)** — triaje de vulnerabilidades de dependencias (P1-P4 por alcance real, no por CVSS), lo aplicado y el plan de lo que queda.
 - `docs/historico/` — `PYCODE_SPEC.md` y `PLAN_COMPLETO.md`: diseño inicial **descartado** (ejecución en Docker server-side, Kubernetes, microservicios). Se conservan como registro; no son fuente de verdad.
 
 ## Convenciones
