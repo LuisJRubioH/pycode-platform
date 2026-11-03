@@ -175,6 +175,10 @@ const CodeEditor: React.FC = () => {
       return false
     }
   })
+  // En leccion o reto el enunciado ya viene dado, asi que la "salida esperada"
+  // (opcional, solo para el evaluador) arranca plegada: era media banda vacia
+  // restandole alto al codigo. En modo libre se ve siempre.
+  const [mostrarCriterio, setMostrarCriterio] = useState(false)
   const [isEvaluating, setIsEvaluating] = useState(false)
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null)
   const [evaluationError, setEvaluationError] = useState('')
@@ -462,6 +466,11 @@ const CodeEditor: React.FC = () => {
     if (!salidaRef.current) return
     salidaRef.current.scrollTop = salidaRef.current.scrollHeight
   }, [output, errorOutput])
+  // Los tests se pintan arriba del panel: al llegar el resultado se sube para
+  // que se vea, aunque la salida anterior lo hubiera dejado abajo del todo.
+  useEffect(() => {
+    if (testsResult && salidaRef.current) salidaRef.current.scrollTop = 0
+  }, [testsResult])
 
   const runCode = async () => {
     setOutput('')
@@ -734,6 +743,88 @@ const CodeEditor: React.FC = () => {
     }
   }
 
+  // Los resultados de los tests van dentro del panel de Salida: como franja
+  // a todo el ancho le quitaban al editor ~150px justo al ejecutarlos.
+  const panelTests = testsResult && (
+    <div
+      className={`rounded-lg border px-3 py-2 text-slate-800 ${
+        testsResult.passed === testsResult.total
+          ? 'bg-emerald-50 border-emerald-200'
+          : 'bg-rose-50 border-rose-200'
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <TestTube2
+            className={`h-4 w-4 ${
+              testsResult.passed === testsResult.total
+                ? 'text-emerald-600'
+                : 'text-rose-600'
+            }`}
+          />
+          <span className="text-sm font-semibold text-slate-800">
+            Tests: {testsResult.passed} / {testsResult.total} pasaron
+            <span className="text-slate-500 font-normal ml-2">
+              ({testsResult.durationMs.toFixed(0)} ms)
+            </span>
+          </span>
+        </div>
+        <button
+          onClick={() => setTestsResult(null)}
+          className="text-slate-400 hover:text-slate-600"
+          aria-label="Cerrar"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <ul className="mt-2 space-y-1 text-sm">
+        {testsResult.verdicts.map((v, i) => (
+          <li key={i} className="flex items-start gap-2">
+            {v.passed ? (
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
+            ) : (
+              <XCircle className="h-4 w-4 text-rose-600 mt-0.5 flex-shrink-0" />
+            )}
+            <div className="flex-1">
+              <span className="text-slate-800">{v.name || `Test ${i + 1}`}</span>
+              {!v.passed && v.errorMessage && (
+                <pre className="mt-1 text-xs font-mono whitespace-pre-wrap [overflow-wrap:anywhere] text-rose-700 bg-white/60 rounded px-2 py-1">
+                  {v.errorMessage}
+                </pre>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+      {retoResuelto && challenge && (
+        <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-emerald-200 pt-3">
+          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-800">
+            <Trophy className="h-4 w-4" />
+            Reto resuelto: queda marcado como hecho y suma a tu ELO de retos.
+          </span>
+          {siguienteNivel && (
+            <button onClick={() => irAReto(siguienteNivel.id)} className="btn-primary">
+              Ir al Nivel {siguienteNivel.level}
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </button>
+          )}
+          {retoSiguiente && (
+            <button
+              onClick={() => irAReto(retoSiguiente.id)}
+              className={siguienteNivel ? 'btn-secondary' : 'btn-primary'}
+            >
+              Siguiente reto
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+
+  const verCriterio =
+    enunciadoFijo === null || mostrarCriterio || expectedOutput.trim() !== ''
+
   return (
     <div
       className={
@@ -743,12 +834,13 @@ const CodeEditor: React.FC = () => {
             // caben las dos columnas ni con calzador: se apilan y la pagina
             // scrollea, en vez de repartir una pantalla de movil entre barra,
             // enunciado, editor y salida y dejarlos todos inservibles.
-            'flex flex-col lg:h-[calc(100vh-8rem)] lg:min-h-[38rem]'
+            // dvh y no vh: en movil vh incluye la barra del navegador.
+            'flex flex-col lg:h-[calc(100dvh-8rem)] lg:min-h-[36rem]'
       }
     >
-      <div className="bg-white border-b border-slate-200 p-3 sm:p-4 flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white border-b border-slate-200 px-3 py-2 sm:px-4 flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-3">
-          <h1 className="text-xl font-semibold text-slate-900">Editor de Codigo</h1>
+          <h1 className="text-lg font-semibold text-slate-900">Editor de Codigo</h1>
           <div
             className={`w-2 h-2 rounded-full ${
               sandboxStatus === 'ready' || sandboxStatus === 'running'
@@ -930,6 +1022,9 @@ const CodeEditor: React.FC = () => {
         </div>
       </div>
 
+      {/* Barras de reto o leccion y avisos: bandas cortas. El enunciado, que
+          es lo que de verdad ocupa, va aparte en la zona principal (abajo). */}
+      <div className="shrink-0">
       {lessonError && (
         <div className="bg-rose-50 border-b border-rose-200 px-4 py-2 text-sm text-rose-700">
           {lessonError}
@@ -943,7 +1038,7 @@ const CodeEditor: React.FC = () => {
       )}
 
       {challenge && (
-        <div className="bg-white border-b border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="bg-white border-b border-slate-200 px-4 py-2 flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <Trophy className="h-3.5 w-3.5 text-amber-600 flex-shrink-0" />
@@ -993,7 +1088,7 @@ const CodeEditor: React.FC = () => {
       )}
 
       {lesson && activeExercise && (
-        <div className="bg-white border-b border-slate-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="bg-white border-b border-slate-200 px-4 py-2 flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
             <div className="flex items-center gap-2 text-xs text-slate-500">
               <BookOpen className="h-3.5 w-3.5 text-primary-600 flex-shrink-0" />
@@ -1058,14 +1153,40 @@ const CodeEditor: React.FC = () => {
         </div>
       )}
 
-      <div className="border-b border-slate-200 bg-slate-50">
-        {/* El enunciado ocupa una banda fija que solo hace falta mientras se
-            lee. Plegarla es la forma barata de devolverle ese alto al codigo
-            sin irse a pantalla completa. */}
+      {evaluationError && (
+        <div className="bg-red-50 border-y border-red-200 px-4 py-2 text-sm text-red-700">
+          {evaluationError}
+        </div>
+      )}
+
+      {testsError && (
+        <div className="bg-amber-50 border-y border-amber-200 px-4 py-2 text-sm text-amber-800">
+          {testsError}
+        </div>
+      )}
+
+      </div>
+
+      {/* Zona principal: enunciado + area de trabajo. En columna hasta xl, en
+          fila desde xl. min-h-0 / min-w-0: sin ellos un hijo flex no baja del
+          tamano de su contenido (Monaco, una salida larga) y empuja al resto. */}
+      <div className="flex-1 min-h-0 flex flex-col xl:flex-row">
+      {/* El enunciado. Por debajo de xl es una banda encima del codigo con
+          tope de alto (38%) que scrollea por dentro: antes se restaba sin
+          limite y en un portatil dejaba el editor en unas pocas lineas (y en
+          5px al ejecutar los tests). Desde xl pasa a columna a la izquierda
+          con todo el alto, como en los jueces de programacion: el editor deja
+          de competir con el enunciado por el alto. Plegarlo sigue
+          devolviendole el espacio al codigo sin pantalla completa. */}
+      <div
+        className={`shrink-0 border-b border-slate-200 bg-slate-50 lg:max-h-[38%] lg:overflow-y-auto xl:max-h-none xl:border-b-0 xl:border-r ${
+          contextoPlegado ? 'xl:w-auto' : 'xl:w-[clamp(18rem,28%,28rem)]'
+        }`}
+      >
         <button
           onClick={() => setContextoPlegado((v) => !v)}
           aria-expanded={!contextoPlegado}
-          className="flex w-full items-center gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 hover:bg-slate-100"
+          className="flex w-full items-center gap-2 px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600 hover:bg-slate-100"
         >
           {contextoPlegado ? (
             <ChevronDown className="h-4 w-4" />
@@ -1076,11 +1197,11 @@ const CodeEditor: React.FC = () => {
         </button>
 
         <div
-          className={`grid lg:grid-cols-[1.4fr,1fr] gap-0 border-t border-slate-200 ${
-            contextoPlegado ? 'hidden' : ''
-          }`}
+          className={`grid gap-0 border-t border-slate-200 ${
+            verCriterio ? 'lg:grid-cols-[1.4fr,1fr] xl:grid-cols-1' : ''
+          } ${contextoPlegado ? 'hidden' : ''}`}
         >
-        <div className="p-4 lg:border-r border-slate-200">
+        <div className={`px-4 py-3 ${verCriterio ? 'lg:border-r xl:border-r-0 border-slate-200' : ''}`}>
           {enunciadoFijo !== null ? (
             <>
               {/* Lección o reto: el enunciado es del ejercicio, no del alumno.
@@ -1090,9 +1211,17 @@ const CodeEditor: React.FC = () => {
               <p className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2">
                 Enunciado del ejercicio
               </p>
-              <Markdown className="prose prose-sm prose-slate max-w-none max-h-40 overflow-auto rounded-lg border border-slate-300 bg-white px-3 py-2">
+              <Markdown className="prose prose-sm prose-slate max-w-none max-h-32 xl:max-h-none overflow-auto rounded-lg border border-slate-300 bg-white px-3 py-2">
                 {enunciadoFijo}
               </Markdown>
+              {!verCriterio && (
+                <button
+                  onClick={() => setMostrarCriterio(true)}
+                  className="mt-2 text-xs font-medium text-primary-700 hover:underline"
+                >
+                  + Añadir salida esperada para el evaluador (opcional)
+                </button>
+              )}
             </>
           ) : (
             <>
@@ -1108,122 +1237,45 @@ const CodeEditor: React.FC = () => {
                 onChange={(e) => setProblemDescription(e.target.value)}
                 placeholder={PLACEHOLDER_PROBLEM}
                 className="w-full p-3 border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
-                rows={4}
+                rows={3}
               />
             </>
           )}
         </div>
 
-        <div className="p-4">
-          <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2">
-            Salida esperada o criterio correcto (opcional)
-          </label>
-          <textarea
-            value={expectedOutput}
-            onChange={(e) => setExpectedOutput(e.target.value)}
-            placeholder="Ejemplo: debe imprimir la suma total, o devolver una lista ordenada..."
-            className="w-full p-3 border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
-            rows={4}
-          />
-        </div>
+        {verCriterio && (
+          <div className="px-4 py-3">
+            <label
+              htmlFor="salida-esperada"
+              className="block text-xs font-semibold text-slate-700 uppercase tracking-wide mb-2"
+            >
+              Salida esperada o criterio correcto (opcional)
+            </label>
+            <textarea
+              id="salida-esperada"
+              value={expectedOutput}
+              onChange={(e) => setExpectedOutput(e.target.value)}
+              placeholder="Ejemplo: debe imprimir la suma total, o devolver una lista ordenada..."
+              className="w-full p-3 border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white"
+              rows={3}
+            />
+          </div>
+        )}
         </div>
       </div>
 
-      {evaluationError && (
-        <div className="bg-red-50 border-y border-red-200 px-4 py-2 text-sm text-red-700">
-          {evaluationError}
-        </div>
-      )}
-
-      {testsError && (
-        <div className="bg-amber-50 border-y border-amber-200 px-4 py-2 text-sm text-amber-800">
-          {testsError}
-        </div>
-      )}
-
-      {testsResult && (
-        <div
-          className={`border-y px-4 py-3 ${
-            testsResult.passed === testsResult.total
-              ? 'bg-emerald-50 border-emerald-200'
-              : 'bg-rose-50 border-rose-200'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TestTube2
-                className={`h-4 w-4 ${
-                  testsResult.passed === testsResult.total
-                    ? 'text-emerald-600'
-                    : 'text-rose-600'
-                }`}
-              />
-              <span className="text-sm font-semibold text-slate-800">
-                Tests: {testsResult.passed} / {testsResult.total} pasaron
-                <span className="text-slate-500 font-normal ml-2">
-                  ({testsResult.durationMs.toFixed(0)} ms)
-                </span>
-              </span>
-            </div>
-            <button
-              onClick={() => setTestsResult(null)}
-              className="text-slate-400 hover:text-slate-600"
-              aria-label="Cerrar"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <ul className="mt-2 space-y-1 text-sm">
-            {testsResult.verdicts.map((v, i) => (
-              <li key={i} className="flex items-start gap-2">
-                {v.passed ? (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5 flex-shrink-0" />
-                ) : (
-                  <XCircle className="h-4 w-4 text-rose-600 mt-0.5 flex-shrink-0" />
-                )}
-                <div className="flex-1">
-                  <span className="text-slate-800">{v.name || `Test ${i + 1}`}</span>
-                  {!v.passed && v.errorMessage && (
-                    <pre className="mt-1 text-xs font-mono whitespace-pre-wrap text-rose-700 bg-white/60 rounded px-2 py-1">
-                      {v.errorMessage}
-                    </pre>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
-          {retoResuelto && challenge && (
-            <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-emerald-200 pt-3">
-              <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-800">
-                <Trophy className="h-4 w-4" />
-                Reto resuelto: queda marcado como hecho y suma a tu ELO de retos.
-              </span>
-              {siguienteNivel && (
-                <button onClick={() => irAReto(siguienteNivel.id)} className="btn-primary">
-                  Ir al Nivel {siguienteNivel.level}
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </button>
-              )}
-              {retoSiguiente && (
-                <button
-                  onClick={() => irAReto(retoSiguiente.id)}
-                  className={siguienteNivel ? 'btn-secondary' : 'btn-primary'}
-                >
-                  Siguiente reto
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* min-h-0: sin el, un hijo flex no baja de la altura de su contenido y
           una salida larga estiraba la pagina en vez de hacer scroll en el panel. */}
-      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 min-w-0">
         {/* Apilados por debajo de lg: ahi la salida se llevaba 24rem de ancho
-            y dejaba el codigo en una columna donde no cabe ni una linea. */}
-        <div className="h-72 min-w-0 flex-1 lg:h-auto lg:min-h-0">
+            y dejaba el codigo en una columna donde no cabe ni una linea.
+            Apilados, cada panel mide una parte de la pantalla (dvh) y no un
+            alto fijo: 18rem eran media pantalla en un movil y un tercio en
+            una tablet.
+            flex-1 SOLO desde lg (incidente 2026-11-03): apilados, flex-1 pone
+            la base en 0 y anula el alto, y el editor medía 5px en movil y
+            tablet; no se veia en absoluto. En fila es lo que reparte el ancho. */}
+        <div className="h-[60dvh] min-h-[18rem] min-w-0 lg:h-auto lg:min-h-0 lg:flex-1">
           <Editor
             height="100%"
             defaultLanguage="python"
@@ -1243,7 +1295,9 @@ const CodeEditor: React.FC = () => {
           />
         </div>
 
-        <div className="flex h-64 w-full min-w-0 flex-col bg-slate-900 text-white lg:h-auto lg:w-96 lg:shrink-0">
+        {/* El ancho de la Salida crece con la pantalla (30%, entre 20 y 36rem):
+            fija en 24rem se quedaba estrecha en un monitor grande. */}
+        <div className="flex h-[45dvh] min-h-[15rem] w-full min-w-0 flex-col bg-slate-900 text-white lg:h-auto lg:min-h-0 lg:w-[clamp(20rem,30%,36rem)] lg:shrink-0">
           <div className="p-3 bg-slate-800 border-b border-slate-700 flex items-center gap-2">
             <Terminal className="h-4 w-4" />
             <span className="text-sm font-medium">Salida</span>
@@ -1263,14 +1317,8 @@ const CodeEditor: React.FC = () => {
             </button>
           </div>
 
-          <div className="p-3 bg-slate-800 border-b border-slate-700">
-            <p className="text-xs text-slate-300">
-              Pulsa <strong>Evaluar mi código</strong> cuando quieras una calificación socrática.
-              El tutor de Q&A vive en una página aparte para preguntas conceptuales.
-            </p>
-          </div>
-
-          <div ref={salidaRef} className="flex-1 min-h-0 p-4 overflow-auto">
+          <div ref={salidaRef} className="flex-1 min-h-0 p-4 overflow-auto space-y-3">
+            {panelTests}
             {output || errorOutput || outputNote || outputImages.length > 0 ? (
               <div className="space-y-3">
                 {output && (
@@ -1303,11 +1351,11 @@ const CodeEditor: React.FC = () => {
                   />
                 ))}
               </div>
-            ) : (
+            ) : testsResult ? null : (
               <p className="text-slate-400 text-sm">
                 {isRunning
                   ? 'Ejecutando... lo que imprima tu codigo aparecera aqui en cuanto lo imprima.'
-                  : `La salida aparecera aqui despues de ejecutar el codigo (boton Ejecutar o ${ATAJO_EJECUTAR}).`}
+                  : `La salida aparecera aqui despues de ejecutar el codigo (boton Ejecutar o ${ATAJO_EJECUTAR}). Para una calificacion socratica, pulsa Evaluar mi codigo.`}
               </p>
             )}
           </div>
@@ -1319,6 +1367,8 @@ const CodeEditor: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
       </div>
 
       {showHistory && exerciseId !== null && (

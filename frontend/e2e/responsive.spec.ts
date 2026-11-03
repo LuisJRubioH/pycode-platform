@@ -99,6 +99,42 @@ for (const ruta of RUTAS) {
   }
 }
 
+// Que el editor y la Salida tengan ALTO para trabajar, no solo que quepan a lo
+// ancho (incidente 2026-11-03). El enunciado y las barras se restaban sin
+// limite del alto: en un portatil el editor se quedaba en ~200px (y en 5px al
+// ejecutar los tests), y en movil y tablet medía 5px porque `flex-1` anulaba
+// su alto en la vista apilada. Ninguna prueba lo veia porque solo median el
+// ancho. Se mide en ventanas reales, incluida una de portatil bajo.
+const VENTANAS = [
+  { width: 360, height: 740 },
+  { width: 390, height: 844 },
+  { width: 768, height: 1024 },
+  { width: 1024, height: 768 },
+  { width: 1366, height: 650 },
+  { width: 1920, height: 930 },
+]
+for (const v of VENTANAS) {
+  test(`/editor a ${v.width}x${v.height} deja alto util al codigo y a la Salida`, async ({
+    page,
+  }) => {
+    await prepararPagina(page)
+    await page.setViewportSize(v)
+    await page.goto('/editor', { waitUntil: 'networkidle' })
+    await page.waitForTimeout(2500)
+
+    const alto = await page.evaluate(() => {
+      const editor = document.querySelector('.monaco-editor')?.getBoundingClientRect()
+      const limpiar = Array.from(document.querySelectorAll('button')).find((b) =>
+        b.textContent?.includes('Limpiar salida')
+      )
+      const salida = limpiar?.closest('.bg-slate-900')?.getBoundingClientRect()
+      return { editor: editor?.height ?? 0, salida: salida?.height ?? 0 }
+    })
+    expect(alto.editor, `el editor mide ${Math.round(alto.editor)}px de alto`).toBeGreaterThanOrEqual(280)
+    expect(alto.salida, `la Salida mide ${Math.round(alto.salida)}px de alto`).toBeGreaterThanOrEqual(200)
+  })
+}
+
 // El caso que no se ve abriendo la pagina ya estrecha.
 for (const ancho of [1280, 1024, 900, 390]) {
   test(`/editor abierto a 1920px y encogido a ${ancho}px no corta la Salida`, async ({
