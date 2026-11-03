@@ -78,7 +78,7 @@ en cuanto alguien de fuera intentó usar la plataforma.
 
 ## Stack
 
-**Backend**: FastAPI + SQLAlchemy 2.0 async + asyncpg · Postgres (Supabase en prod) + Alembic · python-jose (JWT) + bcrypt · SlowAPI (rate limit) · structlog + sentry-sdk · Groq SDK + OpenAI SDK · reportlab (PDF) · pytest + pytest-asyncio + httpx + Playwright (E2E).
+**Backend**: FastAPI + SQLAlchemy 2.0 async + asyncpg · Postgres (Supabase en prod) + Alembic · PyJWT + bcrypt · SlowAPI (rate limit) · structlog + sentry-sdk · Groq SDK + OpenAI SDK · reportlab (PDF) · pytest + pytest-asyncio + httpx + Playwright (E2E).
 
 **Frontend**: React 18 + TypeScript + Vite 5 · TailwindCSS · Monaco Editor · Pyodide + Comlink (Web Worker) · Zustand · Recharts · `fetch` nativo con interceptor de refresh (no axios).
 

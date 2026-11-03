@@ -174,3 +174,29 @@ Ninguna tiene parche sin versión mayor, y ninguna es P1.
 Orden propuesto: (1) migración de ESLint 9, que se lleva 15 de 19 de una vez;
 (2) revisar typography y react-router en cada triaje, sin tocarlos mientras no
 cambie su condición.
+
+## Triaje 2026-11-03 del backend (`pip-audit`)
+
+Al subir lo anterior, GitHub avisó de 60 vulnerabilidades en `main`. Una parte
+eran avisos de npm ya resueltos; el resto venía de Python. Hay que auditar **los
+dos archivos**: `pip-audit -r requirements.txt` resuelve los `>=` a la última
+versión y sale más limpio que lo que de verdad se instala en Render, que es
+`requirements.lock` (el Dockerfile instala ese).
+
+| Paquete | Avisos | Alcance | Prioridad | Resolución |
+|---|---|---|---|---|
+| `pillow` 12.3.0 | 39 | Llega al contenedor, pero ninguna imagen no confiable entra en Pillow: solo lo usa `reportlab` para los PDF de certificados | P2 | **13.0.0**. `reportlab` 4.5.1 pide `pillow>=9`; los tests de certificados pasan |
+| `anyio` 3.7.1 | 2 | TLS con dominios IDNA y un `stderr` sin drenar en workers de proceso; ninguno de los dos se usa aquí | P3 | **4.15.0**. Obligaba a subir `openai` 1.3.6 → **1.109.1**, porque la 1.3.6 pedía `anyio<4`; la API `AsyncOpenAI` que usa `llm_provider` no cambia |
+| `python-jose` 3.5.0 | 1, sin parche | Falsificar HS256 con la clave **pública** del servicio cuando `algorithms` no está restringido. Aquí no se cumple: todo `decode` fija `algorithms=[HS256]` y no hay claves asimétricas | P4 por alcance | **Reemplazado por PyJWT 2.15.1** en `security.py`, `auth.py` y `tutor_chat.py`. Sin parche y con mantenimiento escaso, la alerta no se iba a cerrar nunca |
+| `ecdsa` 0.19.2 | 2, sin parche | Ataque de tiempo (Minerva) al **firmar** con P-256; no firmamos con ECDSA | P4 | Desaparece con python-jose, que era quien lo traía (junto con `rsa` y `pyasn1`) |
+| `urllib3` 2.7.0, `certifi`, `dnspython`, `tornado` (vía flower), `black` | 13 | Transitivas o de desarrollo. flower no se arranca en el contenedor | P3 | Patch/minor: urllib3 2.8.0, certifi 2026.10.18, dnspython 2.9.0, tornado 6.6, black 26.10.1 (también en el pin del job de lint de CI). Los pisos quedan en `requirements.txt` |
+
+Los tokens en circulación siguen valiendo: son JWS HS256 estándar con la misma
+`SECRET_KEY`. PyJWT avisa (`InsecureKeyLengthWarning`) si la clave HMAC tiene
+menos de 32 bytes, así que la `SECRET_KEY` de los tests se alargó; la de
+producción ya mide 64 bytes.
+
+Verificado: 288/288 tests de backend, `black --check`, `flake8`, el guard
+anti-SQLi y `pip-audit` sin hallazgos **en los dos archivos**. En local: registro,
+login, refresh con rotación (el refresh reutilizado da 401), firma manipulada
+→ 401 y logout.
