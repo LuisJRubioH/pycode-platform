@@ -235,7 +235,7 @@ describe('CodeEditor — salida separada de stdout y stderr', () => {
     })
 
     renderEditor('/editor')
-    await user.click(screen.getByRole('button', { name: /Ejecutar/ }))
+    await user.click(screen.getByRole('button', { name: /^Ejecutar$/ }))
 
     await screen.findByText('total: 42')
     // Cada flujo con su etiqueta: un warning ya no parece un error del alumno.
@@ -245,6 +245,24 @@ describe('CodeEditor — salida separada de stdout y stderr', () => {
     expect(screen.getByText('total: 42')).not.toBe(
       screen.getByText('FutureWarning: algo va a cambiar')
     )
+  })
+
+  it('"Ejecutar" junto a la Salida tambien ejecuta (en el movil la barra queda lejos)', async () => {
+    const user = userEvent.setup()
+    runPythonCodeMock.mockResolvedValue({
+      ok: true,
+      stdout: 'desde la salida',
+      stderr: '',
+      images: [],
+      durationMs: 4,
+      timedOut: false,
+    })
+
+    renderEditor('/editor')
+    await user.click(screen.getByRole('button', { name: /Ejecutar el codigo y ver la salida/ }))
+
+    await screen.findByText('desde la salida')
+    expect(runPythonCodeMock).toHaveBeenCalled()
   })
 
   it('sin salida ni error muestra la nota, sin bloque de stderr', async () => {
@@ -259,7 +277,7 @@ describe('CodeEditor — salida separada de stdout y stderr', () => {
     })
 
     renderEditor('/editor')
-    await user.click(screen.getByRole('button', { name: /Ejecutar/ }))
+    await user.click(screen.getByRole('button', { name: /^Ejecutar$/ }))
 
     await screen.findByText('(sin salida)')
     expect(screen.queryByText('stderr / warnings')).not.toBeInTheDocument()
@@ -593,7 +611,7 @@ describe('CodeEditor — salida en vivo (issue #32)', () => {
     )
 
     renderEditor('/editor')
-    await user.click(screen.getByRole('button', { name: /Ejecutar/ }))
+    await user.click(screen.getByRole('button', { name: /^Ejecutar$/ }))
 
     // Un bucle con print: la salida aparece antes de que termine nada.
     // (se pinta agrupado cada 100 ms, de ahi el findByText).

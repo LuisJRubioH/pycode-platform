@@ -471,22 +471,6 @@ const CodeEditor: React.FC = () => {
   useEffect(() => {
     if (testsResult && salidaRef.current) salidaRef.current.scrollTop = 0
   }, [testsResult])
-  // Apilado (movil), la Salida queda debajo del codigo: la barra del pie baja
-  // hasta ella al ejecutar para que el resultado se vea sin buscarlo.
-  const irASalida = () =>
-    salidaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  // La barra del pie solo se monta apilado (< lg, el mismo corte que el CSS).
-  // Montarla y ocultarla con CSS duplicaria los botones en el arbol de
-  // accesibilidad y en jsdom, que no aplica CSS. Sin matchMedia: no se monta.
-  const [apilado, setApilado] = useState(false)
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return
-    const mq = window.matchMedia('(max-width: 1023.98px)')
-    const actualizar = () => setApilado(mq.matches)
-    actualizar()
-    mq.addEventListener('change', actualizar)
-    return () => mq.removeEventListener('change', actualizar)
-  }, [])
 
   const runCode = async () => {
     setOutput('')
@@ -1317,11 +1301,39 @@ const CodeEditor: React.FC = () => {
           <div className="p-3 bg-slate-800 border-b border-slate-700 flex items-center gap-2">
             <Terminal className="h-4 w-4" />
             <span className="text-sm font-medium">Salida</span>
+            {/* Ejecutar tambien aqui, junto al resultado (idea del usuario,
+                2026-11-03). La barra de arriba se queda fuera de la pantalla
+                en cuanto se baja al editor en un movil; esta cabecera queda
+                justo debajo del codigo en cualquier tamano. Su nombre
+                accesible es distinto del de la barra ("Ejecutar") para que
+                no haya dos botones con el mismo nombre. */}
+            <div className="ml-auto flex items-center gap-2">
+              {sandboxStatus === 'running' ? (
+                <button
+                  onClick={abortExecution}
+                  className="inline-flex min-h-[2rem] items-center gap-1 rounded-md bg-red-600 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-red-500"
+                  title="Detener la ejecucion y reiniciar el sandbox"
+                >
+                  <Square className="h-3.5 w-3.5" />
+                  Detener
+                </button>
+              ) : (
+                <button
+                  onClick={runCode}
+                  disabled={isRunning}
+                  aria-label="Ejecutar el codigo y ver la salida"
+                  className="inline-flex min-h-[2rem] items-center gap-1 rounded-md bg-primary-600 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-primary-500 disabled:opacity-50"
+                  title={`Ejecutar (${ATAJO_EJECUTAR})`}
+                >
+                  <Play className="h-3.5 w-3.5" />
+                  {isRunning ? 'Ejecutando...' : 'Ejecutar'}
+                </button>
+              )}
             {/* Resalta en ambar cuando hay algo que limpiar; apagado si no. */}
             <button
               onClick={clearOutput}
               disabled={!haySalida}
-              className={`ml-auto inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
+              className={`inline-flex min-h-[2rem] items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${
                 haySalida
                   ? 'bg-amber-400 text-slate-900 shadow hover:bg-amber-300'
                   : 'text-slate-500 cursor-not-allowed'
@@ -1331,6 +1343,7 @@ const CodeEditor: React.FC = () => {
               <Eraser className="h-3.5 w-3.5" />
               Limpiar salida
             </button>
+            </div>
           </div>
 
           <div ref={salidaRef} className="flex-1 min-h-0 p-4 overflow-auto space-y-3">
@@ -1386,50 +1399,6 @@ const CodeEditor: React.FC = () => {
       </div>
 
       </div>
-
-      {/* Barra de acciones al pie, solo apilado (movil, tablet). La barra de
-          arriba se queda fuera de la pantalla en cuanto se baja al editor, y
-          para ejecutar habia que volver a subir. Es sticky: acompana mientras
-          se ve el editor. Al pulsar baja a la Salida, que apilada queda debajo
-          del codigo y si no el alumno no ve el resultado. */}
-      {apilado && (
-      <div className="sticky bottom-0 z-30 flex gap-2 border-t border-slate-200 bg-white/95 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
-        {sandboxStatus === 'running' ? (
-          <button
-            onClick={abortExecution}
-            className="btn-secondary flex-1 justify-center text-red-700"
-          >
-            <Square className="h-4 w-4 mr-2" />
-            Detener
-          </button>
-        ) : (
-          <button
-            onClick={() => {
-              irASalida()
-              void runCode()
-            }}
-            disabled={isRunning}
-            className="btn-primary flex-1 justify-center disabled:opacity-50"
-          >
-            <Play className="h-4 w-4 mr-2" />
-            {isRunning ? 'Ejecutando...' : 'Ejecutar'}
-          </button>
-        )}
-        {testsUrl !== null && (
-          <button
-            onClick={() => {
-              irASalida()
-              void runTests()
-            }}
-            disabled={isRunningTests}
-            className="btn-secondary flex-1 justify-center disabled:opacity-50"
-          >
-            <TestTube2 className="h-4 w-4 mr-2" />
-            {isRunningTests ? 'Probando...' : 'Tests'}
-          </button>
-        )}
-      </div>
-      )}
 
       {showHistory && exerciseId !== null && (
         <EvaluationHistoryModal
