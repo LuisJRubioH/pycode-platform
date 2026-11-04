@@ -471,6 +471,22 @@ const CodeEditor: React.FC = () => {
   useEffect(() => {
     if (testsResult && salidaRef.current) salidaRef.current.scrollTop = 0
   }, [testsResult])
+  // Apilado (movil), la Salida queda debajo del codigo: la barra del pie baja
+  // hasta ella al ejecutar para que el resultado se vea sin buscarlo.
+  const irASalida = () =>
+    salidaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  // La barra del pie solo se monta apilado (< lg, el mismo corte que el CSS).
+  // Montarla y ocultarla con CSS duplicaria los botones en el arbol de
+  // accesibilidad y en jsdom, que no aplica CSS. Sin matchMedia: no se monta.
+  const [apilado, setApilado] = useState(false)
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return
+    const mq = window.matchMedia('(max-width: 1023.98px)')
+    const actualizar = () => setApilado(mq.matches)
+    actualizar()
+    mq.addEventListener('change', actualizar)
+    return () => mq.removeEventListener('change', actualizar)
+  }, [])
 
   const runCode = async () => {
     setOutput('')
@@ -1326,7 +1342,7 @@ const CodeEditor: React.FC = () => {
                     <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-1">
                       stdout
                     </p>
-                    <pre className="text-sm font-mono whitespace-pre-wrap">{output}</pre>
+                    <pre className="text-sm font-mono whitespace-pre-wrap [overflow-wrap:anywhere]">{output}</pre>
                   </div>
                 )}
                 {errorOutput && (
@@ -1334,7 +1350,7 @@ const CodeEditor: React.FC = () => {
                     <p className="text-[10px] uppercase tracking-wide text-amber-400 mb-1">
                       stderr / warnings
                     </p>
-                    <pre className="text-sm font-mono whitespace-pre-wrap text-amber-300 bg-amber-950/40 border-l-2 border-amber-500 rounded-r px-2 py-1">
+                    <pre className="text-sm font-mono whitespace-pre-wrap [overflow-wrap:anywhere] text-amber-300 bg-amber-950/40 border-l-2 border-amber-500 rounded-r px-2 py-1">
                       {errorOutput}
                     </pre>
                   </div>
@@ -1370,6 +1386,50 @@ const CodeEditor: React.FC = () => {
       </div>
 
       </div>
+
+      {/* Barra de acciones al pie, solo apilado (movil, tablet). La barra de
+          arriba se queda fuera de la pantalla en cuanto se baja al editor, y
+          para ejecutar habia que volver a subir. Es sticky: acompana mientras
+          se ve el editor. Al pulsar baja a la Salida, que apilada queda debajo
+          del codigo y si no el alumno no ve el resultado. */}
+      {apilado && (
+      <div className="sticky bottom-0 z-30 flex gap-2 border-t border-slate-200 bg-white/95 px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
+        {sandboxStatus === 'running' ? (
+          <button
+            onClick={abortExecution}
+            className="btn-secondary flex-1 justify-center text-red-700"
+          >
+            <Square className="h-4 w-4 mr-2" />
+            Detener
+          </button>
+        ) : (
+          <button
+            onClick={() => {
+              irASalida()
+              void runCode()
+            }}
+            disabled={isRunning}
+            className="btn-primary flex-1 justify-center disabled:opacity-50"
+          >
+            <Play className="h-4 w-4 mr-2" />
+            {isRunning ? 'Ejecutando...' : 'Ejecutar'}
+          </button>
+        )}
+        {testsUrl !== null && (
+          <button
+            onClick={() => {
+              irASalida()
+              void runTests()
+            }}
+            disabled={isRunningTests}
+            className="btn-secondary flex-1 justify-center disabled:opacity-50"
+          >
+            <TestTube2 className="h-4 w-4 mr-2" />
+            {isRunningTests ? 'Probando...' : 'Tests'}
+          </button>
+        )}
+      </div>
+      )}
 
       {showHistory && exerciseId !== null && (
         <EvaluationHistoryModal
