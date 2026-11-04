@@ -1,14 +1,14 @@
 # Esquema de base de datos — PyCode Platform
 
-Referencia del modelo de datos. Postgres 17 (Supabase en prod), gestionado con **Alembic** (migraciones `0001`→`0015`). El schema lo introspecta este documento desde la DB de producción; para el diseño técnico general ver [ARCHITECTURE.md](ARCHITECTURE.md).
+Referencia del modelo de datos. Postgres 17 (Supabase en prod), gestionado con **Alembic** (migraciones `0001`→`0017`). El schema se introspectó desde la DB de producción y se completa con los modelos de las migraciones posteriores; para el diseño técnico general ver [ARCHITECTURE.md](ARCHITECTURE.md).
 
-- **22 tablas** de dominio + `alembic_version` (bookkeeping de migraciones).
+- **23 tablas** de dominio + `alembic_version` (bookkeeping de migraciones).
 - Todas las PK son `id integer` autoincremental.
 - Las FKs hacia `users.id` llevan `ON DELETE CASCADE` (necesario para `DELETE /users/me` GDPR sin huérfanos).
 - **RLS** (Row-Level Security) habilitada por tabla en las de datos por-usuario (ver §5). El backend conecta con el rol Postgres directo (que *bypasea* RLS por ser owner) y **además** filtra por `user_id` en cada query; RLS es la segunda línea de defensa frente al rol `anon` de Supabase.
 - Contenido JSON: se usa `jsonb` para lo consultable y `json` para lo que solo se serializa.
 
-Última introspección: 2026-07 (migración `0014`).
+Última introspección: 2026-07 (migración `0014`). Revisado contra los modelos el **2026-11-03** (migraciones `0015`-`0017`).
 
 ---
 
@@ -31,27 +31,39 @@ Referencia del modelo de datos. Postgres 17 (Supabase en prod), gestionado con *
 ### `refresh_tokens` — rotación de JWT
 `user_id` FK · `jti` (identificador del token) · `expires_at` · `revoked` (bool; `logout` lo marca). Habilita la rotación de refresh tokens y su revocación.
 
+### `password_reset_tokens` — recuperación de contraseña (migración `0017`)
+| Columna | Tipo | Notas |
+|---|---|---|
+| id | integer PK | |
+| user_id | integer FK → users | `ON DELETE CASCADE` |
+| token_hash | varchar(64) | **SHA-256** del token, único; el token en claro nunca se guarda |
+| expires_at | timestamp NOT NULL | caducidad |
+| used_at | timestamp NULL | `NULL` mientras no se canjea; un token usado no vuelve a servir |
+| created_at | timestamp | |
+
+Índice `(user_id, used_at)`. **Sin RLS** a propósito: el flujo ocurre sin sesión, así que no hay `app.current_user_id`; la defensa es el diseño del token. Ver [RECUPERACION_PASSWORD.md](RECUPERACION_PASSWORD.md).
+
 ---
 
 ## 2. Contenido educativo (definicional, mayormente público)
 
-### `lessons` — lecciones (40 en el seed, multi-track)
+### `lessons` — lecciones (58 en el seed, 7 tracks)
 | Columna | Tipo | Notas |
 |---|---|---|
 | id | integer PK | |
 | title | varchar NOT NULL | clave natural del upsert idempotente |
 | description, content | text | `content` = markdown de la teoría |
 | difficulty, category | varchar | `category` agrupa en el mapa de competencias |
-| order | integer | orden de display |
+| order | integer | orden curricular (Track 0 usa órdenes **negativos** para ir antes de Track 1) |
 | estimated_duration | integer | minutos |
 | prerequisites | json | |
-| track | varchar NOT NULL | `track-1`..`track-5` (migración `0013`) |
+| track | varchar NOT NULL | `track-0`..`track-6` (migración `0013`) |
 | is_active, created_at, updated_at | | |
 
-### `exercises` — ejercicios de cada lección (~130 en el seed)
-`lesson_id` FK · `title`, `description`, `instructions`, `starter_code`, `solution_code` · `test_cases` (json, legacy) · `hints` (json) · `points`, `difficulty`, `order` · **`hidden_tests` (json)** — tests Pyodide que **nunca** se exponen en la API (migración `0007`; guard rail con test de no-leak).
+### `exercises` — ejercicios de cada lección (258 en el seed: 198 de código + 60 de Track 0)
+`lesson_id` FK · `title`, `description`, `instructions`, `starter_code`, `solution_code` · `test_cases` (json, legacy) · `hints` (json) · `points`, `difficulty`, `order` · **`hidden_tests` (json)** — tests Pyodide que **nunca** se exponen en la API (migración `0007`; guard rail con test de no-leak) · **`exercise_type`** (varchar(32), default `code`; Track 0: `trace_table`, `predict_output`, `mcq`, `flowchart_match`, `flowchart_fill`) · **`spec`** (json, **público**: pseudocódigo, columnas de la traza, opciones, nodos del diagrama) · **`answer_key`** (json, **privada**: la corrige el backend en `POST /exercises/{id}/check` y nunca sale de la API) — las tres de la migración `0016`.
 
-### `capstones` — proyectos que cierran cada track (4 seedeados)
+### `capstones` — proyectos que cierran cada track (7 seedeados, uno por track)
 `slug` (único), `track`, `title`, `short_description`, `description` (markdown) · `requirements` (jsonb), `starter_files` (jsonb) · **`hidden_tests` (jsonb)** — evaluados en Pyodide, no se serializan en el detalle · `estimated_hours`, `difficulty`, `order_index`, `is_active`. **Tabla pública (sin RLS)** — ver caveat §5.
 
 ### `datasets` — datasets servidos como CSV a Pyodide (Track 2)
@@ -113,7 +125,7 @@ Tres capas conviven (backward-compatible):
 
 **RLS habilitada** (15): `users`, `user_profiles`, `refresh_tokens`, `lessons`, `exercises`, `user_progress`, `code_submissions`, `code_evaluations`, `code_quality_snapshots`, `tutor_sessions`, `puzzles`, `puzzle_attempts`, `elo_ratings`, `challenge_completions`, `capstone_submissions`.
 
-**RLS deshabilitada** (7): `capstones`, `certificates`, `datasets`, `coding_challenges`, `ai_feedback`, `elo_history`, `alembic_version`.
+**RLS deshabilitada** (8): `capstones`, `certificates`, `datasets`, `coding_challenges`, `ai_feedback`, `elo_history`, `password_reset_tokens` (sin sesión, ver §1), `alembic_version`.
 
 > ⚠️ **Caveat de seguridad (advisory de Supabase)**: las tablas sin RLS quedan expuestas al rol `anon`/`authenticated` si el API PostgREST de Supabase está accesible con la anon key. Tres son públicas por diseño y de bajo riesgo (`datasets`, contenido; `alembic_version`, bookkeeping). Pero **`capstones.hidden_tests`** (tests ocultos) y **`certificates`** (nombres + códigos de verificación) contienen datos que la API de PyCode oculta a propósito — si PostgREST está abierto, se podrían leer directamente por la anon key, saltándose ese guard rail. **Acción sugerida** (no aplicada automáticamente): verificar si PostgREST está expuesto en el proyecto Supabase y, si aplica, habilitar RLS con políticas de solo-lectura adecuadas (p.ej. `certificates` accesible solo por `verification_code`), o restringir el acceso del rol anon. No habilitar RLS sin políticas: bloquearía todo acceso.
 
@@ -138,7 +150,9 @@ Tres capas conviven (backward-compatible):
 | 0013 | lesson_track | Columna `lessons.track` (multi-track) |
 | 0014 | datasets | Datasets seedeables servidos como CSV |
 | 0015 | challenge_hidden_tests | Columna `coding_challenges.hidden_tests`: completar un reto exige pasar sus tests |
+| 0016 | exercise_types | `exercises.exercise_type` + `spec` + `answer_key` (ejercicios no ejecutables de Track 0) |
+| 0017 | password_reset_tokens | Tokens de recuperación de contraseña (sin RLS) |
 
-Los Tracks 3, 4 y 5 (incluido el proxy LLM) **no añadieron migraciones**: el contenido nuevo son filas seedeadas y el proxy LLM no persiste datos.
+Los Tracks 3 a 6 (incluido el proxy LLM) **no añadieron migraciones**: el contenido nuevo son filas seedeadas y el proxy LLM no persiste datos. Track 0 solo necesitó la `0016`.
 
 **Regla DDL Postgres-only** (RLS y similares): el `upgrade()` empieza con `if op.get_bind().dialect.name != "postgresql": return`, para ser no-op en SQLite (los tests usan SQLite).

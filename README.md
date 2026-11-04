@@ -18,7 +18,7 @@ Plataforma de aprendizaje que lleva de **Fundamentos → Python → Data Science
 | **Track 5** — AI Engineering | ✅ Cerrado | 6 lecciones (embeddings, RAG, LLM real vía proxy, agentes, evals) · capstone `Nebula RAG` |
 | **Track 6** — MLOps | ✅ Cerrado | 5 lecciones (reproducibilidad, tracking/registro, servir un modelo, drift, CI/CD) · capstone `Pipeline de producción` |
 
-**En números**: ~60 lecciones · ~260 ejercicios (los de código con `hidden_tests`; los de Track 0 con su clave en el servidor) · 265 puzzles ELO (100 curados) · 85 retos, todos con tests · 7 capstones · 3 datasets · migraciones 0001-0017 · ~290 tests backend, ~70 de frontend y un guard rail E2E de responsive. Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**. *(Cifras redondeadas a propósito; el conteo exacto vive en los tests, ej. `test_bank_has_100_puzzles`.)*
+**En números**: ~60 lecciones · ~260 ejercicios (los de código con `hidden_tests`; los de Track 0 con su clave en el servidor) · 265 puzzles ELO (100 curados) · 85 retos, todos con tests · 7 capstones · 3 datasets · migraciones 0001-0017 · ~290 tests backend, ~75 de frontend y un guard rail E2E de responsive (ancho y alto). Esquema de datos: **[docs/DATABASE.md](docs/DATABASE.md)**. *(Cifras redondeadas a propósito; el conteo exacto vive en los tests, ej. `test_bank_has_100_puzzles`.)*
 
 ## Rampa de entrada
 
@@ -52,6 +52,23 @@ y puesta en marcha de Brevo en **[docs/RECUPERACION_PASSWORD.md](docs/RECUPERACI
 Es otro caso del mismo patrón: un fallo que ninguna suite veía y que apareció
 en cuanto alguien de fuera intentó usar la plataforma.
 
+### El editor en pantallas reales (2026-11-03)
+
+Al retomar el proyecto en otra máquina salió que, en producción, el editor
+medía **5 px** en celular y tablet, y bajaba a 5 px en el portátil al ejecutar
+los tests: el guard rail de responsive medía el ancho, no el alto. Se rediseñó
+probándolo en portátil, celular y monitores de 24" y 27": el enunciado pasa a
+una columna a la izquierda en pantallas anchas, los resultados de los tests van
+dentro de la Salida y hay un segundo botón **Ejecutar** en la cabecera de la
+Salida. Los errores ya no llegan encabezados por una docena de frames internos
+de Pyodide. El guard rail mide ahora también el alto del editor y de la Salida.
+
+El mismo día se puso al día la seguridad de dependencias: `python-jose` se
+sustituyó por **PyJWT**, `pip-audit` queda limpio (también sobre
+`requirements.lock`, que es lo que instala el Dockerfile) y `npm audit` sin
+critical ni high. Plan de lo que queda en
+[docs/SEGURIDAD_DEPENDENCIAS.md](docs/SEGURIDAD_DEPENDENCIAS.md).
+
 ## Producción
 
 - **Frontend**: https://pycode-platform.vercel.app (Vercel Hobby)
@@ -61,8 +78,8 @@ en cuanto alguien de fuera intentó usar la plataforma.
 
 ## Características
 
-- **Editor Monaco** con tema/fuente configurables, descarga de script, copia al portapapeles, **pantalla completa** (Esc para salir) y enunciado plegable para devolverle alto al código.
-- **Pyodide en Web Worker**: el código del estudiante se ejecuta en el navegador con Comlink + timeout duro. El backend nunca lo ejecuta (`/api/v1/execute/run` retorna 410; `/validate` solo hace `ast.parse`). numpy/pandas/scipy/sklearn/matplotlib autocargan bajo demanda.
+- **Editor Monaco** con tres modos (libre, lección y reto, con Anterior/Siguiente sin salir del editor), tema/fuente configurables, descarga de script, copia al portapapeles, **pantalla completa** (Esc para salir) y enunciado plegable. En pantallas anchas el enunciado es una columna a la izquierda; los resultados de los tests se ven en la Salida, que tiene su propio botón Ejecutar.
+- **Pyodide en Web Worker**: el código del estudiante se ejecuta en el navegador con Comlink + timeout duro (corta un bucle infinito sin castigar la carga de numpy) y tracebacks sin los frames internos de Pyodide. El backend nunca lo ejecuta (`/api/v1/execute/run` retorna 410; `/validate` solo hace `ast.parse`). numpy/pandas/scipy/sklearn/matplotlib autocargan bajo demanda.
 - **Tutor IA Socrático** con dos roles separados: **evaluador de código** (REST atómico) y **Q&A** (WebSocket multi-turno). Provider abstraction: Groq (default) → OpenAI fallback → Stub determinístico si no hay API key. La retroalimentación se presenta con forma: las dos notas como fichas de color por tramo (85/70/50) y cada bloque del veredicto en su tarjeta — verde lo que ya está bien, ámbar lo que falta, índigo las preguntas socráticas.
 - **Diagnóstico del LLM** (`GET /health/llm?ping=1`, público y sin secretos): dice si hay API key, si el modelo responde y **si responde vacío**. Existe porque el modo degradado del tutor es invisible — su texto de reserva se parece a una respuesta real, así que `/health` y `/health/db` pueden estar en verde con el tutor muerto.
 - **Proxy LLM para AI Engineering** (Track 5): `POST /api/v1/ai/complete` deja que el código del alumno (en Pyodide) llame a un LLM real vía backend — auth + rate limit + tope de tokens, sin exponer API keys. Helper `pycode.llm_complete()` en el editor.
@@ -71,7 +88,7 @@ en cuanto alguien de fuera intentó usar la plataforma.
 - **Sistema ELO multidominio**: rating separado por actividad y categoría temática (`puzzle:<category>`, `challenge:<dificultad>`), con lazy-init desde el ELO global. Banco de 100 puzzles curados + puzzle del día público.
 - **Progresión de calidad de código**: `static_score` con AST (sin ejecutar) + scores logic/general del evaluador LLM, persistidos y graficados en el tiempo.
 - **Capstones y certificados**: proyectos multi-archivo evaluados en Pyodide; aprobarlos desbloquea un certificado PDF con código de verificación **público**.
-- **Auth JWT** con refresh token rotation y `/auth/logout` que revoca el `jti`. **GDPR**: `DELETE /users/me` + `GET /users/me/export`.
+- **Auth JWT** (PyJWT) con refresh token rotation, `/auth/logout` que revoca el `jti`, errores de registro por campo y **recuperación de contraseña por email** (token de un solo uso; Brevo, SendGrid o Mailjet por API HTTP). **GDPR**: `DELETE /users/me` + `GET /users/me/export`.
 - **Seguridad transversal**: HSTS/CSP/XCTO/XFO/Referrer-Policy/Permissions-Policy, CORS whitelist, rate limiting por user_id, structlog con redaction de PII, Sentry con scrubbing.
 - **Postgres + Alembic + RLS** por tabla con `current_setting('app.current_user_id')`.
 - **CI**: pytest + black + flake8 + lint anti-SQLi, pip-audit + npm audit, Dependabot semanal.
@@ -80,7 +97,7 @@ en cuanto alguien de fuera intentó usar la plataforma.
 
 **Backend**: FastAPI + SQLAlchemy 2.0 async + asyncpg · Postgres (Supabase en prod) + Alembic · PyJWT + bcrypt · SlowAPI (rate limit) · structlog + sentry-sdk · Groq SDK + OpenAI SDK · reportlab (PDF) · pytest + pytest-asyncio + httpx + Playwright (E2E).
 
-**Frontend**: React 18 + TypeScript + Vite 5 · TailwindCSS · Monaco Editor · Pyodide + Comlink (Web Worker) · Zustand · Recharts · `fetch` nativo con interceptor de refresh (no axios).
+**Frontend**: React 18 + TypeScript + Vite 6 · TailwindCSS · Monaco Editor · Pyodide + Comlink (Web Worker) · Zustand · Recharts · `fetch` nativo con interceptor de refresh (no axios) · vitest 4 + Playwright.
 
 ## Requisitos
 
@@ -131,13 +148,14 @@ pytest                                     # conftest aplica alembic upgrade + r
 pytest path/to/test.py::name               # un test
 black . && flake8 . && mypy .
 python scripts/check_no_sqli.py            # lint anti-SQL injection (también en CI)
+python scripts/check_hidden_tests_triviales.py  # ningún hidden_test aprueba con el starter
 alembic revision --autogenerate -m "descripcion"   # contra Postgres limpio
 
 # Frontend
 cd frontend
 npm run build       # tsc + vite build (errores de TS fallan el build)
 npm run lint        # eslint --max-warnings 0
-npm run test        # vitest
+npm run test        # vitest (no corre en CI: lánzalo antes de subir)
 npm run test:e2e    # Playwright (Chromium headless) — necesita backend + usuario E2E
 npx playwright test --project=responsive   # guard rail de responsive; no necesita backend
 ```
@@ -161,10 +179,13 @@ backend/
 │   ├── core/                # config, database, security_headers, rate_limit,
 │   │                          logging_config, observability, tracks
 │   ├── models/              # user, learning, elo_models, refresh_token, challenge,
-│   │                          code_evaluation, capstone, certificate, code_quality, dataset
-│   ├── services/            # ai_tutor, llm_provider, track0_service, lesson_seed,
-│   │                          elo_service, elo_rating_service, code_quality_service,
-│   │                          capstone_seed, certificate_pdf, dataset_seed, curated_retos, ...
+│   │                          code_evaluation, capstone, certificate, code_quality, dataset,
+│   │                          password_reset
+│   ├── services/            # ai_tutor, tutor_guide_service, llm_provider, track0_service,
+│   │                          lesson_seed (el contenido real; lesson_content.py es código muerto),
+│   │                          progress_service, elo_service, elo_rating_service,
+│   │                          code_quality_service, capstone_seed, certificate_pdf,
+│   │                          email_provider, password_reset_service, curated_retos, ...
 │   └── websockets/          # tutor_chat (/ws/tutor); /ws/code deprecado
 ├── alembic/versions/        # 0001 → 0017
 ├── scripts/check_no_sqli.py
@@ -175,12 +196,13 @@ frontend/
 ├── src/
 │   ├── pages/               # Dashboard, Lessons, LessonDetail, CodeEditor, Puzzles,
 │   │                          InterviewProblems, Challenges, Competencies, CapstoneDetail,
-│   │                          CertificateVerify, TutorChat, Home, Login, Register
+│   │                          CertificateVerify, TutorChat, Home, Login, Register,
+│   │                          ForgotPassword, ResetPassword
 │   ├── components/          # EvaluacionSocratica (veredicto del tutor), EloResultModal,
 │   │                       EloTracks, CodeQualityPanel, PuzzleOfTheDay, ...
 │   │   └── track0/          # ExerciseRunner + un componente por tipo no ejecutable,
 │   │                          incluido el render SVG de diagramas de flujo
-│   ├── sandbox/             # pyodideWorker, PyodideSandbox (Comlink)
+│   ├── sandbox/             # pyodideWorker, PyodideSandbox (Comlink), watchdog, traceback
 │   ├── services/api.ts      # fetch + interceptor de refresh
 │   └── stores/authStore.ts
 ├── e2e/                     # Playwright specs
@@ -190,6 +212,12 @@ docs/
 ├── ARCHITECTURE.md          # diseño técnico (empezar aquí)
 ├── DATABASE.md              # esquema de base de datos descrito
 ├── DEPLOY.md                # Render + Vercel + Supabase + UptimeRobot
+├── TRACK_0.md               # ejercicios no ejecutables y convención de pseudocódigo
+├── PLANTILLA_LECCION.md     # estándar de redacción de lecciones
+├── RECUPERACION_PASSWORD.md # registro y recuperación de contraseña
+├── SEGURIDAD_DEPENDENCIAS.md
+├── BARRIDO_PROBLEMAS.md · AUDITORIA_CONTENIDO.md
+├── historico/               # diseño inicial descartado
 └── superpowers/specs/       # specs por fase
 
 .github/workflows/
@@ -200,11 +228,13 @@ docs/
 ## Documentación
 
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — diseño técnico: capas, flujo de datos, modelos, el patrón multi-track, sandbox, ELO, seguridad.
-- **[docs/DATABASE.md](docs/DATABASE.md)** — esquema de base de datos: 22 tablas por dominio, columnas, relaciones, RLS y migraciones.
+- **[docs/DATABASE.md](docs/DATABASE.md)** — esquema de base de datos: 23 tablas por dominio, columnas, relaciones, RLS y migraciones.
 - **[docs/TRACK_0.md](docs/TRACK_0.md)** — Track 0: temario, tipos de ejercicio no ejecutables, convención de pseudocódigo y por qué los diagramas no usan Mermaid.
 - **[docs/BARRIDO_PROBLEMAS.md](docs/BARRIDO_PROBLEMAS.md)** — problemas detectados con evidencia y prioridad, y cuáles siguen abiertos.
 - **[docs/RECUPERACION_PASSWORD.md](docs/RECUPERACION_PASSWORD.md)** — registro con errores por campo y recuperación de contraseña por email: diseño del token, qué no se filtra y cómo configurar Brevo.
-- **[docs/DEPLOY.md](docs/DEPLOY.md)** — despliegue Render + Vercel + Supabase.
+- **[docs/DEPLOY.md](docs/DEPLOY.md)** — despliegue Render + Vercel + Supabase, variables de entorno que ganan en el dashboard y comprobación tras desplegar.
+- **[docs/PLANTILLA_LECCION.md](docs/PLANTILLA_LECCION.md)** — estándar de una lección (estructura, ejercicios, anotación de líneas).
+- **[docs/AUDITORIA_CONTENIDO.md](docs/AUDITORIA_CONTENIDO.md)** — la auditoría que mostró que Track 1 no tenía contenido y llevó a reescribirlo.
 - **[docs/SEGURIDAD_DEPENDENCIAS.md](docs/SEGURIDAD_DEPENDENCIAS.md)** — triaje de vulnerabilidades de dependencias (P1-P4 por alcance real, no por CVSS), lo aplicado y el plan de lo que queda.
 - `docs/historico/` — `PYCODE_SPEC.md` y `PLAN_COMPLETO.md`: diseño inicial **descartado** (ejecución en Docker server-side, Kubernetes, microservicios). Se conservan como registro; no son fuente de verdad.
 
@@ -217,7 +247,7 @@ docs/
 - Async SQLAlchemy: usar `selectinload`/`joinedload` para relaciones accedidas en endpoints.
 - Añadir lección/track de **código** = agregar `LessonTemplate(track=..., category=...)` + registrar la categoría en `Competencies.tsx`. Sin migración ni endpoints nuevos. Track 0 es la excepción, ya construida: sus tipos no ejecutables viven en `exercise_type` + `spec` + `answer_key` (migración 0016) y añadir uno nuevo es un validador en `track0_service` y un componente en `components/track0/` (ver `docs/TRACK_0.md`).
 - Guard rail de no-leak: lo oculto a la UI (`hidden_tests`, `reference_solution`, y la solución de cualquier ejercicio no ejecutable) debe tener un test que verifique que no se expone.
-- Guard rail de responsive: `e2e/responsive.spec.ts` comprueba que ninguna página sea más ancha que la ventana, en 6 anchos (360–1920) **y encogiendo** una ventana que estaba a 1920 — la mitad de los fallos solo aparecen ahí. Toda columna flex que contenga Monaco, una tabla o un `pre` necesita **`min-w-0`**: sin él un hijo flex no baja del ancho de su contenido.
+- Guard rail de responsive: `e2e/responsive.spec.ts` comprueba que ninguna página sea más ancha que la ventana, en 6 anchos (360–1920) **y encogiendo** una ventana que estaba a 1920 — la mitad de los fallos solo aparecen ahí —, y que el editor (≥ 280 px) y la Salida (≥ 200 px) tengan alto en 6 ventanas. Toda columna flex que contenga Monaco, una tabla o un `pre` necesita **`min-w-0`**; y en una columna apilada, `flex-1` anula el alto propio (usar `lg:flex-1`).
 
 ## Licencia
 
