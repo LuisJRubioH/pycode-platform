@@ -10,6 +10,7 @@ import type {
   RunCapstoneTestsRequest,
   TestVerdict,
 } from "./types";
+import { limpiarTraceback } from "./traceback";
 
 const PYODIDE_INDEX_URL = "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
 
@@ -244,7 +245,8 @@ if not getattr(_plt.show, '_pycode_patched', False):
         images,
       };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      // Sin los frames internos de Pyodide: el alumno ve su linea y su error.
+      const msg = limpiarTraceback(err instanceof Error ? err.message : String(err));
       const { stdout, images } = extractImagesFromStdout(this.stdoutFinal());
       return {
         ok: false,
@@ -316,7 +318,7 @@ if not getattr(_plt.show, '_pycode_patched', False):
         ]);
         verdicts.push({ name: test.name, passed: true });
       } catch (err) {
-        const raw = err instanceof Error ? err.message : String(err);
+        const raw = limpiarTraceback(err instanceof Error ? err.message : String(err));
         verdicts.push({
           name: test.name,
           passed: false,
@@ -419,7 +421,7 @@ if not getattr(_plt.show, '_pycode_patched', False):
         ]);
         verdicts.push({ name: test.name, passed: true });
       } catch (err) {
-        const raw = err instanceof Error ? err.message : String(err);
+        const raw = limpiarTraceback(err instanceof Error ? err.message : String(err));
         verdicts.push({
           name: test.name,
           passed: false,
