@@ -23,7 +23,7 @@ Revisado: 2026-11-03. Un push a `main` dispara la CI y los despliegues automáti
    - `SENTRY_DSN` (opcional)
 5. Revisar las que llevan valor en `render.yaml`, porque **la copia del dashboard gana** sobre el archivo:
    - `LLM_MODEL` = `openai/gpt-oss-120b` (Groq retiró `llama-3.3-70b-versatile` el 2026-08-16).
-   - `CORS_ORIGINS` debe incluir el dominio exacto de Vercel, `https://pycode-platform.vercel.app`. El valor de `render.yaml` (`pycode.app`, `pycode.vercel.app`) está desfasado; el bueno es el del dashboard.
+   - `CORS_ORIGINS` = `https://pycode-platform.vercel.app` (corregido en `render.yaml` el 2026-11-03; antes decía `pycode.app,pycode.vercel.app`). **Hoy no es crítico**: el front llama a `/api` por el rewrite de Vercel, que es mismo origen, y el WebSocket no pasa por CORS. Comprobado el 2026-11-03: el backend en producción respondía `Disallowed CORS origin` al preflight desde ese dominio y la app funcionaba igual. Importaría si el front llamara a Render directamente.
    - `FRONTEND_URL` = `https://pycode-platform.vercel.app` (con él se construyen el enlace de recuperación de contraseña y la URL de verificación de los certificados).
 6. **Manual Deploy** la primera vez.
 
